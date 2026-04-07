@@ -21,21 +21,13 @@ Current pieces:
 - `qa/`: repo-backed seed assets for the kickoff task and baseline QA
   scenarios.
 
-The current QA operator flow is a two-pane QA site:
+The long-term goal is a two-pane QA site:
 
 - Left: Gateway dashboard (Control UI) with the agent.
 - Right: QA Lab, showing the Slack-ish transcript and scenario plan.
 
-Run it with:
-
-```bash
-pnpm qa:lab:up
-```
-
-That builds the QA site, starts the Docker-backed gateway lane, and exposes the
-QA Lab page where an operator or automation loop can give the agent a QA
-mission, observe real channel behavior, and record what worked, failed, or
-stayed blocked.
+That lets an operator or automation loop give the agent a QA mission, observe
+real channel behavior, and record what worked, failed, or stayed blocked.
 
 ## Repo-backed seeds
 

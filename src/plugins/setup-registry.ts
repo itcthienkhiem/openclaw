@@ -15,7 +15,6 @@ import {
   shouldPreferNativeJiti,
 } from "./sdk-alias.js";
 import type {
-  CliBackendPlugin,
   OpenClawPluginModule,
   PluginConfigMigration,
   PluginLogger,
@@ -34,11 +33,6 @@ type SetupProviderEntry = {
   provider: ProviderPlugin;
 };
 
-type SetupCliBackendEntry = {
-  pluginId: string;
-  backend: CliBackendPlugin;
-};
-
 type SetupConfigMigrationEntry = {
   pluginId: string;
   migrate: PluginConfigMigration;
@@ -51,7 +45,6 @@ type SetupAutoEnableProbeEntry = {
 
 type PluginSetupRegistry = {
   providers: SetupProviderEntry[];
-  cliBackends: SetupCliBackendEntry[];
   configMigrations: SetupConfigMigrationEntry[];
   autoEnableProbes: SetupAutoEnableProbeEntry[];
 };
@@ -79,19 +72,15 @@ export function clearPluginSetupRegistryCache(): void {
 
 function getJiti(modulePath: string) {
   const aliasMap = buildPluginLoaderAliasMap(modulePath, process.argv[1], import.meta.url);
-  const tryNative = shouldPreferNativeJiti(modulePath);
   const cacheKey = JSON.stringify({
-    tryNative,
+    tryNative: shouldPreferNativeJiti(modulePath),
     aliasMap: Object.entries(aliasMap).toSorted(([left], [right]) => left.localeCompare(right)),
   });
   const cached = jitiLoaders.get(cacheKey);
   if (cached) {
     return cached;
   }
-  const loader = createJiti(modulePath, {
-    ...buildPluginLoaderJitiOptions(aliasMap),
-    tryNative,
-  });
+  const loader = createJiti(modulePath, buildPluginLoaderJitiOptions(aliasMap));
   jitiLoaders.set(cacheKey, loader);
   return loader;
 }
@@ -195,11 +184,9 @@ export function resolvePluginSetupRegistry(params?: {
   }
 
   const providers: SetupProviderEntry[] = [];
-  const cliBackends: SetupCliBackendEntry[] = [];
   const configMigrations: SetupConfigMigrationEntry[] = [];
   const autoEnableProbes: SetupAutoEnableProbeEntry[] = [];
   const providerKeys = new Set<string>();
-  const cliBackendKeys = new Set<string>();
 
   const discovery = discoverOpenClawPlugins({
     workspaceDir: params?.workspaceDir,
@@ -259,17 +246,6 @@ export function resolvePluginSetupRegistry(params?: {
             provider,
           });
         },
-        registerCliBackend(backend) {
-          const key = `${record.id}:${normalizeProviderId(backend.id)}`;
-          if (cliBackendKeys.has(key)) {
-            return;
-          }
-          cliBackendKeys.add(key);
-          cliBackends.push({
-            pluginId: record.id,
-            backend,
-          });
-        },
         registerConfigMigration(migrate) {
           configMigrations.push({
             pluginId: record.id,
@@ -297,7 +273,6 @@ export function resolvePluginSetupRegistry(params?: {
 
   const registry = {
     providers,
-    cliBackends,
     configMigrations,
     autoEnableProbes,
   } satisfies PluginSetupRegistry;
@@ -403,17 +378,6 @@ export function resolvePluginSetupProvider(params: {
 
   setupProviderCache.set(cacheKey, matchedProvider ?? null);
   return matchedProvider;
-}
-
-export function resolvePluginSetupCliBackend(params: {
-  backend: string;
-  workspaceDir?: string;
-  env?: NodeJS.ProcessEnv;
-}): SetupCliBackendEntry | undefined {
-  const normalized = normalizeProviderId(params.backend);
-  return resolvePluginSetupRegistry(params).cliBackends.find(
-    (entry) => normalizeProviderId(entry.backend.id) === normalized,
-  );
 }
 
 export function runPluginSetupConfigMigrations(params: {

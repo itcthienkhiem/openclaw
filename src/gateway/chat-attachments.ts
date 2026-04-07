@@ -1,4 +1,3 @@
-import { formatErrorMessage } from "../infra/errors.js";
 import { estimateBase64DecodedBytes } from "../media/base64.js";
 import type { PromptImageOrderEntry } from "../media/prompt-image-order.js";
 import { sniffMimeFromBase64 } from "../media/sniff-mime-from-base64.js";
@@ -429,7 +428,7 @@ export async function parseMessageWithAttachments(
 
           isOffloaded = true;
         } catch (err) {
-          const errorMessage = formatErrorMessage(err);
+          const errorMessage = err instanceof Error ? err.message : String(err);
           throw new MediaOffloadError(
             `[Gateway Error] Failed to save intercepted media to disk: ${errorMessage}`,
             { cause: err },

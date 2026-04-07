@@ -20,9 +20,7 @@ type RegisteredTool = {
 };
 
 function toToolList(value: AnyAgentTool | AnyAgentTool[] | null | undefined): AnyAgentTool[] {
-  if (!value) {
-    return [];
-  }
+  if (!value) return [];
   return Array.isArray(value) ? value : [value];
 }
 

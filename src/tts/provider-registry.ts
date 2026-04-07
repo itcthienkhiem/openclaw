@@ -1,16 +1,17 @@
 import type { OpenClawConfig } from "../config/config.js";
 import { resolvePluginCapabilityProviders } from "../plugins/capability-provider-runtime.js";
-import {
-  buildCapabilityProviderMaps,
-  normalizeCapabilityProviderId,
-} from "../plugins/provider-registry-shared.js";
 import type { SpeechProviderPlugin } from "../plugins/types.js";
 import type { SpeechProviderId } from "./provider-types.js";
+
+function trimToUndefined(value: string | undefined): string | undefined {
+  const trimmed = value?.trim().toLowerCase();
+  return trimmed ? trimmed : undefined;
+}
 
 export function normalizeSpeechProviderId(
   providerId: string | undefined,
 ): SpeechProviderId | undefined {
-  return normalizeCapabilityProviderId(providerId);
+  return trimToUndefined(providerId);
 }
 
 function resolveSpeechProviderPluginEntries(cfg?: OpenClawConfig): SpeechProviderPlugin[] {
@@ -24,7 +25,28 @@ function buildProviderMaps(cfg?: OpenClawConfig): {
   canonical: Map<string, SpeechProviderPlugin>;
   aliases: Map<string, SpeechProviderPlugin>;
 } {
-  return buildCapabilityProviderMaps(resolveSpeechProviderPluginEntries(cfg));
+  const canonical = new Map<string, SpeechProviderPlugin>();
+  const aliases = new Map<string, SpeechProviderPlugin>();
+  const register = (provider: SpeechProviderPlugin) => {
+    const id = normalizeSpeechProviderId(provider.id);
+    if (!id) {
+      return;
+    }
+    canonical.set(id, provider);
+    aliases.set(id, provider);
+    for (const alias of provider.aliases ?? []) {
+      const normalizedAlias = normalizeSpeechProviderId(alias);
+      if (normalizedAlias) {
+        aliases.set(normalizedAlias, provider);
+      }
+    }
+  };
+
+  for (const provider of resolveSpeechProviderPluginEntries(cfg)) {
+    register(provider);
+  }
+
+  return { canonical, aliases };
 }
 
 export function listSpeechProviders(cfg?: OpenClawConfig): SpeechProviderPlugin[] {

@@ -20,7 +20,6 @@ import {
 import { resolveRequiredHomeDir } from "../infra/home-dir.js";
 import { resolveMemoryBackendConfig } from "../memory-host-sdk/engine-storage.js";
 import { parseAgentSessionKey } from "../sessions/session-key-utils.js";
-import { asNullableObjectRecord } from "../shared/record-coerce.js";
 import { note } from "../terminal/note.js";
 import { shortenHomePath } from "../utils.js";
 
@@ -419,27 +418,28 @@ export function detectMacCloudSyncedStateDir(
   return null;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 function isPairingPolicy(value: unknown): boolean {
   return typeof value === "string" && value.trim().toLowerCase() === "pairing";
 }
 
 function hasPairingPolicy(value: unknown): boolean {
-  const record = asNullableObjectRecord(value);
-  if (!record) {
+  if (!isRecord(value)) {
     return false;
   }
-  if (isPairingPolicy(record.dmPolicy)) {
+  if (isPairingPolicy(value.dmPolicy)) {
     return true;
   }
-  const dm = asNullableObjectRecord(record.dm);
-  if (dm && isPairingPolicy(dm.policy)) {
+  if (isRecord(value.dm) && isPairingPolicy(value.dm.policy)) {
     return true;
   }
-  const accounts = asNullableObjectRecord(record.accounts);
-  if (!accounts) {
+  if (!isRecord(value.accounts)) {
     return false;
   }
-  for (const accountCfg of Object.values(accounts)) {
+  for (const accountCfg of Object.values(value.accounts)) {
     if (hasPairingPolicy(accountCfg)) {
       return true;
     }
@@ -460,8 +460,8 @@ function shouldRequireOAuthDir(cfg: OpenClawConfig, env: NodeJS.ProcessEnv): boo
   if (env.OPENCLAW_OAUTH_DIR?.trim()) {
     return true;
   }
-  const channels = asNullableObjectRecord(cfg.channels);
-  if (!channels) {
+  const channels = cfg.channels;
+  if (!isRecord(channels)) {
     return false;
   }
   for (const channelId of listBundledChannelPluginIds()) {

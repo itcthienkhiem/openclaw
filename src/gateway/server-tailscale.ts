@@ -1,4 +1,3 @@
-import { formatErrorMessage } from "../infra/errors.js";
 import {
   disableTailscaleFunnel,
   disableTailscaleServe,
@@ -34,7 +33,9 @@ export async function startGatewayTailscaleExposure(params: {
       params.logTailscale.info(`${params.tailscaleMode} enabled`);
     }
   } catch (err) {
-    params.logTailscale.warn(`${params.tailscaleMode} failed: ${formatErrorMessage(err)}`);
+    params.logTailscale.warn(
+      `${params.tailscaleMode} failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 
   if (!params.resetOnExit) {
@@ -50,7 +51,7 @@ export async function startGatewayTailscaleExposure(params: {
       }
     } catch (err) {
       params.logTailscale.warn(
-        `${params.tailscaleMode} cleanup failed: ${formatErrorMessage(err)}`,
+        `${params.tailscaleMode} cleanup failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   };

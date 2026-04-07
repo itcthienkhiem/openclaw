@@ -36,7 +36,6 @@ import { apiThrottler, Bot, sequentialize, type ApiClientOptions } from "./bot.r
 import { buildTelegramGroupPeerId, resolveTelegramStreamMode } from "./bot/helpers.js";
 import { resolveTelegramTransport, type TelegramTransport } from "./fetch.js";
 import { tagTelegramNetworkError } from "./network-errors.js";
-import { resolveTelegramRequestTimeoutMs } from "./request-timeouts.js";
 import { createTelegramSendChatActionHandler } from "./sendchataction-401-backoff.js";
 import { getTelegramSequentialKey } from "./sequential-key.js";
 import { createTelegramThreadBindingManager } from "./thread-bindings.js";
@@ -81,6 +80,8 @@ const DEFAULT_TELEGRAM_BOT_RUNTIME: TelegramBotRuntime = {
   sequentialize,
   apiThrottler,
 };
+
+const TELEGRAM_GET_UPDATES_REQUEST_TIMEOUT_MS = 45_000;
 
 let telegramBotRuntimeForTest: TelegramBotRuntime | undefined;
 
@@ -199,7 +200,8 @@ export function createTelegramBot(opts: TelegramBotOptions): TelegramBotInstance
         }
       };
       const method = extractTelegramApiMethod(input);
-      const requestTimeoutMs = resolveTelegramRequestTimeoutMs(method);
+      const requestTimeoutMs =
+        method === "getupdates" ? TELEGRAM_GET_UPDATES_REQUEST_TIMEOUT_MS : undefined;
       let requestTimeout: ReturnType<typeof setTimeout> | undefined;
       let onRequestAbort: (() => void) | undefined;
       const requestSignal = init?.signal;

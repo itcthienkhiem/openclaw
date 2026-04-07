@@ -1,6 +1,8 @@
 import { describeWebhookAccountSnapshot } from "openclaw/plugin-sdk/account-helpers";
 import { hasLineCredentials, parseLineAllowFromId } from "./account-helpers.js";
 import {
+  DEFAULT_ACCOUNT_ID,
+  normalizeAccountId,
   resolveLineAccount,
   type ChannelPlugin,
   type OpenClawConfig,

@@ -48,7 +48,7 @@ export function createMSTeamsMessageHandlerDeps(params?: {
   };
 
   return {
-    cfg: params?.cfg ?? {},
+    cfg: (params?.cfg ?? {}) as OpenClawConfig,
     runtime: (params?.runtime ?? { error: vi.fn() }) as RuntimeEnv,
     appId: "test-app-id",
     adapter,

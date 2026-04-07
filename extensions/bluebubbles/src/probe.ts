@@ -1,4 +1,3 @@
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import type { BaseProbeResult } from "./runtime-api.js";
 import { normalizeSecretInputString } from "./secret-input.js";
 import { buildBlueBubblesApiUrl, blueBubblesFetchWithTimeout } from "./types.js";
@@ -173,7 +172,7 @@ export async function probeBlueBubbles(params: {
     return {
       ok: false,
       status: null,
-      error: formatErrorMessage(err),
+      error: err instanceof Error ? err.message : String(err),
     };
   }
 }

@@ -2,7 +2,6 @@ import os from "node:os";
 import path from "node:path";
 import { resolveStateDir } from "../config/paths.js";
 import { loadJsonFile, saveJsonFile } from "../infra/json-file.js";
-import { readStringValue } from "../shared/string-coerce.js";
 import { normalizeDeliveryContext } from "../utils/delivery-context.js";
 import type { SubagentRunRecord } from "./subagent-registry.types.js";
 
@@ -85,8 +84,9 @@ export function loadSubagentRegistryFromDisk(): Map<string, SubagentRunRecord> {
           : undefined;
     const requesterOrigin = normalizeDeliveryContext(
       typed.requesterOrigin ?? {
-        channel: readStringValue(typed.requesterChannel),
-        accountId: readStringValue(typed.requesterAccountId),
+        channel: typeof typed.requesterChannel === "string" ? typed.requesterChannel : undefined,
+        accountId:
+          typeof typed.requesterAccountId === "string" ? typed.requesterAccountId : undefined,
       },
     );
     const {

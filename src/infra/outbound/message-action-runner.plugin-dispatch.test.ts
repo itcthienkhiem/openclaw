@@ -32,21 +32,6 @@ vi.mock("./outbound-session.js", () => ({
   resolveOutboundSessionRoute: vi.fn(async () => null),
 }));
 
-vi.mock("../../channels/plugins/bootstrap-registry.js", () => ({
-  getBootstrapChannelPlugin: (id: string) =>
-    id === "feishu"
-      ? {
-          actions: {
-            messageActionTargetAliases: {
-              pin: { aliases: ["messageId"] },
-              unpin: { aliases: ["messageId"] },
-              "list-pins": { aliases: ["chatId"] },
-            },
-          },
-        }
-      : undefined,
-}));
-
 vi.mock("./message-action-threading.js", () => ({
   resolveAndApplyOutboundThreadId: vi.fn(
     (
@@ -246,11 +231,6 @@ describe("runMessageAction plugin dispatch", () => {
       },
       capabilities: { chatTypes: ["direct", "channel"] },
       config: createAlwaysConfiguredPluginConfig(),
-      messaging: {
-        targetResolver: {
-          looksLikeId: () => true,
-        },
-      },
       actions: {
         describeMessageTool: () => ({ actions: ["pin", "list-pins", "member-info"] }),
         supportsAction: ({ action }) =>
@@ -355,8 +335,7 @@ describe("runMessageAction plugin dispatch", () => {
         sessionId: "session-123",
         agentId: "alpha",
         toolContext: {
-          currentChannelId: "oc_123",
-          currentChannelProvider: "feishu",
+          currentChannelId: "chat:oc_123",
           currentThreadTs: "thread-456",
           currentMessageId: "msg-789",
         },
@@ -373,8 +352,7 @@ describe("runMessageAction plugin dispatch", () => {
           agentId: "alpha",
           mediaLocalRoots: expect.arrayContaining([expectedWorkspaceRoot]),
           toolContext: expect.objectContaining({
-            currentChannelId: "oc_123",
-            currentChannelProvider: "feishu",
+            currentChannelId: "chat:oc_123",
             currentThreadTs: "thread-456",
             currentMessageId: "msg-789",
           }),

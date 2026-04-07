@@ -10,7 +10,6 @@ import {
   splitSetupEntries,
 } from "./setup-wizard-helpers.js";
 import type {
-  ChannelSetupPlugin,
   ChannelSetupWizardAdapter,
   ChannelSetupConfigureContext,
   ChannelSetupDmPolicy,
@@ -18,6 +17,7 @@ import type {
   ChannelSetupStatusContext,
 } from "./setup-wizard-types.js";
 import type { ChannelSetupInput } from "./types.core.js";
+import type { ChannelPlugin } from "./types.js";
 
 export type ChannelSetupWizardStatus = {
   configuredLabel: string;
@@ -282,7 +282,7 @@ export type ChannelSetupWizard = {
   onAccountRecorded?: ChannelSetupWizardAdapter["onAccountRecorded"];
 };
 
-type ChannelSetupWizardPlugin = ChannelSetupPlugin;
+type ChannelSetupWizardPlugin = Pick<ChannelPlugin, "id" | "meta" | "config" | "setup">;
 
 async function buildStatus(
   plugin: ChannelSetupWizardPlugin,

@@ -24,7 +24,6 @@ import type { OpenClawConfig, ConfigFileSnapshot } from "../config/config.js";
 import { collectIncludePathsRecursive } from "../config/includes-scan.js";
 import { resolveOAuthDir } from "../config/paths.js";
 import type { AgentToolsConfig } from "../config/types.tools.js";
-import { readInstalledPackageVersion } from "../infra/package-update-utils.js";
 import { normalizePluginsConfig } from "../plugins/config-state.js";
 import { normalizeAgentId } from "../routing/session-key.js";
 import {
@@ -329,6 +328,16 @@ function isPinnedRegistrySpec(spec: string): boolean {
   }
   const version = value.slice(at + 1).trim();
   return /^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(version);
+}
+
+async function readInstalledPackageVersion(dir: string): Promise<string | undefined> {
+  try {
+    const raw = await fs.readFile(path.join(dir, "package.json"), "utf-8");
+    const parsed = JSON.parse(raw) as { version?: unknown };
+    return typeof parsed.version === "string" ? parsed.version : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function buildCodeSafetySummaryCacheKey(params: {
@@ -767,6 +776,7 @@ export async function collectPluginsTrustFindings(params: {
         continue;
       }
       const installPath = record.installPath ?? path.join(params.stateDir, "extensions", pluginId);
+      // eslint-disable-next-line no-await-in-loop
       const installedVersion = await readInstalledPackageVersion(installPath);
       if (!installedVersion || installedVersion === recordedVersion) {
         continue;
@@ -829,6 +839,7 @@ export async function collectPluginsTrustFindings(params: {
         continue;
       }
       const installPath = record.installPath ?? path.join(params.stateDir, "hooks", hookId);
+      // eslint-disable-next-line no-await-in-loop
       const installedVersion = await readInstalledPackageVersion(installPath);
       if (!installedVersion || installedVersion === recordedVersion) {
         continue;
@@ -945,6 +956,7 @@ export async function collectIncludeFilePermFindings(params: {
   }
 
   for (const p of includePaths) {
+    // eslint-disable-next-line no-await-in-loop
     const perms = await inspectPathPermissions(p, {
       env: params.env,
       platform: params.platform,
@@ -1059,6 +1071,7 @@ export async function collectStateDeepFilesystemFindings(params: {
   for (const agentId of ids) {
     const agentDir = path.join(params.stateDir, "agents", agentId, "agent");
     const authPath = path.join(agentDir, "auth-profiles.json");
+    // eslint-disable-next-line no-await-in-loop
     const authPerms = await inspectPathPermissions(authPath, {
       env: params.env,
       platform: params.platform,
@@ -1097,6 +1110,7 @@ export async function collectStateDeepFilesystemFindings(params: {
     }
 
     const storePath = path.join(params.stateDir, "agents", agentId, "sessions", "sessions.json");
+    // eslint-disable-next-line no-await-in-loop
     const storePerms = await inspectPathPermissions(storePath, {
       env: params.env,
       platform: params.platform,

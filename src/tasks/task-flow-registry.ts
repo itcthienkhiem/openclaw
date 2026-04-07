@@ -1,5 +1,4 @@
 import crypto from "node:crypto";
-import { formatErrorMessage } from "../infra/errors.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import {
   getTaskFlowRegistryObservers,
@@ -213,7 +212,7 @@ function ensureFlowRegistryReady() {
     restoreFailureMessage = null;
   } catch (error) {
     flows.clear();
-    restoreFailureMessage = formatErrorMessage(error);
+    restoreFailureMessage = error instanceof Error ? error.message : String(error);
     log.warn("Failed to restore task-flow registry", { error });
     return;
   }

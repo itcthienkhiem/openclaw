@@ -1,4 +1,6 @@
 import {
+  BlockStreamingCoalesceSchema,
+  DmConfigSchema,
   DmPolicySchema,
   GroupPolicySchema,
   MarkdownConfigSchema,

@@ -34,7 +34,7 @@ vi.mock("../../plugins/hook-runner-global.js", () => ({
     }) as unknown as HookRunner,
 }));
 
-const { emitResetCommandHooks } = await import("./commands-reset-hooks.js");
+const { emitResetCommandHooks } = await import("./commands-core.js");
 
 describe("emitResetCommandHooks", () => {
   async function runBeforeResetContext(sessionKey?: string) {

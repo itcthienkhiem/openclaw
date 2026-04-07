@@ -1,5 +1,4 @@
 import { Type } from "@sinclair/typebox";
-import { extractToolSend } from "openclaw/plugin-sdk/tool-send";
 import { requiresExplicitMatrixDefaultAccount } from "./account-selection.js";
 import { resolveDefaultMatrixAccountId, resolveMatrixAccount } from "./matrix/accounts.js";
 import {
@@ -134,7 +133,15 @@ export const matrixMessageActions: ChannelMessageActionAdapter = {
   },
   supportsAction: ({ action }) => MATRIX_PLUGIN_HANDLED_ACTIONS.has(action),
   extractToolSend: ({ args }): ChannelToolSend | null => {
-    return extractToolSend(args, "sendMessage");
+    const action = typeof args.action === "string" ? args.action.trim() : "";
+    if (action !== "sendMessage") {
+      return null;
+    }
+    const to = typeof args.to === "string" ? args.to : undefined;
+    if (!to) {
+      return null;
+    }
+    return { to };
   },
   handleAction: async (ctx: ChannelMessageActionContext) => {
     const { handleMatrixAction } = await import("./tool-actions.runtime.js");

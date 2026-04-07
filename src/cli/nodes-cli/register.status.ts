@@ -1,5 +1,4 @@
 import type { Command } from "commander";
-import { formatErrorMessage } from "../../infra/errors.js";
 import { formatTimeAgo } from "../../infra/format-time/format-relative.ts";
 import { defaultRuntime } from "../../runtime.js";
 import { getTerminalTableWidth, renderTable } from "../../terminal/table.js";
@@ -100,7 +99,7 @@ function parseSinceMs(raw: unknown, label: string): number | undefined {
   try {
     return parseDurationMs(value);
   } catch (err) {
-    const message = formatErrorMessage(err);
+    const message = err instanceof Error ? err.message : String(err);
     defaultRuntime.error(`${label}: ${message}`);
     defaultRuntime.exit(1);
     return undefined;

@@ -50,11 +50,7 @@ export function buildComfyMusicGenerationProvider(): MusicGenerationProvider {
         capability: "music",
       }),
     capabilities: {
-      generate: {},
-      edit: {
-        enabled: true,
-        maxInputImages: COMFY_MAX_INPUT_IMAGES,
-      },
+      maxInputImages: COMFY_MAX_INPUT_IMAGES,
     },
     async generateMusic(req) {
       if ((req.inputImages?.length ?? 0) > COMFY_MAX_INPUT_IMAGES) {

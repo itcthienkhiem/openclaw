@@ -6,7 +6,6 @@ import {
 } from "../../cron/run-log.js";
 import type { CronJobCreate, CronJobPatch } from "../../cron/types.js";
 import { validateScheduleTimestamp } from "../../cron/validate-timestamp.js";
-import { formatErrorMessage } from "../../infra/errors.js";
 import {
   ErrorCodes,
   errorShape,
@@ -106,7 +105,7 @@ export const cronHandlers: GatewayRequestHandlers = {
         undefined,
         errorShape(
           ErrorCodes.INVALID_REQUEST,
-          `invalid cron.add params: ${formatErrorMessage(err)}`,
+          `invalid cron.add params: ${err instanceof Error ? err.message : String(err)}`,
         ),
       );
       return;
@@ -146,7 +145,7 @@ export const cronHandlers: GatewayRequestHandlers = {
         undefined,
         errorShape(
           ErrorCodes.INVALID_REQUEST,
-          `invalid cron.update params: ${formatErrorMessage(err)}`,
+          `invalid cron.update params: ${err instanceof Error ? err.message : String(err)}`,
         ),
       );
       return;
@@ -250,7 +249,7 @@ export const cronHandlers: GatewayRequestHandlers = {
     try {
       result = await context.cron.enqueueRun(jobId, p.mode ?? "force");
     } catch (error) {
-      const message = formatErrorMessage(error);
+      const message = error instanceof Error ? error.message : String(error);
       if (message === "invalid cron sessionTarget session id") {
         respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, message));
         return;

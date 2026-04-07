@@ -8,7 +8,6 @@ import {
   mockNpmPackMetadataResult,
 } from "../test-utils/npm-spec-install-test-helpers.js";
 import { installPluginFromNpmSpec, PLUGIN_INSTALL_ERROR_CODE } from "./install.js";
-import { createSuiteTempRootTracker } from "./test-helpers/fs-fixtures.js";
 
 const runCommandWithTimeoutMock = vi.fn();
 
@@ -16,9 +15,27 @@ vi.mock("../process/exec.js", () => ({
   runCommandWithTimeout: (...args: unknown[]) => runCommandWithTimeoutMock(...args),
 }));
 
+let suiteTempRoot = "";
+let tempDirCounter = 0;
 const dynamicArchiveTemplatePathCache = new Map<string, string>();
 const pluginFixturesDir = path.resolve(process.cwd(), "test", "fixtures", "plugins-install");
-const suiteTempRootTracker = createSuiteTempRootTracker("openclaw-plugin-install-npm-spec");
+
+function ensureSuiteTempRoot() {
+  if (suiteTempRoot) {
+    return suiteTempRoot;
+  }
+  const bundleTempRoot = path.join(process.cwd(), ".tmp");
+  fs.mkdirSync(bundleTempRoot, { recursive: true });
+  suiteTempRoot = fs.mkdtempSync(path.join(bundleTempRoot, "openclaw-plugin-install-npm-spec-"));
+  return suiteTempRoot;
+}
+
+function makeTempDir() {
+  const dir = path.join(ensureSuiteTempRoot(), `case-${String(tempDirCounter)}`);
+  tempDirCounter += 1;
+  fs.mkdirSync(dir);
+  return dir;
+}
 
 function readVoiceCallArchiveBuffer(version: string): Buffer {
   return fs.readFileSync(path.join(pluginFixturesDir, `voice-call-${version}.tgz`));
@@ -75,7 +92,7 @@ async function ensureDynamicArchiveTemplate(params: {
   if (cachedPath) {
     return cachedPath;
   }
-  const templateDir = suiteTempRootTracker.makeTempDir();
+  const templateDir = makeTempDir();
   const pkgDir = params.flatRoot ? templateDir : path.join(templateDir, "package");
   fs.mkdirSync(pkgDir, { recursive: true });
   if (params.withDistIndex) {
@@ -89,7 +106,7 @@ async function ensureDynamicArchiveTemplate(params: {
   fs.writeFileSync(path.join(pkgDir, "package.json"), JSON.stringify(params.packageJson), "utf-8");
   const archivePath = await packToArchive({
     pkgDir,
-    outDir: suiteTempRootTracker.ensureSuiteTempRoot(),
+    outDir: ensureSuiteTempRoot(),
     outName: params.outName,
     flatRoot: params.flatRoot,
   });
@@ -98,8 +115,16 @@ async function ensureDynamicArchiveTemplate(params: {
 }
 
 afterAll(() => {
-  suiteTempRootTracker.cleanup();
-  dynamicArchiveTemplatePathCache.clear();
+  if (!suiteTempRoot) {
+    return;
+  }
+  try {
+    fs.rmSync(suiteTempRoot, { recursive: true, force: true });
+  } finally {
+    suiteTempRoot = "";
+    tempDirCounter = 0;
+    dynamicArchiveTemplatePathCache.clear();
+  }
 });
 
 beforeEach(() => {
@@ -109,7 +134,7 @@ beforeEach(() => {
 
 describe("installPluginFromNpmSpec", () => {
   it("uses --ignore-scripts for npm pack and cleans up temp dir", async () => {
-    const stateDir = suiteTempRootTracker.makeTempDir();
+    const stateDir = makeTempDir();
     const extensionsDir = path.join(stateDir, "extensions");
     fs.mkdirSync(extensionsDir, { recursive: true });
 
@@ -165,7 +190,7 @@ describe("installPluginFromNpmSpec", () => {
   });
 
   it("allows npm-spec installs with dangerous code patterns when forced unsafe install is set", async () => {
-    const stateDir = suiteTempRootTracker.makeTempDir();
+    const stateDir = makeTempDir();
     const extensionsDir = path.join(stateDir, "extensions");
     fs.mkdirSync(extensionsDir, { recursive: true });
 
@@ -339,7 +364,7 @@ describe("installPluginFromNpmSpec", () => {
         throw new Error(`unexpected command: ${argv.join(" ")}`);
       });
 
-      const stateDir = suiteTempRootTracker.makeTempDir();
+      const stateDir = makeTempDir();
       const extensionsDir = path.join(stateDir, "extensions");
       fs.mkdirSync(extensionsDir, { recursive: true });
       const result = await installPluginFromNpmSpec({

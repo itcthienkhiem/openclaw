@@ -4,26 +4,8 @@ import {
   VerifierEvent,
 } from "matrix-js-sdk/lib/crypto-api/verification.js";
 import { VerificationMethod } from "matrix-js-sdk/lib/types.js";
-import { formatMatrixErrorMessage } from "../errors.js";
 
 export type MatrixVerificationMethod = "sas" | "show-qr" | "scan-qr";
-type MatrixVerificationPhase = VerificationPhase | -1;
-
-const MATRIX_VERIFICATION_PHASES = new Set<MatrixVerificationPhase>([
-  -1,
-  VerificationPhase.Unsent,
-  VerificationPhase.Requested,
-  VerificationPhase.Ready,
-  VerificationPhase.Started,
-  VerificationPhase.Cancelled,
-  VerificationPhase.Done,
-]);
-
-function isMatrixVerificationPhase(value: unknown): value is MatrixVerificationPhase {
-  return (
-    typeof value === "number" && MATRIX_VERIFICATION_PHASES.has(value as MatrixVerificationPhase)
-  );
-}
 
 export type MatrixVerificationSummary = {
   id: string;
@@ -100,7 +82,7 @@ export type MatrixVerificationRequestLike = {
 };
 
 export type MatrixVerificationCryptoApi = {
-  requestOwnUserVerification: () => Promise<MatrixVerificationRequestLike | null>;
+  requestOwnUserVerification: () => Promise<unknown | null>;
   findVerificationRequestDMInProgress?: (
     roomId: string,
     userId: string,
@@ -155,17 +137,9 @@ export class MatrixVerificationManager {
     }
   }
 
-  private readVerificationPhase(
-    request: MatrixVerificationRequestLike,
-    fallback: MatrixVerificationPhase,
-  ): MatrixVerificationPhase {
-    const phase = this.readRequestValue<unknown>(request, () => request.phase, fallback);
-    return isMatrixVerificationPhase(phase) ? phase : fallback;
-  }
-
   private pruneVerificationSessions(nowMs: number): void {
     for (const [id, session] of this.verificationSessions) {
-      const phase = this.readVerificationPhase(session.request, -1);
+      const phase = this.readRequestValue(session.request, () => session.request.phase, -1);
       const isTerminal = phase === VerificationPhase.Done || phase === VerificationPhase.Cancelled;
       if (isTerminal && nowMs - session.updatedAtMs > TERMINAL_SESSION_RETENTION_MS) {
         this.verificationSessions.delete(id);
@@ -176,7 +150,7 @@ export class MatrixVerificationManager {
       return;
     }
 
-    const sortedByAge = Array.from(this.verificationSessions.entries()).toSorted(
+    const sortedByAge = Array.from(this.verificationSessions.entries()).sort(
       (a, b) => a[1].updatedAtMs - b[1].updatedAtMs,
     );
     const overflow = this.verificationSessions.size - MAX_TRACKED_VERIFICATION_SESSIONS;
@@ -188,7 +162,7 @@ export class MatrixVerificationManager {
     }
   }
 
-  private getVerificationPhaseName(phase: MatrixVerificationPhase): string {
+  private getVerificationPhaseName(phase: number): string {
     switch (phase) {
       case VerificationPhase.Unsent:
         return "unsent";
@@ -229,7 +203,7 @@ export class MatrixVerificationManager {
 
   private buildVerificationSummary(session: MatrixVerificationSession): MatrixVerificationSummary {
     const request = session.request;
-    const phase = this.readVerificationPhase(request, VerificationPhase.Requested);
+    const phase = this.readRequestValue(request, () => request.phase, VerificationPhase.Requested);
     const accepting = this.readRequestValue(request, () => request.accepting, false);
     const declining = this.readRequestValue(request, () => request.declining, false);
     const pending = this.readRequestValue(request, () => request.pending, false);
@@ -313,7 +287,7 @@ export class MatrixVerificationManager {
       false,
     );
     const initiatedByMe = this.readRequestValue(request, () => request.initiatedByMe, false);
-    const phase = this.readVerificationPhase(request, VerificationPhase.Requested);
+    const phase = this.readRequestValue(request, () => request.phase, VerificationPhase.Requested);
     const accepting = this.readRequestValue(request, () => request.accepting, false);
     const declining = this.readRequestValue(request, () => request.declining, false);
     if (isSelfVerification || initiatedByMe) {
@@ -331,7 +305,7 @@ export class MatrixVerificationManager {
       })
       .catch((err) => {
         session.acceptRequested = false;
-        session.error = formatMatrixErrorMessage(err);
+        session.error = err instanceof Error ? err.message : String(err);
         this.touchVerificationSession(session);
       });
   }
@@ -346,7 +320,11 @@ export class MatrixVerificationManager {
     if (!this.readRequestValue(session.request, () => session.request.isSelfVerification, false)) {
       return;
     }
-    const phase = this.readVerificationPhase(session.request, VerificationPhase.Requested);
+    const phase = this.readRequestValue(
+      session.request,
+      () => session.request.phase,
+      VerificationPhase.Requested,
+    );
     if (phase < VerificationPhase.Ready || phase >= VerificationPhase.Cancelled) {
       return;
     }
@@ -416,7 +394,7 @@ export class MatrixVerificationManager {
     });
     verifier.on(VerifierEvent.Cancel, (err) => {
       this.clearSasAutoConfirmTimer(session);
-      session.error = formatMatrixErrorMessage(err);
+      session.error = err instanceof Error ? err.message : String(err);
       this.touchVerificationSession(session);
     });
     this.ensureVerificationStarted(session);
@@ -438,7 +416,11 @@ export class MatrixVerificationManager {
     // we send our MAC and finish our side of the SAS flow.
     session.sasAutoConfirmTimer = setTimeout(() => {
       session.sasAutoConfirmTimer = undefined;
-      const phase = this.readVerificationPhase(session.request, VerificationPhase.Requested);
+      const phase = this.readRequestValue(
+        session.request,
+        () => session.request.phase,
+        VerificationPhase.Requested,
+      );
       if (phase >= VerificationPhase.Cancelled) {
         return;
       }
@@ -449,7 +431,7 @@ export class MatrixVerificationManager {
           this.touchVerificationSession(session);
         })
         .catch((err) => {
-          session.error = formatMatrixErrorMessage(err);
+          session.error = err instanceof Error ? err.message : String(err);
           this.touchVerificationSession(session);
         });
     }, SAS_AUTO_CONFIRM_DELAY_MS);
@@ -467,7 +449,7 @@ export class MatrixVerificationManager {
         this.touchVerificationSession(session);
       })
       .catch((err) => {
-        session.error = formatMatrixErrorMessage(err);
+        session.error = err instanceof Error ? err.message : String(err);
         this.touchVerificationSession(session);
       });
   }
@@ -532,7 +514,8 @@ export class MatrixVerificationManager {
     if (!crypto) {
       return null;
     }
-    const request = await crypto.requestOwnUserVerification();
+    const request =
+      (await crypto.requestOwnUserVerification()) as MatrixVerificationRequestLike | null;
     if (!request) {
       return null;
     }
@@ -544,7 +527,7 @@ export class MatrixVerificationManager {
     const summaries = Array.from(this.verificationSessions.values()).map((session) =>
       this.buildVerificationSummary(session),
     );
-    return summaries.toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return summaries.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
   async requestVerification(
@@ -561,7 +544,7 @@ export class MatrixVerificationManager {
     }
     let request: MatrixVerificationRequestLike | null = null;
     if (params.ownUser) {
-      request = await crypto.requestOwnUserVerification();
+      request = (await crypto.requestOwnUserVerification()) as MatrixVerificationRequestLike | null;
     } else if (params.userId && params.deviceId && crypto.requestDeviceVerification) {
       request = await crypto.requestDeviceVerification(params.userId, params.deviceId);
     } else if (params.userId && params.roomId && crypto.requestVerificationDM) {

@@ -1,27 +1,23 @@
 import crypto from "node:crypto";
 import { createServer as createHttpServer } from "node:http";
 import { loadConfig } from "../config/config.js";
-import { formatErrorMessage } from "../infra/errors.js";
 import { logDebug, logWarn } from "../logger.js";
 import { handleMcpJsonRpc } from "./mcp-http.handlers.js";
-import {
-  clearActiveMcpLoopbackRuntime,
-  createMcpLoopbackServerConfig,
-  getActiveMcpLoopbackRuntime,
-  setActiveMcpLoopbackRuntime,
-} from "./mcp-http.loopback-runtime.js";
 import { jsonRpcError, type JsonRpcRequest } from "./mcp-http.protocol.js";
 import {
   readMcpHttpBody,
   resolveMcpRequestContext,
   validateMcpLoopbackRequest,
 } from "./mcp-http.request.js";
-import { McpLoopbackToolCache } from "./mcp-http.runtime.js";
-
-export {
+import {
+  clearActiveMcpLoopbackRuntime,
   createMcpLoopbackServerConfig,
   getActiveMcpLoopbackRuntime,
-} from "./mcp-http.loopback-runtime.js";
+  McpLoopbackToolCache,
+  setActiveMcpLoopbackRuntime,
+} from "./mcp-http.runtime.js";
+
+export { createMcpLoopbackServerConfig, getActiveMcpLoopbackRuntime } from "./mcp-http.runtime.js";
 
 export async function startMcpLoopbackServer(port = 0): Promise<{
   port: number;
@@ -73,7 +69,9 @@ export async function startMcpLoopbackServer(port = 0): Promise<{
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(payload);
       } catch (error) {
-        logWarn(`mcp loopback: request handling failed: ${formatErrorMessage(error)}`);
+        logWarn(
+          `mcp loopback: request handling failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
         if (!res.headersSent) {
           res.writeHead(400, { "Content-Type": "application/json" });
           res.end(JSON.stringify(jsonRpcError(null, -32700, "Parse error")));

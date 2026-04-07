@@ -10,19 +10,6 @@ type LegacyGroupSessionSurface = {
   resolveLegacyGroupSessionKey?: (ctx: MsgContext) => GroupKeyResolution | null;
 };
 
-function resolveImplicitGroupSurface(params: {
-  from: string;
-  normalizedChatType?: "group" | "channel";
-}): { provider: string; chatType: "group" | "channel" } | null {
-  if (params.from.endsWith("@g.us")) {
-    return { provider: "whatsapp", chatType: "group" };
-  }
-  if (params.normalizedChatType) {
-    return null;
-  }
-  return null;
-}
-
 function resolveLegacyGroupSessionKey(ctx: MsgContext): GroupKeyResolution | null {
   for (const plugin of listChannelPlugins()) {
     const resolved = (
@@ -86,7 +73,6 @@ export function resolveGroupSessionKey(ctx: MsgContext): GroupKeyResolution | nu
   const chatType = ctx.ChatType?.trim().toLowerCase();
   const normalizedChatType =
     chatType === "channel" ? "channel" : chatType === "group" ? "group" : undefined;
-  const implicitGroupSurface = resolveImplicitGroupSurface({ from, normalizedChatType });
 
   const legacyResolution = resolveLegacyGroupSessionKey(ctx);
   const looksLikeGroup =
@@ -94,7 +80,6 @@ export function resolveGroupSessionKey(ctx: MsgContext): GroupKeyResolution | nu
     normalizedChatType === "channel" ||
     from.includes(":group:") ||
     from.includes(":channel:") ||
-    implicitGroupSurface !== null ||
     legacyResolution !== null;
   if (!looksLikeGroup) {
     return null;
@@ -110,9 +95,7 @@ export function resolveGroupSessionKey(ctx: MsgContext): GroupKeyResolution | nu
     return legacyResolution;
   }
 
-  const provider = headIsSurface
-    ? head
-    : (providerHint ?? implicitGroupSurface?.provider ?? legacyResolution?.channel);
+  const provider = headIsSurface ? head : (providerHint ?? legacyResolution?.channel);
   if (!provider) {
     return null;
   }
@@ -123,7 +106,7 @@ export function resolveGroupSessionKey(ctx: MsgContext): GroupKeyResolution | nu
     ? second
     : from.includes(":channel:") || normalizedChatType === "channel"
       ? "channel"
-      : (implicitGroupSurface?.chatType ?? "group");
+      : "group";
   const id = headIsSurface
     ? secondIsKind
       ? parts.slice(2).join(":")

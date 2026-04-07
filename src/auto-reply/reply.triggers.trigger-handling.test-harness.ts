@@ -7,10 +7,11 @@ import { clearRuntimeAuthProfileStoreSnapshots } from "../agents/auth-profiles.j
 import type { OpenClawConfig } from "../config/config.js";
 import { resetProviderRuntimeHookCacheForTest } from "../plugins/provider-runtime.js";
 import { resolveRelativeBundledPluginPublicModuleId } from "../test-utils/bundled-plugin-public-surface.js";
-import { withFastReplyConfig } from "./reply/get-reply-fast-path.js";
 
 // Avoid exporting vitest mock types (TS2742 under pnpm + d.ts emit).
+// oxlint-disable-next-line typescript/no-explicit-any
 type AnyMock = any;
+// oxlint-disable-next-line typescript/no-explicit-any
 type AnyMocks = Record<string, any>;
 
 function getSharedMocks<T>(key: string, create: () => T): T {
@@ -269,7 +270,7 @@ export async function withTempHome<T>(fn: (home: string) => Promise<T>): Promise
 }
 
 export function makeCfg(home: string): OpenClawConfig {
-  return withFastReplyConfig({
+  return {
     agents: {
       defaults: {
         model: { primary: "anthropic/claude-opus-4-6" },
@@ -291,7 +292,7 @@ export function makeCfg(home: string): OpenClawConfig {
       },
     },
     session: { store: join(home, "sessions.json") },
-  } as OpenClawConfig);
+  } as OpenClawConfig;
 }
 
 export async function loadGetReplyFromConfig() {

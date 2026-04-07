@@ -1,12 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-
-vi.mock("openclaw/plugin-sdk/memory-host-events", () => ({
-  appendMemoryHostEvent: vi.fn(async () => {}),
-}));
-
+import { describe, expect, it, vi } from "vitest";
 import {
   applyShortTermPromotions,
   auditShortTermPromotionArtifacts,
@@ -22,24 +17,13 @@ import {
 } from "./short-term-promotion.js";
 
 describe("short-term promotion", () => {
-  let fixtureRoot = "";
-  let caseId = 0;
-
-  beforeAll(async () => {
-    fixtureRoot = await fs.mkdtemp(path.join(os.tmpdir(), "memory-promote-"));
-  });
-
-  afterAll(async () => {
-    if (!fixtureRoot) {
-      return;
-    }
-    await fs.rm(fixtureRoot, { recursive: true, force: true });
-  });
-
   async function withTempWorkspace(run: (workspaceDir: string) => Promise<void>) {
-    const workspaceDir = path.join(fixtureRoot, `case-${caseId++}`);
-    await fs.mkdir(path.join(workspaceDir, "memory", ".dreams"), { recursive: true });
-    await run(workspaceDir);
+    const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "memory-promote-"));
+    try {
+      await run(workspaceDir);
+    } finally {
+      await fs.rm(workspaceDir, { recursive: true, force: true });
+    }
   }
 
   async function writeDailyMemoryNote(
@@ -48,6 +32,7 @@ describe("short-term promotion", () => {
     lines: string[],
   ): Promise<string> {
     const notePath = path.join(workspaceDir, "memory", `${date}.md`);
+    await fs.mkdir(path.dirname(notePath), { recursive: true });
     await fs.writeFile(notePath, `${lines.join("\n")}\n`, "utf-8");
     return notePath;
   }
@@ -55,7 +40,6 @@ describe("short-term promotion", () => {
   it("detects short-term daily memory paths", () => {
     expect(isShortTermMemoryPath("memory/2026-04-03.md")).toBe(true);
     expect(isShortTermMemoryPath("2026-04-03.md")).toBe(true);
-    expect(isShortTermMemoryPath("memory/.dreams/session-corpus/2026-04-03.txt")).toBe(true);
     expect(isShortTermMemoryPath("notes/2026-04-03.md")).toBe(false);
     expect(isShortTermMemoryPath("MEMORY.md")).toBe(false);
     expect(isShortTermMemoryPath("memory/network.md")).toBe(false);
@@ -125,7 +109,7 @@ describe("short-term promotion", () => {
   it("serializes concurrent recall writes so counts are not lost", async () => {
     await withTempWorkspace(async (workspaceDir) => {
       await Promise.all(
-        Array.from({ length: 8 }, (_, index) =>
+        Array.from({ length: 20 }, (_, index) =>
           recordShortTermRecalls({
             workspaceDir,
             query: `backup-${index % 4}`,
@@ -150,7 +134,7 @@ describe("short-term promotion", () => {
         minUniqueQueries: 0,
       });
       expect(ranked).toHaveLength(1);
-      expect(ranked[0]?.recallCount).toBe(8);
+      expect(ranked[0]?.recallCount).toBe(20);
       expect(ranked[0]?.uniqueQueries).toBe(4);
     });
   });
@@ -263,7 +247,7 @@ describe("short-term promotion", () => {
       expect(fasterDecay).toHaveLength(1);
       expect(slowerDecay[0]?.components.recency).toBeCloseTo(0.5, 3);
       expect(fasterDecay[0]?.components.recency).toBeCloseTo(0.25, 3);
-      expect(slowerDecay[0].score).toBeGreaterThan(fasterDecay[0].score);
+      expect(slowerDecay[0]!.score).toBeGreaterThan(fasterDecay[0]!.score);
     });
   });
 
@@ -350,7 +334,7 @@ describe("short-term promotion", () => {
         nowMs,
       });
       expect(ranked[0]?.path).toBe("memory/2026-04-02.md");
-      expect(ranked[0].score).toBeGreaterThan(ranked[1].score);
+      expect(ranked[0]!.score).toBeGreaterThan(ranked[1]!.score);
 
       const phaseStorePath = resolveShortTermPhaseSignalStorePath(workspaceDir);
       const phaseStore = JSON.parse(await fs.readFile(phaseStorePath, "utf-8")) as {
@@ -409,7 +393,7 @@ describe("short-term promotion", () => {
       await recordDreamingPhaseSignals({
         workspaceDir,
         phase: "rem",
-        keys: [key],
+        keys: [key!],
         nowMs: Date.parse("2026-02-01T10:00:00.000Z"),
       });
       const staleSignalRank = await rankShortTermPromotionCandidates({
@@ -422,7 +406,7 @@ describe("short-term promotion", () => {
       await recordDreamingPhaseSignals({
         workspaceDir,
         phase: "rem",
-        keys: [key],
+        keys: [key!],
         nowMs: Date.parse("2026-04-05T10:00:00.000Z"),
       });
       const freshSignalRank = await rankShortTermPromotionCandidates({
@@ -435,7 +419,7 @@ describe("short-term promotion", () => {
 
       expect(staleSignalRank).toHaveLength(1);
       expect(freshSignalRank).toHaveLength(1);
-      expect(freshSignalRank[0].score).toBeGreaterThan(staleSignalRank[0].score);
+      expect(freshSignalRank[0]!.score).toBeGreaterThan(staleSignalRank[0]!.score);
     });
   });
 
@@ -1006,6 +990,7 @@ describe("short-term promotion", () => {
   it("audits and repairs invalid store metadata plus stale locks", async () => {
     await withTempWorkspace(async (workspaceDir) => {
       const storePath = resolveShortTermRecallStorePath(workspaceDir);
+      await fs.mkdir(path.dirname(storePath), { recursive: true });
       await fs.writeFile(
         storePath,
         JSON.stringify(
@@ -1069,6 +1054,7 @@ describe("short-term promotion", () => {
   it("repairs empty recall-store files without throwing", async () => {
     await withTempWorkspace(async (workspaceDir) => {
       const storePath = resolveShortTermRecallStorePath(workspaceDir);
+      await fs.mkdir(path.dirname(storePath), { recursive: true });
       await fs.writeFile(storePath, "   \n", "utf-8");
 
       const repair = await repairShortTermPromotionArtifacts({ workspaceDir });
@@ -1085,6 +1071,7 @@ describe("short-term promotion", () => {
   it("does not rewrite an already normalized healthy recall store", async () => {
     await withTempWorkspace(async (workspaceDir) => {
       const storePath = resolveShortTermRecallStorePath(workspaceDir);
+      await fs.mkdir(path.dirname(storePath), { recursive: true });
       const snippet = "Gateway host uses qmd vector search for router notes.";
       const raw = `${JSON.stringify(
         {
@@ -1099,7 +1086,6 @@ describe("short-term promotion", () => {
               source: "memory",
               snippet,
               recallCount: 2,
-              dailyCount: 0,
               totalScore: 1.8,
               maxScore: 0.95,
               firstRecalledAt: "2026-04-01T00:00:00.000Z",
@@ -1122,8 +1108,7 @@ describe("short-term promotion", () => {
 
       expect(repair.changed).toBe(false);
       expect(repair.rewroteStore).toBe(false);
-      const nextRaw = await fs.readFile(storePath, "utf-8");
-      expect(nextRaw).toBe(raw);
+      expect(await fs.readFile(storePath, "utf-8")).toBe(raw);
     });
   });
 
@@ -1131,6 +1116,7 @@ describe("short-term promotion", () => {
     await withTempWorkspace(async (workspaceDir) => {
       const storePath = resolveShortTermRecallStorePath(workspaceDir);
       const lockPath = resolveShortTermRecallLockPath(workspaceDir);
+      await fs.mkdir(path.dirname(storePath), { recursive: true });
       await fs.writeFile(
         storePath,
         JSON.stringify(
@@ -1156,7 +1142,7 @@ describe("short-term promotion", () => {
         return result;
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 41));
+      await new Promise((resolve) => setTimeout(resolve, 80));
       expect(settled).toBe(false);
 
       await fs.unlink(lockPath);

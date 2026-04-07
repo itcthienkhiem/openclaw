@@ -5,7 +5,6 @@
 import type { ChannelId } from "../channels/plugins/types.js";
 import type { OpenClawConfig } from "../config/config.js";
 import { findFenceSpanAt, isSafeFenceBreak, parseFenceSpans } from "../markdown/fences.js";
-import { resolveChannelStreamingChunkMode } from "../plugin-sdk/channel-streaming.js";
 import { resolveAccountEntry } from "../routing/account-lookup.js";
 import { normalizeAccountId } from "../routing/session-key.js";
 import { chunkTextByBreakResolver } from "../shared/text-chunking.js";
@@ -28,11 +27,7 @@ const DEFAULT_CHUNK_MODE: ChunkMode = "length";
 type ProviderChunkConfig = {
   textChunkLimit?: number;
   chunkMode?: ChunkMode;
-  streaming?: unknown;
-  accounts?: Record<
-    string,
-    { textChunkLimit?: number; chunkMode?: ChunkMode; streaming?: unknown }
-  >;
+  accounts?: Record<string, { textChunkLimit?: number; chunkMode?: ChunkMode }>;
 };
 
 function resolveChunkLimitForProvider(
@@ -89,12 +84,11 @@ function resolveChunkModeForProvider(
   const accounts = cfgSection.accounts;
   if (accounts && typeof accounts === "object") {
     const direct = resolveAccountEntry(accounts, normalizedAccountId);
-    const directMode = resolveChannelStreamingChunkMode(direct);
-    if (directMode) {
-      return directMode;
+    if (direct?.chunkMode) {
+      return direct.chunkMode;
     }
   }
-  return resolveChannelStreamingChunkMode(cfgSection) ?? cfgSection.chunkMode;
+  return cfgSection.chunkMode;
 }
 
 export function resolveChunkMode(

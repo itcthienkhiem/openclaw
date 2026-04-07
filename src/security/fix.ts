@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { resolveDefaultAgentId } from "../agents/agent-scope.js";
+import { listBundledChannelPlugins } from "../channels/plugins/bundled.js";
 import type { ChannelPlugin } from "../channels/plugins/types.js";
 import type { OpenClawConfig } from "../config/config.js";
 import { createConfigIO } from "../config/config.js";
@@ -244,51 +245,26 @@ function applyConfigFixes(params: { cfg: OpenClawConfig; env: NodeJS.ProcessEnv 
   return { cfg: next, changes };
 }
 
-export async function applySecurityFixConfigMutations(params: {
-  cfg: OpenClawConfig;
-  env: NodeJS.ProcessEnv;
-  channelPlugins?: ChannelPlugin[];
-}): Promise<{
-  cfg: OpenClawConfig;
-  changes: string[];
-}> {
-  const fixed = applyConfigFixes({ cfg: params.cfg, env: params.env });
-  const channelFixes = await collectChannelSecurityConfigFixMutation({
-    cfg: fixed.cfg,
-    env: params.env,
-    channelPlugins: params.channelPlugins,
-  });
-  return {
-    cfg: channelFixes.cfg,
-    changes: [...fixed.changes, ...channelFixes.changes],
-  };
-}
-
 async function collectChannelSecurityConfigFixMutation(params: {
   cfg: OpenClawConfig;
   env: NodeJS.ProcessEnv;
-  channelPlugins?: ChannelPlugin[];
 }) {
   let nextCfg = params.cfg;
   const changes: string[] = [];
-  const collectPlugins = async (): Promise<ChannelPlugin[]> => {
-    if (params.channelPlugins) {
-      return params.channelPlugins;
-    }
+  const collectPlugins = (): ChannelPlugin[] => {
     try {
       const pluginIds = Object.keys(params.cfg.channels ?? {}).filter(Boolean);
       if (pluginIds.length === 0) {
         return [];
       }
       const wanted = new Set(pluginIds);
-      const { listBundledChannelPlugins } = await import("../channels/plugins/bundled.js");
       return listBundledChannelPlugins().filter((plugin) => wanted.has(plugin.id));
     } catch {
       return [];
     }
   };
 
-  for (const plugin of await collectPlugins()) {
+  for (const plugin of collectPlugins()) {
     const mutation = await plugin.security?.applyConfigFixes?.({
       cfg: nextCfg,
       env: params.env,
@@ -325,6 +301,7 @@ async function chmodCredentialsAndAgentState(params: {
       continue;
     }
     const p = path.join(credsDir, entry.name);
+    // eslint-disable-next-line no-await-in-loop
     params.actions.push(await safeChmod({ path: p, mode: 0o600, require: "file" }));
   }
 
@@ -348,20 +325,26 @@ async function chmodCredentialsAndAgentState(params: {
     const agentDir = path.join(agentRoot, "agent");
     const sessionsDir = path.join(agentRoot, "sessions");
 
+    // eslint-disable-next-line no-await-in-loop
     params.actions.push(await safeChmod({ path: agentRoot, mode: 0o700, require: "dir" }));
+    // eslint-disable-next-line no-await-in-loop
     params.actions.push(await params.applyPerms({ path: agentDir, mode: 0o700, require: "dir" }));
 
     const authPath = path.join(agentDir, "auth-profiles.json");
+    // eslint-disable-next-line no-await-in-loop
     params.actions.push(await params.applyPerms({ path: authPath, mode: 0o600, require: "file" }));
 
+    // eslint-disable-next-line no-await-in-loop
     params.actions.push(
       await params.applyPerms({ path: sessionsDir, mode: 0o700, require: "dir" }),
     );
 
     const storePath = path.join(sessionsDir, "sessions.json");
+    // eslint-disable-next-line no-await-in-loop
     params.actions.push(await params.applyPerms({ path: storePath, mode: 0o600, require: "file" }));
 
     // Fix permissions on session transcript files (*.jsonl)
+    // eslint-disable-next-line no-await-in-loop
     const sessionEntries = await fs.readdir(sessionsDir, { withFileTypes: true }).catch(() => []);
     for (const entry of sessionEntries) {
       if (!entry.isFile()) {
@@ -371,6 +354,7 @@ async function chmodCredentialsAndAgentState(params: {
         continue;
       }
       const p = path.join(sessionsDir, entry.name);
+      // eslint-disable-next-line no-await-in-loop
       params.actions.push(await params.applyPerms({ path: p, mode: 0o600, require: "file" }));
     }
   }
@@ -382,7 +366,6 @@ export async function fixSecurityFootguns(opts?: {
   configPath?: string;
   platform?: NodeJS.Platform;
   exec?: ExecFn;
-  channelPlugins?: ChannelPlugin[];
 }): Promise<SecurityFixResult> {
   const env = opts?.env ?? process.env;
   const platform = opts?.platform ?? process.platform;
@@ -402,16 +385,16 @@ export async function fixSecurityFootguns(opts?: {
   let configWritten = false;
   let changes: string[] = [];
   if (snap.valid) {
-    const fixed = await applySecurityFixConfigMutations({
-      cfg: snap.config,
+    const fixed = applyConfigFixes({ cfg: snap.config, env });
+    const channelFixes = await collectChannelSecurityConfigFixMutation({
+      cfg: fixed.cfg,
       env,
-      channelPlugins: opts?.channelPlugins,
     });
-    changes = fixed.changes;
+    changes = [...fixed.changes, ...channelFixes.changes];
 
     if (changes.length > 0) {
       try {
-        await io.writeConfigFile(fixed.cfg);
+        await io.writeConfigFile(channelFixes.cfg);
         configWritten = true;
       } catch (err) {
         errors.push(`writeConfigFile failed: ${String(err)}`);
@@ -433,6 +416,7 @@ export async function fixSecurityFootguns(opts?: {
       parsed: snap.parsed,
     }).catch(() => []);
     for (const p of includePaths) {
+      // eslint-disable-next-line no-await-in-loop
       actions.push(await applyPerms({ path: p, mode: 0o600, require: "file" }));
     }
   }

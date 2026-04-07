@@ -1,5 +1,4 @@
 import crypto from "node:crypto";
-import { normalizeOptionalString, readStringValue } from "openclaw/plugin-sdk/text-runtime";
 import {
   executeActAction,
   executeConsoleAction,
@@ -115,7 +114,7 @@ export const __testing = {
 };
 
 function readOptionalTargetAndTimeout(params: Record<string, unknown>) {
-  const targetId = normalizeOptionalString(params.targetId);
+  const targetId = typeof params.targetId === "string" ? params.targetId.trim() : undefined;
   const timeoutMs =
     typeof params.timeoutMs === "number" && Number.isFinite(params.timeoutMs)
       ? params.timeoutMs
@@ -648,7 +647,7 @@ export function createBrowserTool(opts?: {
             proxyRequest,
           });
         case "pdf": {
-          const targetId = normalizeOptionalString(params.targetId);
+          const targetId = typeof params.targetId === "string" ? params.targetId.trim() : undefined;
           const result = proxyRequest
             ? ((await proxyRequest({
                 method: "POST",
@@ -710,7 +709,7 @@ export function createBrowserTool(opts?: {
         }
         case "dialog": {
           const accept = Boolean(params.accept);
-          const promptText = readStringValue(params.promptText);
+          const promptText = typeof params.promptText === "string" ? params.promptText : undefined;
           const { targetId, timeoutMs } = readOptionalTargetAndTimeout(params);
           if (proxyRequest) {
             const result = await proxyRequest({

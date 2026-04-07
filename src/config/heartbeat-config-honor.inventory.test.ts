@@ -1,12 +1,9 @@
 import { describe, expect, it } from "vitest";
-import {
-  auditConfigHonorInventory,
-  listSchemaLeafKeysForPrefixes,
-} from "../../test/helpers/config/config-honor-audit.js";
+import { auditConfigHonorInventory, listSchemaLeafKeysForPrefixes } from "./config-honor-audit.js";
 import {
   HEARTBEAT_CONFIG_HONOR_INVENTORY,
   HEARTBEAT_CONFIG_PREFIXES,
-} from "../../test/helpers/config/heartbeat-config-honor.inventory.js";
+} from "./heartbeat-config-honor.inventory.js";
 
 const EXPECTED_HEARTBEAT_KEYS = [
   "every",

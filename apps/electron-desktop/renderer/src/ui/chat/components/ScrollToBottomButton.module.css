@@ -1,0 +1,40 @@
+.btn {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  justify-content: center;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--surface-overlay-strong);
+  background: #272727;
+  color: #ffffff;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.3s ease;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  animation: fadeIn ease 1s;
+}
+
+.btn:hover {
+  background: #323437ff;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  50% {
+    transform: translateY(0px);
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    animation: none;
+  }
+}

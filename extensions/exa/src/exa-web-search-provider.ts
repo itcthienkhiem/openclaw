@@ -187,9 +187,11 @@ function parseExaContents(
     if ("maxCharacters" in obj && parsePositiveInteger(obj.maxCharacters) === undefined) {
       return invalidContentsPayload("contents.text.maxCharacters must be a positive integer.");
     }
-    return parsePositiveInteger(obj.maxCharacters)
-      ? { maxCharacters: parsePositiveInteger(obj.maxCharacters) }
-      : {};
+    return {
+      ...(parsePositiveInteger(obj.maxCharacters)
+        ? { maxCharacters: parsePositiveInteger(obj.maxCharacters) }
+        : {}),
+    };
   };
 
   const parseHighlights = (
@@ -455,7 +457,7 @@ function createExaToolDefinition(
       "Search the web using Exa AI. Supports neural or keyword search, publication date filters, and optional highlights or text extraction.",
     parameters: createExaSchema(),
     execute: async (args) => {
-      const params = args;
+      const params = args as Record<string, unknown>;
       const exaConfig = resolveExaConfig(searchConfig);
       const apiKey = resolveExaApiKey(exaConfig);
       if (!apiKey) {
@@ -590,7 +592,6 @@ export function createExaWebSearchProvider(): WebSearchProviderPlugin {
     id: "exa",
     label: "Exa Search",
     hint: "Neural + keyword search with date filters and content extraction",
-    onboardingScopes: ["text-inference"],
     credentialLabel: "Exa API key",
     envVars: ["EXA_API_KEY"],
     placeholder: "exa-...",

@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import type { AssistantMessage, Message, Tool } from "@mariozechner/pi-ai";
 import { Type } from "@sinclair/typebox";
@@ -402,7 +401,7 @@ function assertAgainstBaseline(params: {
 
 export async function runLiveCacheRegression(): Promise<LiveCacheRegressionResult> {
   const pngBase64 = (await fs.readFile(LIVE_TEST_PNG_URL)).toString("base64");
-  const runToken = randomUUID().slice(0, 13);
+  const runToken = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   const openai = await resolveLiveDirectModel({
     provider: "openai",
     api: "openai-responses",

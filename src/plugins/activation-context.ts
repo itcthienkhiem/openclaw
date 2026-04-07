@@ -69,12 +69,10 @@ export function withActivatedPluginIds(params: {
       enabled: true,
     };
   }
-  const forcePluginsEnabled = params.config?.plugins?.enabled === false;
   return {
     ...params.config,
     plugins: {
       ...params.config?.plugins,
-      ...(forcePluginsEnabled ? { enabled: true } : {}),
       ...(allow.size > 0 ? { allow: [...allow] } : {}),
       entries,
     },

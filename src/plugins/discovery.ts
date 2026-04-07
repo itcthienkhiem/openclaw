@@ -504,9 +504,19 @@ function resolvePackageEntrySource(params: {
   const source = path.resolve(params.packageDir, params.entryPath);
   const rejectHardlinks = params.rejectHardlinks ?? true;
   const candidates = [source];
-  const openCandidate = (absolutePath: string): string | null => {
+  if (!rejectHardlinks) {
+    const builtCandidate = source.replace(/\.[^.]+$/u, ".js");
+    if (builtCandidate !== source) {
+      candidates.push(builtCandidate);
+    }
+  }
+
+  for (const candidate of new Set(candidates)) {
+    if (!fs.existsSync(candidate)) {
+      continue;
+    }
     const opened = openBoundaryFileSync({
-      absolutePath,
+      absolutePath: candidate,
       rootPath: params.packageDir,
       boundaryLabel: "plugin package directory",
       rejectHardlinks,
@@ -535,22 +545,38 @@ function resolvePackageEntrySource(params: {
     const safeSource = opened.path;
     fs.closeSync(opened.fd);
     return safeSource;
-  };
-  if (!rejectHardlinks) {
-    const builtCandidate = source.replace(/\.[^.]+$/u, ".js");
-    if (builtCandidate !== source) {
-      candidates.push(builtCandidate);
-    }
   }
 
-  for (const candidate of new Set(candidates)) {
-    if (!fs.existsSync(candidate)) {
-      continue;
-    }
-    return openCandidate(candidate);
+  const opened = openBoundaryFileSync({
+    absolutePath: source,
+    rootPath: params.packageDir,
+    boundaryLabel: "plugin package directory",
+    rejectHardlinks,
+  });
+  if (!opened.ok) {
+    return matchBoundaryFileOpenFailure(opened, {
+      path: () => null,
+      io: () => {
+        params.diagnostics.push({
+          level: "warn",
+          message: `extension entry unreadable (I/O error): ${params.entryPath}`,
+          source: params.sourceLabel,
+        });
+        return null;
+      },
+      fallback: () => {
+        params.diagnostics.push({
+          level: "error",
+          message: `extension entry escapes package directory: ${params.entryPath}`,
+          source: params.sourceLabel,
+        });
+        return null;
+      },
+    });
   }
-
-  return openCandidate(source);
+  const safeSource = opened.path;
+  fs.closeSync(opened.fd);
+  return safeSource;
 }
 
 function discoverInDirectory(params: {

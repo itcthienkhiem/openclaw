@@ -48,12 +48,9 @@ describe("group runtime loading", () => {
 
   it("loads the group runtime only when requireMention resolution needs it", async () => {
     const groupsRuntimeLoads = vi.fn();
-    vi.doMock("./groups.runtime.js", () => {
+    vi.doMock("./groups.runtime.js", async () => {
       groupsRuntimeLoads();
-      return {
-        getChannelPlugin: () => undefined,
-        normalizeChannelId: (channelId?: string) => channelId?.trim().toLowerCase(),
-      };
+      return await vi.importActual<typeof import("./groups.runtime.js")>("./groups.runtime.js");
     });
     const groups = await import("./groups.js");
 
@@ -62,12 +59,12 @@ describe("group runtime loading", () => {
         cfg: {
           channels: {
             slack: {
-              groups: {
+              channels: {
                 C123: { requireMention: false },
               },
             },
           },
-        } as unknown as OpenClawConfig,
+        },
         ctx: {
           Provider: "slack",
           From: "slack:channel:C123",

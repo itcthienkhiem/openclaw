@@ -1,6 +1,26 @@
 import fs from "node:fs";
 import path from "node:path";
-import { buildCmdExeCommandLine, resolvePathEnvKey } from "./windows-cmd-helpers.mjs";
+
+const WINDOWS_UNSAFE_CMD_CHARS_RE = /[&|<>%\r\n]/;
+
+function resolvePathEnvKey(env) {
+  return Object.keys(env).find((key) => key.toLowerCase() === "path") ?? "PATH";
+}
+
+function escapeForCmdExe(arg) {
+  if (WINDOWS_UNSAFE_CMD_CHARS_RE.test(arg)) {
+    throw new Error(`unsafe Windows cmd.exe argument detected: ${JSON.stringify(arg)}`);
+  }
+  const escaped = arg.replace(/\^/g, "^^");
+  if (!escaped.includes(" ") && !escaped.includes('"')) {
+    return escaped;
+  }
+  return `"${escaped.replace(/"/g, '""')}"`;
+}
+
+function buildCmdExeCommandLine(command, args) {
+  return [escapeForCmdExe(command), ...args.map(escapeForCmdExe)].join(" ");
+}
 
 function resolveToolchainNpmRunner(params) {
   const npmCliCandidates = [

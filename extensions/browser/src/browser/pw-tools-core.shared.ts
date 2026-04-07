@@ -1,4 +1,3 @@
-import { formatErrorMessage } from "../infra/errors.js";
 import { parseRoleRef } from "./pw-role-snapshot.js";
 
 let nextUploadArmId = 0;
@@ -50,7 +49,7 @@ export function normalizeTimeoutMs(timeoutMs: number | undefined, fallback: numb
 }
 
 export function toAIFriendlyError(error: unknown, selector: string): Error {
-  const message = formatErrorMessage(error);
+  const message = error instanceof Error ? error.message : String(error);
 
   if (message.includes("strict mode violation")) {
     const countMatch = message.match(/resolved to (\d+) elements/);

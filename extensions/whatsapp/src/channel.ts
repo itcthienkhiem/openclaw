@@ -6,7 +6,11 @@ import {
   createAsyncComputedAccountStatusAdapter,
   createDefaultChannelRuntimeState,
 } from "openclaw/plugin-sdk/status-helpers";
-import { resolveWhatsAppAccount, type ResolvedWhatsAppAccount } from "./accounts.js";
+import {
+  listWhatsAppAccountIds,
+  resolveWhatsAppAccount,
+  type ResolvedWhatsAppAccount,
+} from "./accounts.js";
 import { createWhatsAppLoginTool } from "./agent-tools-login.js";
 import { whatsappApprovalAuth } from "./approval-auth.js";
 import type { WebChannelStatus } from "./auto-reply/types.js";
@@ -26,12 +30,8 @@ import {
   resolveWhatsAppGroupToolPolicy,
 } from "./group-policy.js";
 import { resolveWhatsAppHeartbeatRecipients } from "./heartbeat-recipients.js";
-import {
-  isWhatsAppGroupJid,
-  looksLikeWhatsAppTargetId,
-  normalizeWhatsAppMessagingTarget,
-  normalizeWhatsAppTarget,
-} from "./normalize.js";
+import { looksLikeWhatsAppTargetId, normalizeWhatsAppMessagingTarget } from "./normalize.js";
+import { isWhatsAppGroupJid, normalizeWhatsAppTarget } from "./normalize.js";
 import { getWhatsAppRuntime } from "./runtime.js";
 import { resolveWhatsAppOutboundSessionRoute } from "./session-route.js";
 import { whatsappSetupAdapter } from "./setup-core.js";

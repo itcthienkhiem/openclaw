@@ -25,7 +25,10 @@ import {
   loadMSTeamsSdkWithAuth,
 } from "./sdk.js";
 import { resolveMSTeamsCredentials } from "./token.js";
-import { applyMSTeamsWebhookTimeouts } from "./webhook-timeouts.js";
+import {
+  applyMSTeamsWebhookTimeouts,
+  type ApplyMSTeamsWebhookTimeoutsOpts,
+} from "./webhook-timeouts.js";
 
 export type MonitorMSTeamsOpts = {
   cfg: OpenClawConfig;

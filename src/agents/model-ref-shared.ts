@@ -1,7 +1,7 @@
 import {
   normalizeGooglePreviewModelId,
   normalizeNativeXaiModelId,
-} from "../plugin-sdk/provider-model-id-normalize.js";
+} from "../plugin-sdk/provider-model-shared.js";
 import { normalizeProviderId } from "./provider-id.js";
 
 export type StaticModelRef = {

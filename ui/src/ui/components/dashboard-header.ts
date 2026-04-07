@@ -1,7 +1,8 @@
 import { LitElement, html } from "lit";
-import { property } from "lit/decorators.js";
+import { customElement, property } from "lit/decorators.js";
 import { titleForTab, type Tab } from "../navigation.js";
 
+@customElement("dashboard-header")
 export class DashboardHeader extends LitElement {
   override createRenderRoot() {
     return this;
@@ -33,8 +34,4 @@ export class DashboardHeader extends LitElement {
       </div>
     `;
   }
-}
-
-if (!customElements.get("dashboard-header")) {
-  customElements.define("dashboard-header", DashboardHeader);
 }

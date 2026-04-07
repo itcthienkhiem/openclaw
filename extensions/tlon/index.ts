@@ -3,7 +3,6 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineBundledChannelEntry } from "openclaw/plugin-sdk/channel-entry-contract";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -172,7 +171,7 @@ export default defineBundledChannelEntry({
             content: [
               {
                 type: "text" as const,
-                text: `Error: ${formatErrorMessage(error)}`,
+                text: `Error: ${error instanceof Error ? error.message : String(error)}`,
               },
             ],
             details: { error: true },

@@ -1,8 +1,8 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createSuiteTempRootTracker } from "../../test-helpers/temp-dir.js";
 import type { SessionEntry } from "./types.js";
 
 // Keep integration tests deterministic: never read a real openclaw.json.
@@ -31,7 +31,8 @@ const ENFORCED_MAINTENANCE_OVERRIDE = {
 
 const archiveTimestamp = (ms: number) => new Date(ms).toISOString().replaceAll(":", "-");
 
-const suiteRootTracker = createSuiteTempRootTracker({ prefix: "openclaw-pruning-integ-" });
+let fixtureRoot = "";
+let fixtureCount = 0;
 
 function makeEntry(updatedAt: number): SessionEntry {
   return { sessionId: crypto.randomUUID(), updatedAt };
@@ -64,7 +65,9 @@ function applyCappedMaintenanceConfig(mockLoadConfig: ReturnType<typeof vi.fn>) 
 }
 
 async function createCaseDir(prefix: string): Promise<string> {
-  return await suiteRootTracker.make(prefix);
+  const dir = path.join(fixtureRoot, `${prefix}-${fixtureCount++}`);
+  await fs.mkdir(dir, { recursive: true });
+  return dir;
 }
 
 function createStaleAndFreshStore(now = Date.now()): Record<string, SessionEntry> {
@@ -80,11 +83,11 @@ describe("Integration: saveSessionStore with pruning", () => {
   let savedCacheTtl: string | undefined;
 
   beforeAll(async () => {
-    await suiteRootTracker.setup();
+    fixtureRoot = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-pruning-integ-"));
   });
 
   afterAll(async () => {
-    await suiteRootTracker.cleanup();
+    await fs.rm(fixtureRoot, { recursive: true, force: true });
   });
 
   beforeEach(async () => {
@@ -276,7 +279,7 @@ describe("Integration: saveSessionStore with pruning", () => {
     applyCappedMaintenanceConfig(mockLoadConfig);
 
     const now = Date.now();
-    const externalDir = await createCaseDir("external-cap");
+    const externalDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-external-cap-"));
     const externalTranscript = path.join(externalDir, "outside.jsonl");
     await fs.writeFile(externalTranscript, "external", "utf-8");
     const store: Record<string, SessionEntry> = {
@@ -296,7 +299,7 @@ describe("Integration: saveSessionStore with pruning", () => {
       expect(loaded.newest).toBeDefined();
       await expect(fs.stat(externalTranscript)).resolves.toBeDefined();
     } finally {
-      await expect(fs.stat(externalTranscript)).resolves.toBeDefined();
+      await fs.rm(externalDir, { recursive: true, force: true });
     }
   });
 
@@ -380,7 +383,7 @@ describe("Integration: saveSessionStore with pruning", () => {
     });
 
     const now = Date.now();
-    const externalDir = await createCaseDir("external-session");
+    const externalDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-external-session-"));
     const externalTranscript = path.join(externalDir, "outside.jsonl");
     await fs.writeFile(externalTranscript, "z".repeat(400), "utf-8");
 
@@ -401,7 +404,7 @@ describe("Integration: saveSessionStore with pruning", () => {
       await saveSessionStore(storePath, store);
       await expect(fs.stat(externalTranscript)).resolves.toBeDefined();
     } finally {
-      await expect(fs.stat(externalTranscript)).resolves.toBeDefined();
+      await fs.rm(externalDir, { recursive: true, force: true });
     }
   });
 });

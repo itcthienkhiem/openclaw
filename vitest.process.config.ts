@@ -4,7 +4,6 @@ export function createProcessVitestConfig(env?: Record<string, string | undefine
   return createScopedVitestConfig(["src/process/**/*.test.ts"], {
     dir: "src",
     env,
-    includeOpenClawRuntimeSetup: false,
     name: "process",
     passWithNoTests: true,
   });

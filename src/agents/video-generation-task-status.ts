@@ -22,9 +22,7 @@ export function getVideoGenerationTaskProviderId(task: TaskRecord): string | und
   return getMediaGenerationTaskProviderId(task, VIDEO_GENERATION_SOURCE_PREFIX);
 }
 
-export function findActiveVideoGenerationTaskForSession(
-  sessionKey?: string,
-): TaskRecord | undefined {
+export function findActiveVideoGenerationTaskForSession(sessionKey?: string): TaskRecord | null {
   return findActiveMediaGenerationTaskForSession({
     sessionKey,
     taskKind: VIDEO_GENERATION_TASK_KIND,

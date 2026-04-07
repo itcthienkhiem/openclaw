@@ -1,5 +1,4 @@
 import { createSubsystemLogger } from "openclaw/plugin-sdk/core";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import type {
   ModelDefinitionConfig,
   ModelProviderConfig,
@@ -103,7 +102,7 @@ export async function generateBearerTokenFromIam(params: {
   } catch (error) {
     log.debug?.("Mantle IAM token generation unavailable", {
       region: params.region,
-      error: formatErrorMessage(error),
+      error: error instanceof Error ? error.message : String(error),
     });
     return undefined;
   }
@@ -228,13 +227,13 @@ export async function discoverMantleModels(params: {
         contextWindow: DEFAULT_CONTEXT_WINDOW,
         maxTokens: DEFAULT_MAX_TOKENS,
       }))
-      .toSorted((a, b) => a.id.localeCompare(b.id));
+      .sort((a, b) => a.id.localeCompare(b.id));
 
     discoveryCache.set(cacheKey, { models, fetchedAt: now() });
     return models;
   } catch (error) {
     log.debug?.("Mantle model discovery error", {
-      error: formatErrorMessage(error),
+      error: error instanceof Error ? error.message : String(error),
     });
     return cached?.models ?? [];
   }

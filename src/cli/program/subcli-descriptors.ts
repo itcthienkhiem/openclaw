@@ -1,9 +1,10 @@
-import { defineCommandDescriptorCatalog } from "./command-descriptor-utils.js";
-import type { NamedCommandDescriptor } from "./command-group-descriptors.js";
+export type SubCliDescriptor = {
+  name: string;
+  description: string;
+  hasSubcommands: boolean;
+};
 
-export type SubCliDescriptor = NamedCommandDescriptor;
-
-const subCliCommandCatalog = defineCommandDescriptorCatalog([
+export const SUB_CLI_DESCRIPTORS = [
   { name: "acp", description: "Agent Control Protocol tools", hasSubcommands: true },
   {
     name: "gateway",
@@ -137,14 +138,12 @@ const subCliCommandCatalog = defineCommandDescriptorCatalog([
     description: "Generate shell completion script",
     hasSubcommands: false,
   },
-] as const satisfies ReadonlyArray<SubCliDescriptor>);
-
-export const SUB_CLI_DESCRIPTORS = subCliCommandCatalog.descriptors;
+] as const satisfies ReadonlyArray<SubCliDescriptor>;
 
 export function getSubCliEntries(): ReadonlyArray<SubCliDescriptor> {
-  return subCliCommandCatalog.getDescriptors();
+  return SUB_CLI_DESCRIPTORS;
 }
 
 export function getSubCliCommandsWithSubcommands(): string[] {
-  return subCliCommandCatalog.getCommandsWithSubcommands();
+  return SUB_CLI_DESCRIPTORS.filter((entry) => entry.hasSubcommands).map((entry) => entry.name);
 }

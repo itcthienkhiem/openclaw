@@ -5,10 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { OpenClawConfig } from "../config/config.js";
 import { resolvePluginInstallDir } from "./install.js";
 import {
-  cleanupTrackedTempDirsAsync,
-  makeTrackedTempDirAsync,
-} from "./test-helpers/fs-fixtures.js";
-import {
   removePluginFromConfig,
   resolveUninstallChannelConfigKeys,
   resolveUninstallDirectoryTarget,
@@ -601,14 +597,13 @@ describe("removePluginFromConfig", () => {
 
 describe("uninstallPlugin", () => {
   let tempDir: string;
-  const tempDirs: string[] = [];
 
   beforeEach(async () => {
-    tempDir = await makeTrackedTempDirAsync("uninstall-test", tempDirs);
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "uninstall-test-"));
   });
 
   afterEach(async () => {
-    await cleanupTrackedTempDirsAsync(tempDirs);
+    await fs.rm(tempDir, { recursive: true, force: true });
   });
 
   it("returns error when plugin not found", async () => {

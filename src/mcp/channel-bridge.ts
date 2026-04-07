@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { OpenClawConfig } from "../config/config.js";
-import { resolveGatewayClientBootstrap } from "../gateway/client-bootstrap.js";
+import { buildGatewayConnectionDetails } from "../gateway/call.js";
 import { GatewayClient } from "../gateway/client.js";
+import { resolveGatewayConnectionAuth } from "../gateway/connection-auth.js";
 import { APPROVALS_SCOPE, READ_SCOPE, WRITE_SCOPE } from "../gateway/method-scopes.js";
 import type { EventFrame } from "../gateway/protocol/index.js";
 import { extractFirstTextBlock } from "../shared/chat-message-content.js";
@@ -83,14 +84,25 @@ export class OpenClawChannelBridge {
       return;
     }
     this.started = true;
-    const bootstrap = await resolveGatewayClientBootstrap({
+    const connection = buildGatewayConnectionDetails({
       config: this.cfg,
-      gatewayUrl: this.params.gatewayUrl,
+      url: this.params.gatewayUrl,
+    });
+    const gatewayUrlOverrideSource =
+      connection.urlSource === "cli --url"
+        ? "cli"
+        : connection.urlSource === "env OPENCLAW_GATEWAY_URL"
+          ? "env"
+          : undefined;
+    const creds = await resolveGatewayConnectionAuth({
+      config: this.cfg,
       explicitAuth: {
         token: this.params.gatewayToken,
         password: this.params.gatewayPassword,
       },
       env: process.env,
+      urlOverride: gatewayUrlOverrideSource ? connection.url : undefined,
+      urlOverrideSource: gatewayUrlOverrideSource,
     });
     if (this.closed) {
       this.resolveReadyOnce();
@@ -98,9 +110,9 @@ export class OpenClawChannelBridge {
     }
 
     this.gateway = new GatewayClient({
-      url: bootstrap.url,
-      token: bootstrap.auth.token,
-      password: bootstrap.auth.password,
+      url: connection.url,
+      token: creds.token,
+      password: creds.password,
       clientName: GATEWAY_CLIENT_NAMES.CLI,
       clientDisplayName: "OpenClaw MCP",
       clientVersion: VERSION,

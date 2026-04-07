@@ -1,6 +1,5 @@
 import fs from "node:fs/promises";
 import { Static, Type } from "@sinclair/typebox";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import type { AnyAgentTool, OpenClawPluginApi, OpenClawPluginToolContext } from "../api.js";
 import { PlaywrightDiffScreenshotter, type DiffScreenshotter } from "./browser.js";
 import { resolveDiffImageRenderOptions } from "./config.js";
@@ -296,18 +295,19 @@ export function createDiffsTool(params: {
         };
       } catch (error) {
         if (mode === "both") {
-          const errorMessage = formatErrorMessage(error);
           return {
             content: [
               {
                 type: "text",
-                text: `Diff viewer ready.\n${viewerUrl}\nFile rendering failed: ${errorMessage}`,
+                text:
+                  `Diff viewer ready.\n${viewerUrl}\n` +
+                  `File rendering failed: ${error instanceof Error ? error.message : String(error)}`,
               },
             ],
             details: {
               ...baseDetails,
-              fileError: errorMessage,
-              imageError: errorMessage,
+              fileError: error instanceof Error ? error.message : String(error),
+              imageError: error instanceof Error ? error.message : String(error),
             },
           };
         }

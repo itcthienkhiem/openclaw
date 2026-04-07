@@ -1,10 +1,13 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createStartAccountContext } from "../../../test/helpers/plugins/start-account-context.js";
 import type { PluginRuntime } from "../runtime-api.js";
 import { nostrPlugin } from "./channel.js";
 import { setNostrRuntime } from "./runtime.js";
-import { TEST_RESOLVED_PRIVATE_KEY, buildResolvedNostrAccount } from "./test-fixtures.js";
+import {
+  TEST_RELAY_URL,
+  TEST_RESOLVED_PRIVATE_KEY,
+  buildResolvedNostrAccount,
+} from "./test-fixtures.js";
 
 const mocks = vi.hoisted(() => ({
   normalizePubkey: vi.fn((value: string) => `normalized-${value.toLowerCase()}`),
@@ -55,7 +58,7 @@ describe("nostr outbound cfg threading", () => {
       publishProfile: vi.fn(),
       getProfileState: vi.fn(async () => null),
     };
-    mocks.startNostrBus.mockResolvedValueOnce(bus as unknown);
+    mocks.startNostrBus.mockResolvedValueOnce(bus as any);
 
     const cleanup = (await nostrPlugin.gateway!.startAccount!(
       createStartAccountContext({
@@ -65,7 +68,7 @@ describe("nostr outbound cfg threading", () => {
 
     const cfg = createCfg();
     await nostrPlugin.outbound!.sendText!({
-      cfg: cfg as OpenClawConfig,
+      cfg: cfg as any,
       to: "NPUB123",
       text: "|a|b|",
       accountId: "default",
@@ -104,7 +107,7 @@ describe("nostr outbound cfg threading", () => {
       publishProfile: vi.fn(),
       getProfileState: vi.fn(async () => null),
     };
-    mocks.startNostrBus.mockResolvedValueOnce(bus as unknown);
+    mocks.startNostrBus.mockResolvedValueOnce(bus as any);
 
     const cleanup = (await nostrPlugin.gateway!.startAccount!(
       createStartAccountContext({
@@ -122,7 +125,7 @@ describe("nostr outbound cfg threading", () => {
     };
 
     await nostrPlugin.outbound!.sendText!({
-      cfg: cfg as OpenClawConfig,
+      cfg: cfg as any,
       to: "NPUB123",
       text: "hello",
     });

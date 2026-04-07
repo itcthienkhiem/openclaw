@@ -114,10 +114,11 @@ function buildPendingApprovalContent(params: {
     ask: params.request.request.ask ?? undefined,
     agentId: params.request.request.agentId ?? undefined,
     allowedDecisions,
-    command: resolveExecApprovalCommandDisplay(params.request.request).commandText,
-    cwd: params.request.request.cwd ?? undefined,
-    host: params.request.request.host === "node" ? "node" : "gateway",
-    nodeId: params.request.request.nodeId ?? undefined,
+    command: resolveExecApprovalCommandDisplay((params.request as ExecApprovalRequest).request)
+      .commandText,
+    cwd: (params.request as ExecApprovalRequest).request.cwd ?? undefined,
+    host: (params.request as ExecApprovalRequest).request.host === "node" ? "node" : "gateway",
+    nodeId: (params.request as ExecApprovalRequest).request.nodeId ?? undefined,
     sessionKey: params.request.request.sessionKey ?? undefined,
     expiresAtMs: params.request.expiresAtMs,
     nowMs: params.nowMs,
@@ -148,7 +149,7 @@ function buildResolvedApprovalText(params: {
 }
 
 export class MatrixExecApprovalHandler {
-  private readonly runtime: ExecApprovalChannelRuntime;
+  private readonly runtime: ExecApprovalChannelRuntime<ApprovalRequest, ApprovalResolved>;
   private readonly trackedReactionTargets = new Map<string, ReactionTargetRef>();
   private readonly nowMs: () => number;
   private readonly sendMessage: typeof sendMessageMatrix;

@@ -9,7 +9,6 @@ import type {
   SecretRef,
   SecretRefSource,
 } from "../config/types.secrets.js";
-import { formatErrorMessage } from "../infra/errors.js";
 import { inspectPathPermissions, safeStat } from "../security/audit-fs.js";
 import { isPathInside } from "../security/scan-paths.js";
 import { resolveUserPath } from "../utils.js";
@@ -22,7 +21,12 @@ import {
   resolveDefaultSecretProviderAlias,
   secretRefKey,
 } from "./ref-contract.js";
-import { isNonEmptyString, isRecord, normalizePositiveInt } from "./shared.js";
+import {
+  describeUnknownError,
+  isNonEmptyString,
+  isRecord,
+  normalizePositiveInt,
+} from "./shared.js";
 
 const DEFAULT_PROVIDER_CONCURRENCY = 4;
 const DEFAULT_MAX_REFS_PER_PROVIDER = 512;
@@ -136,7 +140,7 @@ function throwUnknownProviderResolutionError(params: {
   throw providerResolutionError({
     source: params.source,
     provider: params.provider,
-    message: formatErrorMessage(params.err),
+    message: describeUnknownError(params.err),
     cause: params.err,
   });
 }
@@ -415,7 +419,7 @@ async function resolveFileRefs(params: {
         source: "file",
         provider: params.providerName,
         refId: ref.id,
-        message: formatErrorMessage(err),
+        message: describeUnknownError(err),
         cause: err,
       });
     }

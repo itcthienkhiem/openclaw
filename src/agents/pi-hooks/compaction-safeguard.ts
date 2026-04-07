@@ -4,7 +4,6 @@ import type { AgentMessage } from "@mariozechner/pi-agent-core";
 import type { ExtensionAPI, ExtensionContext, FileOperations } from "@mariozechner/pi-coding-agent";
 import { extractSections } from "../../auto-reply/reply/post-compaction-context.js";
 import { openBoundaryFile } from "../../infra/boundary-file-read.js";
-import { formatErrorMessage } from "../../infra/errors.js";
 import { createSubsystemLogger } from "../../logging/subsystem.js";
 import {
   hasMeaningfulConversationContent,
@@ -640,7 +639,7 @@ export default function compactionSafeguardExtension(api: ExtensionAPI): void {
       }
       requestAuth = await modelRegistry.getApiKeyAndHeaders(model);
     } catch (err) {
-      const error = formatErrorMessage(err);
+      const error = err instanceof Error ? err.message : String(err);
       log.warn(
         `Compaction safeguard: request credentials unavailable; cancelling compaction. ${error}`,
       );
@@ -746,9 +745,9 @@ export default function compactionSafeguardExtension(api: ExtensionAPI): void {
                 });
               } catch (droppedError) {
                 log.warn(
-                  `Compaction safeguard: failed to summarize dropped messages, continuing without: ${formatErrorMessage(
-                    droppedError,
-                  )}`,
+                  `Compaction safeguard: failed to summarize dropped messages, continuing without: ${
+                    droppedError instanceof Error ? droppedError.message : String(droppedError)
+                  }`,
                 );
               }
             }
@@ -849,7 +848,9 @@ export default function compactionSafeguardExtension(api: ExtensionAPI): void {
           if (lastSuccessfulSummary && attempt > 0) {
             log.warn(
               `Compaction safeguard: quality retry failed on attempt ${attempt + 1}; ` +
-                `keeping last successful summary: ${formatErrorMessage(attemptError)}`,
+                `keeping last successful summary: ${
+                  attemptError instanceof Error ? attemptError.message : String(attemptError)
+                }`,
             );
             summary = lastSuccessfulSummary;
             break;
@@ -926,7 +927,7 @@ export default function compactionSafeguardExtension(api: ExtensionAPI): void {
         },
       };
     } catch (error) {
-      const message = formatErrorMessage(error);
+      const message = error instanceof Error ? error.message : String(error);
       log.warn(
         `Compaction summarization failed; cancelling compaction to preserve history: ${message}`,
       );

@@ -94,6 +94,7 @@ describe("googlechat group policy", () => {
           },
         },
       },
+      // oxlint-disable-next-line typescript/no-explicit-any
     } as any;
 
     expect(resolveGoogleChatGroupRequireMention({ cfg, groupId: "spaces/AAA" })).toBe(false);

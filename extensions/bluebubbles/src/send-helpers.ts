@@ -1,4 +1,3 @@
-import { asRecord } from "./monitor-normalize.js";
 import { normalizeBlueBubblesHandle, parseBlueBubblesTarget } from "./targets.js";
 import type { BlueBubblesSendTarget } from "./types.js";
 
@@ -24,6 +23,11 @@ export function extractBlueBubblesMessageId(payload: unknown): string {
   if (!payload || typeof payload !== "object") {
     return "unknown";
   }
+
+  const asRecord = (value: unknown): Record<string, unknown> | null =>
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : null;
 
   const record = payload as Record<string, unknown>;
   const dataRecord = asRecord(record.data);

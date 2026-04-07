@@ -567,7 +567,7 @@ describe("loginGeminiCliOAuth", () => {
     if (Array.isArray(headers)) {
       return headers.find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1];
     }
-    return headers[name];
+    return (headers as Record<string, string>)[name];
   }
 
   function responseJson(body: unknown, status = 200): Response {

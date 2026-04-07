@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ProviderPlugin } from "../plugins/types.js";
+import type { ProviderAuthMethod } from "../plugins/types.js";
+import type { ApplyAuthChoiceParams } from "./auth-choice.apply.js";
 import {
   applyAuthChoiceLoadedPluginProvider,
   applyAuthChoicePluginProvider,
   runProviderPluginAuthMethod,
-} from "../plugins/provider-auth-choice.js";
-import type { ProviderPlugin } from "../plugins/types.js";
-import type { ProviderAuthMethod } from "../plugins/types.js";
-import type { ApplyAuthChoiceParams } from "./auth-choice.apply.js";
+} from "./auth-choice.apply.plugin-provider.js";
 
 const resolvePluginProviders = vi.hoisted(() => vi.fn<() => ProviderPlugin[]>(() => []));
 const resolveProviderPluginChoice = vi.hoisted(() =>
@@ -253,18 +253,17 @@ describe("applyAuthChoiceLoadedPluginProvider", () => {
           agents: {
             defaults: {
               model: {
-                primary: "claude-cli/claude-sonnet-4-6",
-                fallbacks: ["claude-cli/claude-opus-4-6", "openai/gpt-5.2"],
+                primary: "codex-cli/gpt-5.4",
+                fallbacks: ["openai/gpt-5.2"],
               },
               models: {
-                "claude-cli/claude-sonnet-4-6": { alias: "Sonnet" },
-                "claude-cli/claude-opus-4-6": { alias: "Opus" },
+                "codex-cli/gpt-5.4": { alias: "Codex" },
                 "openai/gpt-5.2": {},
               },
             },
           },
         },
-        defaultModel: "claude-cli/claude-sonnet-4-6",
+        defaultModel: "codex-cli/gpt-5.4",
       }),
     };
 
@@ -292,12 +291,11 @@ describe("applyAuthChoiceLoadedPluginProvider", () => {
     });
 
     expect(result.config.agents?.defaults?.model).toEqual({
-      primary: "claude-cli/claude-sonnet-4-6",
-      fallbacks: ["claude-cli/claude-opus-4-6", "openai/gpt-5.2"],
+      primary: "codex-cli/gpt-5.4",
+      fallbacks: ["openai/gpt-5.2"],
     });
     expect(result.config.agents?.defaults?.models).toEqual({
-      "claude-cli/claude-sonnet-4-6": { alias: "Sonnet" },
-      "claude-cli/claude-opus-4-6": { alias: "Opus" },
+      "codex-cli/gpt-5.4": { alias: "Codex" },
       "openai/gpt-5.2": {},
     });
   });

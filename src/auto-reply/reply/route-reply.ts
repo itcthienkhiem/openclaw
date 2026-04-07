@@ -9,11 +9,9 @@
 
 import { resolveSessionAgentId } from "../../agents/agent-scope.js";
 import { resolveEffectiveMessagesConfig } from "../../agents/identity.js";
-import { getBundledChannelPlugin } from "../../channels/plugins/bundled.js";
-import { getLoadedChannelPlugin, normalizeChannelId } from "../../channels/plugins/index.js";
+import { getChannelPlugin, normalizeChannelId } from "../../channels/plugins/index.js";
 import { normalizeChatChannelId } from "../../channels/registry.js";
 import type { OpenClawConfig } from "../../config/config.js";
-import { formatErrorMessage } from "../../infra/errors.js";
 import { buildOutboundSessionContext } from "../../infra/outbound/session-context.js";
 import { hasReplyPayloadContent } from "../../interactive/payload.js";
 import { INTERNAL_MESSAGE_CHANNEL, normalizeMessageChannel } from "../../utils/message-channel.js";
@@ -82,13 +80,8 @@ export async function routeReply(params: RouteReplyParams): Promise<RouteReplyRe
     return { ok: true };
   }
   const normalizedChannel = normalizeMessageChannel(channel);
-  const channelId =
-    normalizeChannelId(channel) ??
-    (typeof channel === "string" ? channel.trim().toLowerCase() : null);
-  const loadedPlugin = channelId ? getLoadedChannelPlugin(channelId) : undefined;
-  const bundledPlugin = channelId ? getBundledChannelPlugin(channelId) : undefined;
-  const messaging = loadedPlugin?.messaging ?? bundledPlugin?.messaging;
-  const threading = loadedPlugin?.threading ?? bundledPlugin?.threading;
+  const channelId = normalizeChannelId(channel) ?? null;
+  const plugin = channelId ? getChannelPlugin(channelId) : undefined;
   const resolvedAgentId = params.sessionKey
     ? resolveSessionAgentId({
         sessionKey: params.sessionKey,
@@ -108,9 +101,9 @@ export async function routeReply(params: RouteReplyParams): Promise<RouteReplyRe
       : cfg.messages?.responsePrefix;
   const normalized = normalizeReplyPayload(payload, {
     responsePrefix,
-    transformReplyPayload: messaging?.transformReplyPayload
+    transformReplyPayload: plugin?.messaging?.transformReplyPayload
       ? (nextPayload) =>
-          messaging.transformReplyPayload?.({
+          plugin.messaging?.transformReplyPayload?.({
             payload: nextPayload,
             cfg,
             accountId,
@@ -132,7 +125,7 @@ export async function routeReply(params: RouteReplyParams): Promise<RouteReplyRe
       ? [externalPayload.mediaUrl]
       : [];
   const replyToId = externalPayload.replyToId;
-  const hasChannelData = messaging?.hasStructuredReplyPayload?.({
+  const hasChannelData = plugin?.messaging?.hasStructuredReplyPayload?.({
     payload: externalPayload,
   });
 
@@ -167,7 +160,7 @@ export async function routeReply(params: RouteReplyParams): Promise<RouteReplyRe
   }
 
   const replyTransport =
-    threading?.resolveReplyTransport?.({
+    plugin?.threading?.resolveReplyTransport?.({
       cfg,
       accountId,
       threadId,
@@ -214,7 +207,7 @@ export async function routeReply(params: RouteReplyParams): Promise<RouteReplyRe
     const last = results.at(-1);
     return { ok: true, messageId: last?.messageId };
   } catch (err) {
-    const message = formatErrorMessage(err);
+    const message = err instanceof Error ? err.message : String(err);
     return {
       ok: false,
       error: `Failed to route reply to ${channel}: ${message}`,

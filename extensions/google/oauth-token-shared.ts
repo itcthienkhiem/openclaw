@@ -1,5 +1,3 @@
-import { readStringValue } from "openclaw/plugin-sdk/text-runtime";
-
 type GoogleOauthApiKeyCredential = {
   type?: string;
   access?: string;
@@ -13,8 +11,8 @@ export function parseGoogleOauthApiKey(apiKey: string): {
   try {
     const parsed = JSON.parse(apiKey) as { token?: unknown; projectId?: unknown };
     return {
-      token: readStringValue(parsed.token),
-      projectId: readStringValue(parsed.projectId),
+      token: typeof parsed.token === "string" ? parsed.token : undefined,
+      projectId: typeof parsed.projectId === "string" ? parsed.projectId : undefined,
     };
   } catch {
     return null;

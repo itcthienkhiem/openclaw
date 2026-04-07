@@ -1,9 +1,7 @@
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import type { ClawdbotConfig } from "../runtime-api.js";
 import { resolveFeishuAccount } from "./accounts.js";
 import { raceWithTimeoutAndAbort } from "./async.js";
 import { createFeishuClient } from "./client.js";
-import { encodeQuery, extractReplyText, isRecord, readString } from "./comment-shared.js";
 import { normalizeCommentFileType, type CommentFileType } from "./comment-target.js";
 import type { ResolvedFeishuAccount } from "./types.js";
 
@@ -118,6 +116,14 @@ type FeishuDriveCommentRepliesListResponse = FeishuOpenApiResponse<{
   page_token?: string;
 }>;
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function readString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
 function readBoolean(value: unknown): boolean | undefined {
   return typeof value === "boolean" ? value : undefined;
 }
@@ -127,7 +133,7 @@ function safeJsonStringify(value: unknown): string {
     return JSON.stringify(value);
   } catch (error) {
     return JSON.stringify({
-      error: formatErrorMessage(error),
+      error: error instanceof Error ? error.message : String(error),
     });
   }
 }
@@ -139,6 +145,18 @@ function summarizeCommentRepliesForLog(replies: FeishuDriveCommentReply[]): stri
       text_len: extractReplyText(reply)?.length ?? 0,
     })),
   );
+}
+
+function encodeQuery(params: Record<string, string | undefined>): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    const trimmed = value?.trim();
+    if (trimmed) {
+      query.set(key, trimmed);
+    }
+  }
+  const queryString = query.toString();
+  return queryString ? `?${queryString}` : "";
 }
 
 async function delayMs(ms: number): Promise<void> {
@@ -188,17 +206,12 @@ async function requestFeishuOpenApi<T>(params: {
 }): Promise<T | null> {
   const formatErrorDetails = (error: unknown): string => {
     if (!isRecord(error)) {
-      return typeof error === "string" ? error : JSON.stringify(error);
+      return String(error);
     }
     const response = isRecord(error.response) ? error.response : undefined;
     const responseData = isRecord(response?.data) ? response?.data : undefined;
     const details = {
-      message:
-        typeof error.message === "string"
-          ? error.message
-          : typeof error === "string"
-            ? error
-            : JSON.stringify(error),
+      message: typeof error.message === "string" ? error.message : String(error),
       code: readString(error.code),
       method: readString(isRecord(error.config) ? error.config.method : undefined),
       url: readString(isRecord(error.config) ? error.config.url : undefined),
@@ -217,7 +230,7 @@ async function requestFeishuOpenApi<T>(params: {
       url: params.url,
       data: params.data ?? {},
       timeout: params.timeoutMs,
-    }),
+    }) as Promise<T>,
     { timeoutMs: params.timeoutMs },
   )
     .then((resolved) => (resolved.status === "resolved" ? resolved.value : null))
@@ -229,6 +242,57 @@ async function requestFeishuOpenApi<T>(params: {
     params.logger?.(`${params.errorLabel}: request timed out or returned no data`);
   }
   return result;
+}
+
+function extractCommentElementText(element: unknown): string | undefined {
+  if (!isRecord(element)) {
+    return undefined;
+  }
+  const type = readString(element.type)?.trim();
+  if (type === "text_run" && isRecord(element.text_run)) {
+    return (
+      readString(element.text_run.content)?.trim() ||
+      readString(element.text_run.text)?.trim() ||
+      undefined
+    );
+  }
+  if (type === "mention") {
+    const mention = isRecord(element.mention) ? element.mention : undefined;
+    const mentionName =
+      readString(mention?.name)?.trim() ||
+      readString(mention?.display_name)?.trim() ||
+      readString(element.name)?.trim();
+    return mentionName ? `@${mentionName}` : "@mention";
+  }
+  if (type === "docs_link") {
+    const docsLink = isRecord(element.docs_link) ? element.docs_link : undefined;
+    return (
+      readString(docsLink?.text)?.trim() ||
+      readString(docsLink?.url)?.trim() ||
+      readString(element.text)?.trim() ||
+      readString(element.url)?.trim() ||
+      undefined
+    );
+  }
+  return (
+    readString(element.text)?.trim() ||
+    readString(element.content)?.trim() ||
+    readString(element.name)?.trim() ||
+    undefined
+  );
+}
+
+function extractReplyText(reply: FeishuDriveCommentReply | undefined): string | undefined {
+  if (!reply || !isRecord(reply.content)) {
+    return undefined;
+  }
+  const elements = Array.isArray(reply.content.elements) ? reply.content.elements : [];
+  const text = elements
+    .map(extractCommentElementText)
+    .filter((part): part is string => Boolean(part && part.trim()))
+    .join("")
+    .trim();
+  return text || undefined;
 }
 
 async function fetchDriveCommentReplies(params: {

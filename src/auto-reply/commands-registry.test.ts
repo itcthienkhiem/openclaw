@@ -1,43 +1,25 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { setActivePluginRegistry } from "../plugins/runtime.js";
 import { createChannelTestPluginBase, createTestRegistry } from "../test-utils/channel-plugins.js";
+import {
+  buildCommandText,
+  buildCommandTextFromArgs,
+  findCommandByNativeName,
+  getCommandDetection,
+  listChatCommands,
+  listChatCommandsForConfig,
+  listNativeCommandSpecs,
+  listNativeCommandSpecsForConfig,
+  normalizeCommandBody,
+  parseCommandArgs,
+  resolveCommandArgChoices,
+  resolveCommandArgMenu,
+  serializeCommandArgs,
+  shouldHandleTextCommands,
+} from "./commands-registry.js";
 import type { ChatCommandDefinition } from "./commands-registry.types.js";
 
-let setActivePluginRegistry: typeof import("../plugins/runtime.js").setActivePluginRegistry;
-let buildCommandText: typeof import("./commands-registry.js").buildCommandText;
-let buildCommandTextFromArgs: typeof import("./commands-registry.js").buildCommandTextFromArgs;
-let findCommandByNativeName: typeof import("./commands-registry.js").findCommandByNativeName;
-let getCommandDetection: typeof import("./commands-registry.js").getCommandDetection;
-let listChatCommands: typeof import("./commands-registry.js").listChatCommands;
-let listChatCommandsForConfig: typeof import("./commands-registry.js").listChatCommandsForConfig;
-let listNativeCommandSpecs: typeof import("./commands-registry.js").listNativeCommandSpecs;
-let listNativeCommandSpecsForConfig: typeof import("./commands-registry.js").listNativeCommandSpecsForConfig;
-let normalizeCommandBody: typeof import("./commands-registry.js").normalizeCommandBody;
-let parseCommandArgs: typeof import("./commands-registry.js").parseCommandArgs;
-let resolveCommandArgChoices: typeof import("./commands-registry.js").resolveCommandArgChoices;
-let resolveCommandArgMenu: typeof import("./commands-registry.js").resolveCommandArgMenu;
-let serializeCommandArgs: typeof import("./commands-registry.js").serializeCommandArgs;
-let shouldHandleTextCommands: typeof import("./commands-registry.js").shouldHandleTextCommands;
-
-beforeEach(async () => {
-  vi.resetModules();
-  vi.doUnmock("../channels/plugins/index.js");
-  ({ setActivePluginRegistry } = await import("../plugins/runtime.js"));
-  ({
-    buildCommandText,
-    buildCommandTextFromArgs,
-    findCommandByNativeName,
-    getCommandDetection,
-    listChatCommands,
-    listChatCommandsForConfig,
-    listNativeCommandSpecs,
-    listNativeCommandSpecsForConfig,
-    normalizeCommandBody,
-    parseCommandArgs,
-    resolveCommandArgChoices,
-    resolveCommandArgMenu,
-    serializeCommandArgs,
-    shouldHandleTextCommands,
-  } = await import("./commands-registry.js"));
+beforeEach(() => {
   setActivePluginRegistry(createTestRegistry([]));
 });
 
@@ -125,7 +107,7 @@ describe("commands registry", () => {
     expect(native.find((spec) => spec.name === "demo_skill")).toBeTruthy();
   });
 
-  it("applies discord native command overrides", () => {
+  it("applies provider-specific native names", () => {
     const native = listNativeCommandSpecsForConfig(
       { commands: { native: true } },
       { provider: "discord" },
@@ -135,12 +117,13 @@ describe("commands registry", () => {
     expect(findCommandByNativeName("tts", "discord")).toBeUndefined();
   });
 
-  it("applies slack native command overrides", () => {
+  it("renames status to agentstatus for slack", () => {
     const native = listNativeCommandSpecsForConfig(
       { commands: { native: true } },
       { provider: "slack" },
     );
     expect(native.find((spec) => spec.name === "agentstatus")).toBeTruthy();
+    expect(native.find((spec) => spec.name === "status")).toBeFalsy();
     expect(findCommandByNativeName("agentstatus", "slack")?.key).toBe("status");
     expect(findCommandByNativeName("status", "slack")).toBeUndefined();
   });

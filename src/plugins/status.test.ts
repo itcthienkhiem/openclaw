@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createCompatibilityNotice,
   createCustomHook,
@@ -62,7 +62,6 @@ vi.mock("../plugin-sdk/facade-runtime.js", () => ({
 }));
 
 vi.mock("./runtime.js", () => ({
-  getActivePluginChannelRegistry: () => null,
   listImportedRuntimePluginIds: (...args: unknown[]) => listImportedRuntimePluginIdsMock(...args),
 }));
 
@@ -265,8 +264,7 @@ function expectBundleInspectState(
 }
 
 describe("plugin status reports", () => {
-  beforeEach(async () => {
-    vi.resetModules();
+  beforeAll(async () => {
     ({
       buildAllPluginInspectReports,
       buildPluginCompatibilityNotices,
@@ -277,6 +275,9 @@ describe("plugin status reports", () => {
       formatPluginCompatibilityNotice,
       summarizePluginCompatibility,
     } = await import("./status.js"));
+  });
+
+  beforeEach(() => {
     loadConfigMock.mockReset();
     loadOpenClawPluginsMock.mockReset();
     loadPluginMetadataRegistrySnapshotMock.mockReset();
@@ -673,25 +674,24 @@ describe("plugin status reports", () => {
     expectCapabilityKinds(inspect[1], ["text-inference", "web-search"]);
   });
 
-  it("treats a CLI-command-only plugin as a plain capability", () => {
+  it("treats a CLI-command-only plugin as a non-capability", () => {
     setSinglePluginLoadResult(
       createPluginRecord({
-        id: "anthropic",
-        name: "Anthropic",
-        cliBackendIds: ["claude-cli"],
+        id: "openai",
+        name: "OpenAI",
+        cliCommands: ["openai"],
       }),
     );
 
-    const inspect = expectInspectReport("anthropic");
+    const inspect = expectInspectReport("openai");
 
     expectInspectShape(inspect, {
-      shape: "plain-capability",
-      capabilityMode: "plain",
-      capabilityKinds: ["cli-backend"],
+      shape: "non-capability",
+      capabilityMode: "none",
+      capabilityKinds: [],
     });
-    expect(inspect.capabilities).toEqual([{ kind: "cli-backend", ids: ["claude-cli"] }]);
+    expect(inspect.capabilities).toEqual([]);
   });
-
   it("builds compatibility warnings for legacy compatibility paths", () => {
     setPluginLoadResult({
       plugins: [

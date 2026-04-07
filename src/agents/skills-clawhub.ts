@@ -10,7 +10,6 @@ import {
   type ClawHubSkillDetail,
   type ClawHubSkillSearchResult,
 } from "../infra/clawhub.js";
-import { formatErrorMessage } from "../infra/errors.js";
 import { withExtractedArchiveRoot } from "../infra/install-flow.js";
 import { installPackageDir } from "../infra/install-package-dir.js";
 import { resolveSafeInstallDir } from "../infra/install-safe-path.js";
@@ -337,7 +336,7 @@ async function performClawHubSkillInstall(
   } catch (err) {
     return {
       ok: false,
-      error: formatErrorMessage(err),
+      error: err instanceof Error ? err.message : String(err),
     };
   }
 }
@@ -353,7 +352,7 @@ async function installRequestedSkillFromClawHub(
   } catch (err) {
     return {
       ok: false,
-      error: formatErrorMessage(err),
+      error: err instanceof Error ? err.message : String(err),
     };
   }
 }
@@ -369,7 +368,7 @@ async function installTrackedSkillFromClawHub(
   } catch (err) {
     return {
       ok: false,
-      error: formatErrorMessage(err),
+      error: err instanceof Error ? err.message : String(err),
     };
   }
 }

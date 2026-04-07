@@ -2,7 +2,6 @@ import { setTimeout as delay } from "node:timers/promises";
 import type { Command } from "commander";
 import { buildGatewayConnectionDetails } from "../gateway/call.js";
 import { isLoopbackHost } from "../gateway/net.js";
-import { formatErrorMessage } from "../infra/errors.js";
 import { readConfiguredLogTail } from "../logging/log-tail.js";
 import { parseLogLine } from "../logging/parse-log-line.js";
 import { formatTimestamp, isValidTimeZone } from "../logging/timestamps.js";
@@ -211,7 +210,7 @@ async function emitGatewayError(
   const runtime = await loadLogsCliRuntime();
   const message = "Gateway not reachable. Is it running and accessible?";
   const hint = `Hint: run \`${formatCliCommand("openclaw doctor")}\`.`;
-  const errorText = formatErrorMessage(err);
+  const errorText = err instanceof Error ? err.message : String(err);
 
   const details = runtime.buildGatewayConnectionDetails({ url: opts.url });
   if (mode === "json") {

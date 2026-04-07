@@ -26,7 +26,6 @@ import type { OpenClawConfig } from "../config/config.js";
 import { describeGatewayServiceRestart, resolveGatewayService } from "../daemon/service.js";
 import { isSystemdUserServiceAvailable } from "../daemon/systemd.js";
 import { ensureControlUiAssetsBuilt } from "../infra/control-ui-assets.js";
-import { formatErrorMessage } from "../infra/errors.js";
 import type { RuntimeEnv } from "../runtime.js";
 import { restoreTerminalState } from "../terminal/restore.js";
 import { runTui } from "../tui/tui.js";
@@ -213,7 +212,7 @@ export async function finalizeSetupWizard(
           });
         }
       } catch (err) {
-        installError = formatErrorMessage(err);
+        installError = err instanceof Error ? err.message : String(err);
       } finally {
         progress.stop(
           installError ? "Gateway service install failed." : "Gateway service installed.",
@@ -328,7 +327,7 @@ export async function finalizeSetupWizard(
       await prompter.note(
         [
           "Could not resolve gateway.auth.password SecretRef for setup auth.",
-          formatErrorMessage(error),
+          error instanceof Error ? error.message : String(error),
         ].join("\n"),
         "Gateway auth",
       );

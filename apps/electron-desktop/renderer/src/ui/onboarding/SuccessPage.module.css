@@ -1,0 +1,87 @@
+/* ── SuccessPage ── */
+
+.UiSuccessCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 48px 32px;
+  min-height: 360px;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+}
+
+.UiSuccessCheckmark {
+  margin-bottom: 24px;
+}
+
+.UiSuccessTitle {
+  font-weight: 800;
+  font-size: 28px;
+  line-height: 34px;
+  letter-spacing: 1.5px;
+  margin-bottom: 8px;
+}
+
+.UiSuccessSubtitle {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 32px;
+  max-width: 380px;
+}
+
+.UiSuccessWarning {
+  font-size: 13px;
+  color: #ffe66d;
+  margin-bottom: 16px;
+  max-width: 380px;
+}
+
+.UiSuccessLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.UiSuccessLoadingText {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.UiSuccessLoadingHint {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* ── Confetti ── */
+
+.UiSuccessConfettiLayer {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.UiConfettiPiece {
+  position: absolute;
+  top: -10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  opacity: 0;
+  animation: confettiFall linear forwards;
+}
+
+@keyframes confettiFall {
+  0% {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(100vh) rotate(720deg);
+  }
+}

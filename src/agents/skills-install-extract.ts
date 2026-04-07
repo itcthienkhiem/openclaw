@@ -7,7 +7,6 @@ import {
   prepareArchiveDestinationDir,
   withStagedArchiveDestination,
 } from "../infra/archive.js";
-import { formatErrorMessage } from "../infra/errors.js";
 import { runCommandWithTimeout } from "../process/exec.js";
 import { parseTarVerboseMetadata } from "./skills-install-tar-verbose.js";
 import { hasBinary } from "./skills.js";
@@ -228,7 +227,7 @@ export async function extractArchive(params: {
 
     return { stdout: "", stderr: `unsupported archive type: ${archiveType}`, code: null };
   } catch (err) {
-    const message = formatErrorMessage(err);
+    const message = err instanceof Error ? err.message : String(err);
     return { stdout: "", stderr: message, code: 1 };
   }
 }

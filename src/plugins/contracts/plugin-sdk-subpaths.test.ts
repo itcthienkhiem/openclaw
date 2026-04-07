@@ -310,40 +310,6 @@ describe("plugin-sdk subpath exports", () => {
     });
     expectSourceMentions("account-helpers", ["createAccountListHelpers"]);
     expectSourceMentions("channel-actions", ["optionalStringEnum", "stringEnum"]);
-    expectSourceContract("channel-secret-runtime", {
-      mentions: [
-        "collectSimpleChannelFieldAssignments",
-        "collectConditionalChannelFieldAssignments",
-        "collectSecretInputAssignment",
-        "getChannelSurface",
-        "pushAssignment",
-        "pushInactiveSurfaceWarning",
-        "ResolverContext",
-        "SecretTargetRegistryEntry",
-      ],
-      omits: [
-        "buildUntrustedChannelMetadata",
-        "evaluateSupplementalContextVisibility",
-        "resolvePinnedMainDmOwnerFromAllowlist",
-        "safeMatchRegex",
-      ],
-    });
-    expectSourceContract("provider-web-search-contract", {
-      mentions: [
-        "enablePluginInConfig",
-        "getScopedCredentialValue",
-        "resolveProviderWebSearchPluginConfig",
-        "setScopedCredentialValue",
-        "setProviderWebSearchPluginConfigValue",
-        "WebSearchProviderPlugin",
-      ],
-      omits: [
-        "buildSearchCacheKey",
-        "withTrustedWebSearchEndpoint",
-        "writeCachedSearchPayload",
-        "resolveCitationRedirectUrl",
-      ],
-    });
     expectSourceMentions("compat", [
       "createPluginRuntimeStore",
       "createScopedChannelConfigAdapter",

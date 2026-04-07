@@ -9,10 +9,6 @@ export default defineBundledChannelEntry({
     specifier: "./api.js",
     exportName: "googlechatPlugin",
   },
-  secrets: {
-    specifier: "./src/secret-contract.js",
-    exportName: "channelSecrets",
-  },
   runtime: {
     specifier: "./runtime-api.js",
     exportName: "setGoogleChatRuntime",

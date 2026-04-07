@@ -1,5 +1,4 @@
 import { stripUrlUserInfo } from "../shared/net/url-userinfo.js";
-import { isRecord } from "../utils.js";
 import type { ChannelAccountSnapshot } from "./plugins/types.core.js";
 
 // Read-only status commands project a safe subset of account fields into snapshots
@@ -15,6 +14,13 @@ const CREDENTIAL_STATUS_KEYS = [
 ] as const;
 
 type CredentialStatusKey = (typeof CREDENTIAL_STATUS_KEYS)[number];
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
 
 function readTrimmedString(record: Record<string, unknown>, key: string): string | undefined {
   const value = record[key];
@@ -54,7 +60,7 @@ function readCredentialStatus(record: Record<string, unknown>, key: CredentialSt
 }
 
 export function resolveConfiguredFromCredentialStatuses(account: unknown): boolean | undefined {
-  const record = isRecord(account) ? account : null;
+  const record = asRecord(account);
   if (!record) {
     return undefined;
   }
@@ -76,7 +82,7 @@ export function resolveConfiguredFromRequiredCredentialStatuses(
   account: unknown,
   requiredKeys: CredentialStatusKey[],
 ): boolean | undefined {
-  const record = isRecord(account) ? account : null;
+  const record = asRecord(account);
   if (!record) {
     return undefined;
   }
@@ -95,7 +101,7 @@ export function resolveConfiguredFromRequiredCredentialStatuses(
 }
 
 export function hasConfiguredUnavailableCredentialStatus(account: unknown): boolean {
-  const record = isRecord(account) ? account : null;
+  const record = asRecord(account);
   if (!record) {
     return false;
   }
@@ -105,7 +111,7 @@ export function hasConfiguredUnavailableCredentialStatus(account: unknown): bool
 }
 
 export function hasResolvedCredentialValue(account: unknown): boolean {
-  const record = isRecord(account) ? account : null;
+  const record = asRecord(account);
   if (!record) {
     return false;
   }
@@ -131,7 +137,7 @@ export function projectCredentialSnapshotFields(
   | "signingSecretStatus"
   | "userTokenStatus"
 > {
-  const record = isRecord(account) ? account : null;
+  const record = asRecord(account);
   if (!record) {
     return {};
   }
@@ -170,7 +176,7 @@ export function projectCredentialSnapshotFields(
 export function projectSafeChannelAccountSnapshotFields(
   account: unknown,
 ): Partial<ChannelAccountSnapshot> {
-  const record = isRecord(account) ? account : null;
+  const record = asRecord(account);
   if (!record) {
     return {};
   }

@@ -30,7 +30,6 @@ import {
   buildExecApprovalPendingToolResult,
   createExecApprovalDecisionState,
   createAndRegisterDefaultExecApprovalRequest,
-  enforceStrictInlineEvalApprovalBoundary,
   resolveApprovalDecisionOrUndefined,
   resolveExecHostApprovalContext,
   sendExecApprovalFollowupResult,
@@ -239,18 +238,12 @@ export async function processGatewayAllowlist(
         preResolvedDecision,
       })
     ) {
-      const { baseDecision, approvedByAsk, deniedReason } = createExecApprovalDecisionState({
+      const { approvedByAsk, deniedReason } = createExecApprovalDecisionState({
         decision: preResolvedDecision,
         askFallback,
       });
-      const strictInlineEvalDecision = enforceStrictInlineEvalApprovalBoundary({
-        baseDecision,
-        approvedByAsk,
-        deniedReason,
-        requiresInlineEvalApproval,
-      });
 
-      if (strictInlineEvalDecision.deniedReason || !strictInlineEvalDecision.approvedByAsk) {
+      if (deniedReason || !approvedByAsk) {
         throw new Error(
           buildHeadlessExecApprovalDeniedMessage({
             trigger: params.trigger,
@@ -338,13 +331,6 @@ export async function processGatewayAllowlist(
           }
         }
       }
-
-      ({ approvedByAsk, deniedReason } = enforceStrictInlineEvalApprovalBoundary({
-        baseDecision,
-        approvedByAsk,
-        deniedReason,
-        requiresInlineEvalApproval,
-      }));
 
       if (
         !approvedByAsk &&

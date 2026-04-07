@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import * as path from "node:path";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import {
   fetchRemoteMedia,
   MAX_IMAGE_BYTES,
@@ -103,7 +102,9 @@ export async function downloadMedia(
       originalUrl: url,
     };
   } catch (error: unknown) {
-    console.error(`[tlon-media] Error downloading ${url}: ${formatErrorMessage(error)}`);
+    console.error(
+      `[tlon-media] Error downloading ${url}: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return null;
   }
 }

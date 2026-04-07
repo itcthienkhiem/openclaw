@@ -227,11 +227,13 @@ describe("timestampOptsFromConfig", () => {
   it.each([
     {
       name: "extracts timezone from config",
+      // oxlint-disable-next-line typescript/no-explicit-any
       cfg: { agents: { defaults: { userTimezone: "America/Chicago" } } } as any,
       expected: "America/Chicago",
     },
     {
       name: "falls back gracefully with empty config",
+      // oxlint-disable-next-line typescript/no-explicit-any
       cfg: {} as any,
       expected: Intl.DateTimeFormat().resolvedOptions().timeZone,
     },

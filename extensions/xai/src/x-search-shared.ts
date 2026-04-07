@@ -1,7 +1,7 @@
-import { postTrustedWebToolsJson, wrapWebContent } from "@openclaw/plugin-sdk/provider-web-search";
+import { postTrustedWebToolsJson, wrapWebContent } from "openclaw/plugin-sdk/provider-web-search";
 import {
   buildXaiResponsesToolBody,
-  resolveXaiResponseTextCitationsAndInline,
+  resolveXaiResponseTextAndCitations,
   XAI_RESPONSES_ENDPOINT,
 } from "./responses-tool-shared.js";
 import {
@@ -127,7 +127,15 @@ export async function requestXaiXSearch(params: {
     },
     async (response) => {
       const data = (await response.json()) as XaiWebSearchResponse;
-      return resolveXaiResponseTextCitationsAndInline(data, params.inlineCitations);
+      const { content, citations } = resolveXaiResponseTextAndCitations(data);
+      return {
+        content,
+        citations,
+        inlineCitations:
+          params.inlineCitations && Array.isArray(data.inline_citations)
+            ? data.inline_citations
+            : undefined,
+      };
     },
   );
 }

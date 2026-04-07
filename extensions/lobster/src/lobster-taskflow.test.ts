@@ -3,7 +3,7 @@ import type { LobsterRunner } from "./lobster-runner.js";
 import { resumeManagedLobsterFlow, runManagedLobsterFlow } from "./lobster-taskflow.js";
 import { createFakeTaskFlow } from "./taskflow-test-helpers.js";
 
-function _expectManagedFlowFailure(
+function expectManagedFlowFailure(
   result: Awaited<ReturnType<typeof runManagedLobsterFlow | typeof resumeManagedLobsterFlow>>,
 ) {
   expect(result.ok).toBe(false);

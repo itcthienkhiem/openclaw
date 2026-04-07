@@ -15,7 +15,6 @@ import {
   PLUGIN_INSTALL_ERROR_CODE,
   resolvePluginInstallDir,
 } from "./install.js";
-import { createSuiteTempRootTracker } from "./test-helpers/fs-fixtures.js";
 
 vi.mock("../process/exec.js", () => ({
   runCommandWithTimeout: vi.fn(),
@@ -42,13 +41,14 @@ vi.mock("./install.runtime.js", async () => {
   };
 });
 
+let suiteTempRoot = "";
 let suiteFixtureRoot = "";
+let tempDirCounter = 0;
 const pluginFixturesDir = path.resolve(process.cwd(), "test", "fixtures", "plugins-install");
 const archiveFixturePathCache = new Map<string, string>();
 const dynamicArchiveTemplatePathCache = new Map<string, string>();
 let installPluginFromDirTemplateDir = "";
 let manifestInstallTemplateDir = "";
-const suiteTempRootTracker = createSuiteTempRootTracker("openclaw-plugin-install");
 const DYNAMIC_ARCHIVE_TEMPLATE_PRESETS = [
   {
     outName: "traversal.tgz",
@@ -78,11 +78,28 @@ const DYNAMIC_ARCHIVE_TEMPLATE_PRESETS = [
   },
 ];
 
+function ensureSuiteTempRoot() {
+  if (suiteTempRoot) {
+    return suiteTempRoot;
+  }
+  const bundleTempRoot = path.join(process.cwd(), ".tmp");
+  fs.mkdirSync(bundleTempRoot, { recursive: true });
+  suiteTempRoot = fs.mkdtempSync(path.join(bundleTempRoot, "openclaw-plugin-install-"));
+  return suiteTempRoot;
+}
+
+function makeTempDir() {
+  const dir = path.join(ensureSuiteTempRoot(), `case-${String(tempDirCounter)}`);
+  tempDirCounter += 1;
+  fs.mkdirSync(dir);
+  return dir;
+}
+
 function ensureSuiteFixtureRoot() {
   if (suiteFixtureRoot) {
     return suiteFixtureRoot;
   }
-  suiteFixtureRoot = path.join(suiteTempRootTracker.ensureSuiteTempRoot(), "_fixtures");
+  suiteFixtureRoot = path.join(ensureSuiteTempRoot(), "_fixtures");
   fs.mkdirSync(suiteFixtureRoot, { recursive: true });
   return suiteFixtureRoot;
 }
@@ -161,7 +178,7 @@ function expectSuccessfulArchiveInstall(params: {
 }
 
 function setupPluginInstallDirs() {
-  const tmpDir = suiteTempRootTracker.makeTempDir();
+  const tmpDir = makeTempDir();
   const pluginDir = path.join(tmpDir, "plugin-src");
   const extensionsDir = path.join(tmpDir, "extensions");
   fs.mkdirSync(pluginDir, { recursive: true });
@@ -170,7 +187,7 @@ function setupPluginInstallDirs() {
 }
 
 function setupInstallPluginFromDirFixture(params?: { devDependencies?: Record<string, string> }) {
-  const caseDir = suiteTempRootTracker.makeTempDir();
+  const caseDir = makeTempDir();
   const stateDir = path.join(caseDir, "state");
   const pluginDir = path.join(caseDir, "plugin");
   fs.mkdirSync(stateDir, { recursive: true });
@@ -225,7 +242,7 @@ async function installFromArchiveWithWarnings(params: {
 }
 
 function setupManifestInstallFixture(params: { manifestId: string; packageName?: string }) {
-  const caseDir = suiteTempRootTracker.makeTempDir();
+  const caseDir = makeTempDir();
   const stateDir = path.join(caseDir, "state");
   const pluginDir = path.join(caseDir, "plugin-src");
   fs.mkdirSync(stateDir, { recursive: true });
@@ -302,7 +319,7 @@ function setupBundleInstallFixture(params: {
   bundleFormat: "codex" | "claude" | "cursor";
   name: string;
 }) {
-  const caseDir = suiteTempRootTracker.makeTempDir();
+  const caseDir = makeTempDir();
   const stateDir = path.join(caseDir, "state");
   const pluginDir = path.join(caseDir, "plugin-src");
   fs.mkdirSync(stateDir, { recursive: true });
@@ -342,7 +359,7 @@ function setupBundleInstallFixture(params: {
 }
 
 function setupManifestlessClaudeInstallFixture() {
-  const caseDir = suiteTempRootTracker.makeTempDir();
+  const caseDir = makeTempDir();
   const stateDir = path.join(caseDir, "state");
   const pluginDir = path.join(caseDir, "claude-manifestless");
   fs.mkdirSync(stateDir, { recursive: true });
@@ -357,7 +374,7 @@ function setupManifestlessClaudeInstallFixture() {
 }
 
 function setupDualFormatInstallFixture(params: { bundleFormat: "codex" | "claude" }) {
-  const caseDir = suiteTempRootTracker.makeTempDir();
+  const caseDir = makeTempDir();
   const stateDir = path.join(caseDir, "state");
   const pluginDir = path.join(caseDir, "plugin-src");
   fs.mkdirSync(path.join(pluginDir, "dist"), { recursive: true });
@@ -426,7 +443,7 @@ async function installArchivePackageAndReturnResult(params: {
   withDistIndex?: boolean;
   flatRoot?: boolean;
 }) {
-  const stateDir = suiteTempRootTracker.makeTempDir();
+  const stateDir = makeTempDir();
   const archivePath = await ensureDynamicArchiveTemplate({
     outName: params.outName,
     packageJson: params.packageJson,
@@ -473,7 +490,7 @@ async function ensureDynamicArchiveTemplate(params: {
   if (cachedPath) {
     return cachedPath;
   }
-  const templateDir = suiteTempRootTracker.makeTempDir();
+  const templateDir = makeTempDir();
   const pkgDir = params.flatRoot ? templateDir : path.join(templateDir, "package");
   fs.mkdirSync(pkgDir, { recursive: true });
   if (params.withDistIndex) {
@@ -497,8 +514,15 @@ async function ensureDynamicArchiveTemplate(params: {
 
 afterAll(() => {
   resetGlobalHookRunner();
-  suiteTempRootTracker.cleanup();
-  suiteFixtureRoot = "";
+  if (!suiteTempRoot) {
+    return;
+  }
+  try {
+    fs.rmSync(suiteTempRoot, { recursive: true, force: true });
+  } finally {
+    suiteTempRoot = "";
+    tempDirCounter = 0;
+  }
 });
 
 beforeAll(async () => {
@@ -569,7 +593,7 @@ beforeEach(() => {
 
 describe("installPluginFromArchive", () => {
   it("installs scoped archives, rejects duplicate installs, and allows updates", async () => {
-    const stateDir = suiteTempRootTracker.makeTempDir();
+    const stateDir = makeTempDir();
     const archiveV1 = getArchiveFixturePath({
       cacheKey: "voice-call:0.0.1",
       outName: "voice-call-0.0.1.tgz",
@@ -613,7 +637,7 @@ describe("installPluginFromArchive", () => {
   });
 
   it("installs from a zip archive", async () => {
-    const stateDir = suiteTempRootTracker.makeTempDir();
+    const stateDir = makeTempDir();
     const archivePath = getArchiveFixturePath({
       cacheKey: "zipper:0.0.1",
       outName: "zipper-0.0.1.zip",
@@ -629,7 +653,7 @@ describe("installPluginFromArchive", () => {
   });
 
   it("allows archive installs with dangerous code patterns when forced unsafe install is set", async () => {
-    const stateDir = suiteTempRootTracker.makeTempDir();
+    const stateDir = makeTempDir();
     const extensionsDir = path.join(stateDir, "extensions");
     fs.mkdirSync(extensionsDir, { recursive: true });
 
@@ -1299,7 +1323,7 @@ describe("installPluginFromDir", () => {
   );
 
   it("keeps scoped install-dir validation aligned for real scoped ids", () => {
-    const extensionsDir = path.join(suiteTempRootTracker.makeTempDir(), "extensions");
+    const extensionsDir = path.join(makeTempDir(), "extensions");
     const scopedTarget = resolvePluginInstallDir("@scope/name", extensionsDir);
     const hashedFlatId = safePathSegmentHashed("@scope/name");
     const flatTarget = resolvePluginInstallDir(hashedFlatId, extensionsDir);

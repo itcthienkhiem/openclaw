@@ -1,6 +1,5 @@
 import type { ChatType } from "../channels/chat-type.js";
 import type { SessionEntry } from "../config/sessions.js";
-import type { SessionCompactionCheckpoint } from "../config/sessions.js";
 import type {
   GatewayAgentRow as SharedGatewayAgentRow,
   SessionsListResultBase,
@@ -65,8 +64,6 @@ export type GatewaySessionRow = {
   lastTo?: string;
   lastAccountId?: string;
   lastThreadId?: SessionEntry["lastThreadId"];
-  compactionCheckpointCount?: number;
-  latestCompactionCheckpoint?: SessionCompactionCheckpoint;
 };
 
 export type GatewayAgentRow = SharedGatewayAgentRow;

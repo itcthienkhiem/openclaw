@@ -54,7 +54,7 @@ export async function uploadImageFromUrl(imageUrl: string): Promise<string> {
       await release();
     }
   } catch (err) {
-    console.warn(`[tlon] Failed to upload image, using original URL: ${String(err)}`);
+    console.warn(`[tlon] Failed to upload image, using original URL: ${err}`);
     return imageUrl;
   }
 }

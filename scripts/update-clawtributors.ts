@@ -329,8 +329,10 @@ function run(cmd: string): string {
   }).trim();
 }
 
-function parsePaginatedJson(raw: string): unknown[] {
-  const items: unknown[] = [];
+// oxlint-disable-next-line typescript/no-explicit-any
+function parsePaginatedJson(raw: string): any[] {
+  // oxlint-disable-next-line typescript/no-explicit-any
+  const items: any[] = [];
   for (const line of raw.split("\n")) {
     if (!line.trim()) {
       continue;

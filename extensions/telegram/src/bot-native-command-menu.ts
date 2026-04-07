@@ -6,7 +6,6 @@ import type { Bot } from "grammy";
 import { logVerbose } from "openclaw/plugin-sdk/runtime-env";
 import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime-env";
 import { resolveStateDir } from "openclaw/plugin-sdk/state-paths";
-import { readStringValue } from "openclaw/plugin-sdk/text-runtime";
 import { withTelegramApiErrorLogging } from "./api-logging.js";
 import { normalizeTelegramCommandName, TELEGRAM_COMMAND_NAME_PATTERN } from "./command-config.js";
 
@@ -96,7 +95,8 @@ function readErrorTextField(value: unknown, key: "description" | "message"): str
   if (!value || typeof value !== "object" || !(key in value)) {
     return undefined;
   }
-  return readStringValue((value as Record<"description" | "message", unknown>)[key]);
+  const text = (value as Record<"description" | "message", unknown>)[key];
+  return typeof text === "string" ? text : undefined;
 }
 
 function isBotCommandsTooMuchError(err: unknown): boolean {

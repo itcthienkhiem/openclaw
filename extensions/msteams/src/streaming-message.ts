@@ -10,7 +10,6 @@
  */
 
 import { createDraftStreamLoop, type DraftStreamLoop } from "openclaw/plugin-sdk/channel-lifecycle";
-import { readStringValue } from "openclaw/plugin-sdk/text-runtime";
 
 /** Default throttle interval between stream updates (ms).
  * Teams docs recommend buffering tokens for 1.5-2s; limit is 1 req/s. */
@@ -28,7 +27,7 @@ const TEAMS_MAX_CHARS = 4000;
  */
 const MAX_STREAM_AGE_MS = 45_000;
 
-type StreamSendFn = (activity: Record<string, unknown>) => Promise<unknown>;
+type StreamSendFn = (activity: Record<string, unknown>) => Promise<{ id?: string } | unknown>;
 
 export type TeamsStreamOptions = {
   /** Function to send an activity (POST to Bot Framework). */
@@ -46,7 +45,8 @@ import { formatUnknownError } from "./errors.js";
 
 function extractId(response: unknown): string | undefined {
   if (response && typeof response === "object" && "id" in response) {
-    return readStringValue((response as { id?: unknown }).id);
+    const id = (response as { id?: unknown }).id;
+    return typeof id === "string" ? id : undefined;
   }
   return undefined;
 }

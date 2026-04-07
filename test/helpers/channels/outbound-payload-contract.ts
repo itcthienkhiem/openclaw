@@ -1,6 +1,5 @@
-import { beforeEach, expect, it, type Mock, vi } from "vitest";
+import { expect, it, type Mock, vi } from "vitest";
 import { createSlackOutboundPayloadHarness } from "../../../extensions/slack/contract-api.js";
-import { whatsappOutbound } from "../../../extensions/whatsapp/test-api.js";
 import {
   chunkTextForOutbound as chunkZaloTextForOutbound,
   sendPayloadWithChunkedTextAndMedia as sendZaloPayloadWithChunkedTextAndMedia,
@@ -10,11 +9,11 @@ import type { ReplyPayload } from "../../../src/auto-reply/types.js";
 import { primeChannelOutboundSendMock } from "../../../src/channels/plugins/contracts/test-helpers.js";
 import { createDirectTextMediaOutbound } from "../../../src/channels/plugins/outbound/direct-text-media.js";
 import type { ChannelOutboundAdapter } from "../../../src/channels/plugins/types.js";
-import { resetGlobalHookRunner } from "../../../src/plugins/hook-runner-global.js";
 import { loadBundledPluginTestApiSync } from "../../../src/test-utils/bundled-plugin-public-surface.js";
 type ParseZalouserOutboundTarget = (raw: string) => { threadId: string; isGroup: boolean };
 
 let discordOutboundCache: ChannelOutboundAdapter | undefined;
+let whatsappOutboundCache: ChannelOutboundAdapter | undefined;
 let parseZalouserOutboundTargetCache: ParseZalouserOutboundTarget | undefined;
 
 function getDiscordOutbound(): ChannelOutboundAdapter {
@@ -24,6 +23,15 @@ function getDiscordOutbound(): ChannelOutboundAdapter {
     }>("discord"));
   }
   return discordOutboundCache;
+}
+
+function getWhatsAppOutbound(): ChannelOutboundAdapter {
+  if (!whatsappOutboundCache) {
+    ({ whatsappOutbound: whatsappOutboundCache } = loadBundledPluginTestApiSync<{
+      whatsappOutbound: ChannelOutboundAdapter;
+    }>("whatsapp"));
+  }
+  return whatsappOutboundCache;
 }
 
 function getParseZalouserOutboundTarget(): ParseZalouserOutboundTarget {
@@ -72,10 +80,6 @@ function installChannelOutboundPayloadContractSuite(params: {
     to: string;
   };
 }) {
-  beforeEach(() => {
-    resetGlobalHookRunner();
-  });
-
   it("text-only delegates to sendText", async () => {
     const { run, sendMock, to } = params.createHarness({
       payload: { text: "hello" },
@@ -210,7 +214,7 @@ function createWhatsAppHarness(params: PayloadHarnessParams) {
     },
   };
   return {
-    run: async () => await whatsappOutbound.sendPayload!(ctx),
+    run: async () => await getWhatsAppOutbound().sendPayload!(ctx),
     sendMock: sendWhatsApp,
     to: ctx.to,
   };

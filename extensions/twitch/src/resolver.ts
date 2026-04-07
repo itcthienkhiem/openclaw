@@ -7,7 +7,6 @@
 
 import { ApiClient } from "@twurple/api";
 import { StaticAuthProvider } from "@twurple/auth";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import type { ChannelResolveKind, ChannelResolveResult } from "./types.js";
 import type { ChannelLogSink, TwitchAccountConfig } from "./types.js";
 import { normalizeToken } from "./utils/twitch.js";
@@ -124,7 +123,7 @@ export async function resolveTwitchTargets(
         }
       }
     } catch (error) {
-      const errorMessage = formatErrorMessage(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       results.push({
         input,
         resolved: false,

@@ -18,7 +18,6 @@ import type {
   TtsModelOverrideConfig,
   TtsProvider,
 } from "openclaw/plugin-sdk/config-runtime";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import { redactSensitiveText } from "openclaw/plugin-sdk/logging-core";
 import { resolveSendableOutboundReplyParts } from "openclaw/plugin-sdk/reply-payload";
 import type { ReplyPayload } from "openclaw/plugin-sdk/reply-runtime";
@@ -211,7 +210,7 @@ function sortSpeechProvidersForAutoSelection(cfg?: OpenClawConfig) {
   });
 }
 
-function _resolveRegistryDefaultSpeechProviderId(cfg?: OpenClawConfig): TtsProvider {
+function resolveRegistryDefaultSpeechProviderId(cfg?: OpenClawConfig): TtsProvider {
   return sortSpeechProvidersForAutoSelection(cfg)[0]?.id ?? "";
 }
 
@@ -391,7 +390,7 @@ export function buildTtsSystemPromptHint(cfg: OpenClawConfig): string | undefine
   if (autoMode === "off") {
     return undefined;
   }
-  const _config = resolveTtsConfig(cfg);
+  const config = resolveTtsConfig(cfg);
   const maxLength = getTtsMaxLength(prefsPath);
   const summarize = isSummarizationEnabled(prefsPath) ? "on" : "off";
   const autoHint =
@@ -570,7 +569,7 @@ function formatTtsProviderError(provider: TtsProvider, err: unknown): string {
 }
 
 function sanitizeTtsErrorForLog(err: unknown): string {
-  const raw = formatErrorMessage(err);
+  const raw = err instanceof Error ? err.message : String(err);
   return redactSensitiveText(raw).replace(/\r/g, "\\r").replace(/\n/g, "\\n").replace(/\t/g, "\\t");
 }
 

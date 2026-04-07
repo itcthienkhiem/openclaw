@@ -6,11 +6,7 @@ import { getDiscordGatewayEmitter, waitForDiscordGatewayStop } from "../monitor.
 import type { DiscordVoiceManager } from "../voice/manager.js";
 import type { MutableDiscordGateway } from "./gateway-handle.js";
 import { registerGateway, unregisterGateway } from "./gateway-registry.js";
-import {
-  DiscordGatewayLifecycleError,
-  type DiscordGatewayEvent,
-  type DiscordGatewaySupervisor,
-} from "./gateway-supervisor.js";
+import type { DiscordGatewayEvent, DiscordGatewaySupervisor } from "./gateway-supervisor.js";
 import type { DiscordMonitorStatusSink } from "./status.js";
 
 const DISCORD_GATEWAY_READY_TIMEOUT_MS = 15_000;
@@ -405,13 +401,7 @@ export async function runDiscordGatewayLifecycle(params: {
     if (event.shouldStopLifecycle) {
       lifecycleStopping = true;
     }
-    params.runtime.error?.(
-      danger(
-        event.shouldStopLifecycle
-          ? `discord gateway ${event.type}: ${event.message}`
-          : `discord gateway error: ${event.message}`,
-      ),
-    );
+    params.runtime.error?.(danger(`discord gateway error: ${event.message}`));
     return event.shouldStopLifecycle ? "stop" : "continue";
   };
   const drainPendingGatewayErrors = (): "continue" | "stop" =>
@@ -423,7 +413,7 @@ export async function runDiscordGatewayLifecycle(params: {
       if (event.type === "disallowed-intents") {
         return "stop";
       }
-      throw new DiscordGatewayLifecycleError(event);
+      throw event.err;
     });
   try {
     if (params.execApprovalsHandler) {

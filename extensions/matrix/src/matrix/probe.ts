@@ -1,4 +1,4 @@
-import { formatErrorMessage, type PinnedDispatcherPolicy } from "openclaw/plugin-sdk/infra-runtime";
+import type { PinnedDispatcherPolicy } from "openclaw/plugin-sdk/infra-runtime";
 import type { SsrFPolicy } from "../runtime-api.js";
 import type { BaseProbeResult } from "../runtime-api.js";
 import { isBunRuntime } from "./client/runtime.js";
@@ -24,7 +24,6 @@ export async function probeMatrix(params: {
   homeserver: string;
   accessToken: string;
   userId?: string;
-  deviceId?: string;
   timeoutMs: number;
   accountId?: string | null;
   allowPrivateNetwork?: boolean;
@@ -66,8 +65,6 @@ export async function probeMatrix(params: {
       homeserver: params.homeserver,
       userId: inputUserId,
       accessToken: params.accessToken,
-      deviceId: params.deviceId,
-      persistStorage: false,
       localTimeoutMs: params.timeoutMs,
       accountId: params.accountId,
       allowPrivateNetwork: params.allowPrivateNetwork,
@@ -88,7 +85,7 @@ export async function probeMatrix(params: {
         typeof err === "object" && err && "statusCode" in err
           ? Number((err as { statusCode?: number }).statusCode)
           : result.status,
-      error: formatErrorMessage(err),
+      error: err instanceof Error ? err.message : String(err),
       elapsedMs: Date.now() - started,
     };
   }

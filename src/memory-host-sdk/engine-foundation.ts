@@ -8,9 +8,7 @@ export {
 } from "../agents/agent-scope.js";
 export {
   resolveMemorySearchConfig,
-  resolveMemorySearchSyncConfig,
   type ResolvedMemorySearchConfig,
-  type ResolvedMemorySearchSyncConfig,
 } from "../agents/memory-search.js";
 export { parseDurationMs } from "../cli/parse-duration.js";
 export { loadConfig } from "../config/config.js";

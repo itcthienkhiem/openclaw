@@ -1,6 +1,5 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -287,7 +286,7 @@ export async function generateAndAppendDreamNarrative(params: {
   } catch (err) {
     // Narrative generation is best-effort — never fail the parent phase.
     params.logger.warn(
-      `memory-core: narrative generation failed for ${params.data.phase} phase: ${formatErrorMessage(err)}`,
+      `memory-core: narrative generation failed for ${params.data.phase} phase: ${err instanceof Error ? err.message : String(err)}`,
     );
   } finally {
     // Clean up the transient session.

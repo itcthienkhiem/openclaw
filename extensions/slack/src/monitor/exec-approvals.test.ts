@@ -152,9 +152,7 @@ describe("SlackExecApprovalHandler", () => {
     const buttons = Array.isArray(actionsBlock?.elements) ? actionsBlock.elements : [];
     const buttonTexts = buttons.map((button) =>
       typeof button === "object" && button && typeof button.text === "object" && button.text
-        ? typeof (button.text as { text?: unknown }).text === "string"
-          ? (button.text as { text: string }).text
-          : ""
+        ? String((button.text as { text?: unknown }).text ?? "")
         : "",
     );
 

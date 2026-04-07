@@ -1,6 +1,5 @@
 import type { BaseProbeResult } from "openclaw/plugin-sdk/channel-contract";
 import type { TelegramNetworkConfig } from "openclaw/plugin-sdk/config-runtime";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import { fetchWithTimeout } from "openclaw/plugin-sdk/text-runtime";
 import { resolveTelegramApiBase, resolveTelegramFetch } from "./fetch.js";
 import { makeProxyFetch } from "./proxy.js";
@@ -218,7 +217,7 @@ export async function probeTelegram(
     return {
       ...result,
       status: err instanceof Response ? err.status : result.status,
-      error: formatErrorMessage(err),
+      error: err instanceof Error ? err.message : String(err),
       elapsedMs: Date.now() - started,
     };
   }

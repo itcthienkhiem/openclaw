@@ -71,7 +71,9 @@ export async function authorizeDiscordVoiceIngress(params: {
     };
   }
 
-  const channelAllowed = channelConfig ? channelConfig.allowed : !channelAllowlistConfigured;
+  const channelAllowed = channelConfig
+    ? channelConfig.allowed !== false
+    : !channelAllowlistConfigured;
   if (
     !isDiscordGroupAllowedByPolicy({
       groupPolicy,

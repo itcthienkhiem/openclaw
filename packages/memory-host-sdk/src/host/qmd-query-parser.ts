@@ -1,4 +1,3 @@
-import { formatErrorMessage } from "../../../../src/infra/errors.js";
 import { createSubsystemLogger } from "../../../../src/logging/subsystem.js";
 
 const log = createSubsystemLogger("memory");
@@ -43,7 +42,7 @@ export function parseQmdQueryJson(stdout: string, stderr: string): QmdQueryResul
     }
     throw new Error("qmd query JSON response was not an array");
   } catch (err) {
-    const message = formatErrorMessage(err);
+    const message = err instanceof Error ? err.message : String(err);
     log.warn(`qmd query returned invalid JSON: ${message}`);
     throw new Error(`qmd query returned invalid JSON: ${message}`, { cause: err });
   }

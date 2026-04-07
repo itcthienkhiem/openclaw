@@ -17,6 +17,7 @@ import {
   buildCommandTextFromArgs,
   findCommandByNativeName,
   listChatCommands,
+  resolveCommandArgChoices,
   resolveStoredModelOverride,
   serializeCommandArgs,
   type ChatCommandDefinition,
@@ -29,6 +30,7 @@ import { loadSessionStore, resolveStorePath } from "openclaw/plugin-sdk/config-r
 import type { ResolvedAgentRoute } from "openclaw/plugin-sdk/routing";
 import { logVerbose } from "openclaw/plugin-sdk/runtime-env";
 import { chunkItems, withTimeout } from "openclaw/plugin-sdk/text-runtime";
+import { resolveDiscordChannelConfigWithFallback, resolveDiscordGuildEntry } from "./allow-list.js";
 import { resolveDiscordChannelInfo } from "./message-utils.js";
 import {
   readDiscordModelPickerRecentModels,

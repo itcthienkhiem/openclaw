@@ -4,7 +4,6 @@ export function createUtilsVitestConfig(env?: Record<string, string | undefined>
   return createScopedVitestConfig(["src/utils/**/*.test.ts"], {
     dir: "src",
     env,
-    includeOpenClawRuntimeSetup: false,
     name: "utils",
     passWithNoTests: true,
   });

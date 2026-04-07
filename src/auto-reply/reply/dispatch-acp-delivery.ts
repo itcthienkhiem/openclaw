@@ -2,7 +2,6 @@ import { hasOutboundReplyContent } from "openclaw/plugin-sdk/reply-payload";
 import type { OpenClawConfig } from "../../config/config.js";
 import type { TtsAutoMode } from "../../config/types.tts.js";
 import { logVerbose } from "../../globals.js";
-import { formatErrorMessage } from "../../infra/errors.js";
 import { resolveStatusTtsSnapshot } from "../../tts/status-config.js";
 import { resolveConfiguredTtsMode } from "../../tts/tts-config.js";
 import type { FinalizedMsgContext } from "../templating.js";
@@ -83,7 +82,6 @@ async function shouldTreatDeliveredTextAsVisible(params: {
   channel: string | undefined;
   kind: ReplyDispatchKind;
   text: string | undefined;
-  routed: boolean;
 }): Promise<boolean> {
   if (!params.text?.trim()) {
     return false;
@@ -95,20 +93,19 @@ async function shouldTreatDeliveredTextAsVisible(params: {
   if (!channelId) {
     return false;
   }
+  // Only Telegram currently overrides block/tool visibility via channel runtime.
+  // Keep other channels on the fast path so ACP local delivery does not pay the
+  // broader channel-registry import cost on every streamed turn.
+  if (channelId !== "telegram") {
+    return false;
+  }
   const { getChannelPlugin } = await loadChannelPluginRuntime();
-  const outbound = getChannelPlugin(channelId)?.outbound;
-  const visibilityOverride =
-    outbound?.shouldTreatDeliveredTextAsVisible ?? outbound?.shouldTreatRoutedTextAsVisible;
-  if (visibilityOverride) {
-    return visibilityOverride({
+  return (
+    getChannelPlugin(channelId)?.outbound?.shouldTreatRoutedTextAsVisible?.({
       kind: params.kind,
       text: params.text,
-    });
-  }
-  if (!params.routed) {
-    return channelId === "telegram";
-  }
-  return false;
+    }) === true
+  );
 }
 
 async function maybeApplyAcpTts(params: {
@@ -273,7 +270,7 @@ export function createAcpDispatchDeliveryCoordinator(params: {
       return true;
     } catch (error) {
       logVerbose(
-        `dispatch-acp: tool message edit failed for ${toolCallId}: ${formatErrorMessage(error)}`,
+        `dispatch-acp: tool message edit failed for ${toolCallId}: ${error instanceof Error ? error.message : String(error)}`,
       );
       return false;
     }
@@ -323,7 +320,6 @@ export function createAcpDispatchDeliveryCoordinator(params: {
         channel: routedChannel,
         kind,
         text: ttsPayload.text,
-        routed: true,
       });
       const { routeReply } = await loadRouteReplyRuntime();
       const result = await routeReply({
@@ -367,7 +363,6 @@ export function createAcpDispatchDeliveryCoordinator(params: {
       channel: directChannel,
       kind,
       text: ttsPayload.text,
-      routed: false,
     });
     const delivered =
       kind === "tool"

@@ -15,7 +15,6 @@ import { resolveMatrixAccountConfig } from "../account-config.js";
 import { resolveConfiguredMatrixBotUserIds } from "../accounts.js";
 import { setActiveMatrixClient } from "../active-client.js";
 import {
-  backfillMatrixAuthDeviceIdAfterStartup,
   isBunRuntime,
   resolveMatrixAuth,
   resolveMatrixAuthContext,
@@ -352,13 +351,6 @@ export async function monitorMatrixProvider(opts: MonitorMatrixOpts = {}): Promi
 
     // Shared client is already started via resolveSharedMatrixClient.
     logger.info(`matrix: logged in as ${auth.userId}`);
-    void backfillMatrixAuthDeviceIdAfterStartup({
-      auth,
-      env: process.env,
-      abortSignal: opts.abortSignal,
-    }).catch((err) => {
-      logVerboseMessage(`matrix: failed to backfill deviceId after startup (${String(err)})`);
-    });
 
     execApprovalsHandler = new MatrixExecApprovalHandler({
       client,

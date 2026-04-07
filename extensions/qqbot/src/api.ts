@@ -1,6 +1,5 @@
 import { createRequire } from "node:module";
 import os from "node:os";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import { debugLog, debugError } from "./utils/debug-log.js";
 import { sanitizeFileName } from "./utils/platform.js";
 import { computeFileHash, getCachedFileInfo, setCachedFileInfo } from "./utils/upload-cache.js";
@@ -105,9 +104,9 @@ async function doFetchToken(appId: string, clientSecret: string): Promise<string
     });
   } catch (err) {
     debugError(`[qqbot-api:${appId}] <<< Network error:`, err);
-    throw new Error(`Network error getting access_token: ${formatErrorMessage(err)}`, {
-      cause: err,
-    });
+    throw new Error(
+      `Network error getting access_token: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 
   const responseHeaders: Record<string, string> = {};
@@ -129,9 +128,9 @@ async function doFetchToken(appId: string, clientSecret: string): Promise<string
     data = JSON.parse(rawBody) as { access_token?: string; expires_in?: number };
   } catch (err) {
     debugError(`[qqbot-api:${appId}] <<< Parse error:`, err);
-    throw new Error(`Failed to parse access_token response: ${formatErrorMessage(err)}`, {
-      cause: err,
-    });
+    throw new Error(
+      `Failed to parse access_token response: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 
   if (!data.access_token) {
@@ -226,7 +225,7 @@ export async function apiRequest<T = unknown>(
   if (body) {
     const logBody = { ...body } as Record<string, unknown>;
     if (typeof logBody.file_data === "string") {
-      logBody.file_data = `<base64 ${logBody.file_data.length} chars>`;
+      logBody.file_data = `<base64 ${(logBody.file_data as string).length} chars>`;
     }
     debugLog(`[qqbot-api] >>> Body:`, JSON.stringify(logBody));
   }
@@ -238,10 +237,10 @@ export async function apiRequest<T = unknown>(
     clearTimeout(timeoutId);
     if (err instanceof Error && err.name === "AbortError") {
       debugError(`[qqbot-api] <<< Request timeout after ${timeout}ms`);
-      throw new Error(`Request timeout[${path}]: exceeded ${timeout}ms`, { cause: err });
+      throw new Error(`Request timeout[${path}]: exceeded ${timeout}ms`);
     }
     debugError(`[qqbot-api] <<< Network error:`, err);
-    throw new Error(`Network error [${path}]: ${formatErrorMessage(err)}`, { cause: err });
+    throw new Error(`Network error [${path}]: ${err instanceof Error ? err.message : String(err)}`);
   } finally {
     clearTimeout(timeoutId);
   }
@@ -262,9 +261,9 @@ export async function apiRequest<T = unknown>(
     debugLog(`[qqbot-api] <<< Body:`, rawBody);
     data = JSON.parse(rawBody) as T;
   } catch (err) {
-    throw new Error(`Failed to parse response[${path}]: ${formatErrorMessage(err)}`, {
-      cause: err,
-    });
+    throw new Error(
+      `Failed to parse response[${path}]: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 
   if (!res.ok) {
@@ -352,7 +351,7 @@ async function sendAndNotify(
     try {
       hook(result.ext_info.ref_idx, meta);
     } catch (err) {
-      debugError(`[qqbot-api:${appId}] onMessageSent hook error: ${String(err)}`);
+      debugError(`[qqbot-api:${appId}] onMessageSent hook error: ${err}`);
     }
   }
   return result;
@@ -432,7 +431,7 @@ export async function sendChannelMessage(
   channelId: string,
   content: string,
   msgId?: string,
-): Promise<MessageResponse> {
+): Promise<{ id: string; timestamp: string }> {
   return apiRequest(accessToken, "POST", `/channels/${channelId}/messages`, {
     content,
     ...(msgId ? { msg_id: msgId } : {}),
@@ -494,11 +493,9 @@ export async function sendProactiveGroupMessage(
   accessToken: string,
   groupOpenid: string,
   content: string,
-): Promise<MessageResponse> {
+): Promise<{ id: string; timestamp: string }> {
   const body = buildProactiveMessageBody(appId, content);
-  return sendAndNotify(appId, accessToken, "POST", `/v2/groups/${groupOpenid}/messages`, body, {
-    text: content,
-  });
+  return apiRequest(accessToken, "POST", `/v2/groups/${groupOpenid}/messages`, body);
 }
 
 // Rich media message support.
@@ -526,9 +523,7 @@ export async function uploadC2CMedia(
   srvSendMsg = false,
   fileName?: string,
 ): Promise<UploadMediaResponse> {
-  if (!url && !fileData) {
-    throw new Error("uploadC2CMedia: url or fileData is required");
-  }
+  if (!url && !fileData) throw new Error("uploadC2CMedia: url or fileData is required");
 
   if (fileData) {
     const contentHash = computeFileHash(fileData);
@@ -539,14 +534,9 @@ export async function uploadC2CMedia(
   }
 
   const body: Record<string, unknown> = { file_type: fileType, srv_send_msg: srvSendMsg };
-  if (url) {
-    body.url = url;
-  } else if (fileData) {
-    body.file_data = fileData;
-  }
-  if (fileType === MediaFileType.FILE && fileName) {
-    body.file_name = sanitizeFileName(fileName);
-  }
+  if (url) body.url = url;
+  else if (fileData) body.file_data = fileData;
+  if (fileType === MediaFileType.FILE && fileName) body.file_name = sanitizeFileName(fileName);
 
   const result = await apiRequestWithRetry<UploadMediaResponse>(
     accessToken,
@@ -579,9 +569,7 @@ export async function uploadGroupMedia(
   srvSendMsg = false,
   fileName?: string,
 ): Promise<UploadMediaResponse> {
-  if (!url && !fileData) {
-    throw new Error("uploadGroupMedia: url or fileData is required");
-  }
+  if (!url && !fileData) throw new Error("uploadGroupMedia: url or fileData is required");
 
   if (fileData) {
     const contentHash = computeFileHash(fileData);
@@ -592,14 +580,9 @@ export async function uploadGroupMedia(
   }
 
   const body: Record<string, unknown> = { file_type: fileType, srv_send_msg: srvSendMsg };
-  if (url) {
-    body.url = url;
-  } else if (fileData) {
-    body.file_data = fileData;
-  }
-  if (fileType === MediaFileType.FILE && fileName) {
-    body.file_name = sanitizeFileName(fileName);
-  }
+  if (url) body.url = url;
+  else if (fileData) body.file_data = fileData;
+  if (fileType === MediaFileType.FILE && fileName) body.file_name = sanitizeFileName(fileName);
 
   const result = await apiRequestWithRetry<UploadMediaResponse>(
     accessToken,
@@ -679,9 +662,7 @@ export async function sendC2CImageMessage(
   const isBase64 = imageUrl.startsWith("data:");
   if (isBase64) {
     const matches = imageUrl.match(/^data:([^;]+);base64,(.+)$/);
-    if (!matches) {
-      throw new Error("Invalid Base64 Data URL format");
-    }
+    if (!matches) throw new Error("Invalid Base64 Data URL format");
     uploadResult = await uploadC2CMedia(
       accessToken,
       openid,
@@ -729,9 +710,7 @@ export async function sendGroupImageMessage(
   const isBase64 = imageUrl.startsWith("data:");
   if (isBase64) {
     const matches = imageUrl.match(/^data:([^;]+);base64,(.+)$/);
-    if (!matches) {
-      throw new Error("Invalid Base64 Data URL format");
-    }
+    if (!matches) throw new Error("Invalid Base64 Data URL format");
     uploadResult = await uploadGroupMedia(
       accessToken,
       groupOpenid,
@@ -953,10 +932,8 @@ export function startBackgroundTokenRefresh(
           await sleep(minRefreshIntervalMs, signal);
         }
       } catch (err) {
-        if (signal.aborted) {
-          break;
-        }
-        log?.error?.(`[qqbot-api:${appId}] Background token refresh failed: ${String(err)}`);
+        if (signal.aborted) break;
+        log?.error?.(`[qqbot-api:${appId}] Background token refresh failed: ${err}`);
         await sleep(retryDelayMs, signal);
       }
     }
@@ -991,9 +968,7 @@ export function stopBackgroundTokenRefresh(appId?: string): void {
 }
 
 export function isBackgroundTokenRefreshRunning(appId?: string): boolean {
-  if (appId) {
-    return backgroundRefreshControllers.has(appId);
-  }
+  if (appId) return backgroundRefreshControllers.has(appId);
   return backgroundRefreshControllers.size > 0;
 }
 

@@ -8,7 +8,6 @@ import type {
 import type { OpenClawConfig } from "../config/config.js";
 import { readConfigFileSnapshot, resolveGatewayPort, writeConfigFile } from "../config/config.js";
 import { normalizeSecretInputString } from "../config/types.secrets.js";
-import { formatErrorMessage } from "../infra/errors.js";
 import {
   buildPluginCompatibilityNotices,
   formatPluginCompatibilityNotice,
@@ -371,7 +370,7 @@ export async function runSetupWizard(
     await prompter.note(
       [
         "Could not resolve gateway.auth.token SecretRef for setup probe.",
-        formatErrorMessage(error),
+        error instanceof Error ? error.message : String(error),
       ].join("\n"),
       "Gateway auth",
     );
@@ -391,7 +390,7 @@ export async function runSetupWizard(
     await prompter.note(
       [
         "Could not resolve gateway.auth.password SecretRef for setup probe.",
-        formatErrorMessage(error),
+        error instanceof Error ? error.message : String(error),
       ].join("\n"),
       "Gateway auth",
     );
@@ -418,7 +417,7 @@ export async function runSetupWizard(
     await prompter.note(
       [
         "Could not resolve gateway.remote.token SecretRef for setup probe.",
-        formatErrorMessage(error),
+        error instanceof Error ? error.message : String(error),
       ].join("\n"),
       "Gateway auth",
     );

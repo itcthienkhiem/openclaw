@@ -16,7 +16,10 @@ import {
 } from "openclaw/plugin-sdk/directory-runtime";
 import { buildPassiveProbedChannelStatusSummary } from "openclaw/plugin-sdk/extension-shared";
 import { createLazyRuntimeModule } from "openclaw/plugin-sdk/lazy-runtime";
-import { resolveOutboundSendDep } from "openclaw/plugin-sdk/outbound-runtime";
+import {
+  createRuntimeOutboundDelegates,
+  resolveOutboundSendDep,
+} from "openclaw/plugin-sdk/outbound-runtime";
 import {
   buildOutboundBaseSessionKey,
   normalizeOutboundThreadId,
@@ -29,6 +32,7 @@ import {
 } from "openclaw/plugin-sdk/status-helpers";
 import { resolveTargetsWithOptionalToken } from "openclaw/plugin-sdk/target-resolver-runtime";
 import {
+  listEnabledSlackAccounts,
   resolveDefaultSlackAccountId,
   resolveSlackAccount,
   resolveSlackReplyToMode,
@@ -51,10 +55,7 @@ import {
 import { resolveSlackChannelType } from "./channel-type.js";
 import { shouldSuppressLocalSlackExecApprovalPrompt } from "./exec-approvals.js";
 import { resolveSlackGroupRequireMention, resolveSlackGroupToolPolicy } from "./group-policy.js";
-import {
-  compileSlackInteractiveReplies,
-  isSlackInteractiveRepliesEnabled,
-} from "./interactive-replies.js";
+import { isSlackInteractiveRepliesEnabled } from "./interactive-replies.js";
 import { SLACK_TEXT_LIMIT } from "./limits.js";
 import { slackOutbound } from "./outbound-adapter.js";
 import type { SlackProbe } from "./probe.js";
@@ -67,8 +68,8 @@ import { slackSetupWizard } from "./setup-surface.js";
 import {
   createSlackPluginBase,
   isSlackPluginAccountConfigured,
-  SLACK_CHANNEL,
   slackConfigAdapter,
+  SLACK_CHANNEL,
 } from "./shared.js";
 import { parseSlackTarget } from "./target-parsing.js";
 import { buildSlackThreadingToolContext } from "./threading-tool-context.js";
@@ -327,10 +328,6 @@ export const slackPlugin: ChannelPlugin<ResolvedSlackAccount, SlackProbe> = crea
       parseExplicitTarget: ({ raw }) => parseSlackExplicitTarget(raw),
       inferTargetChatType: ({ to }) => parseSlackExplicitTarget(to)?.chatType,
       resolveOutboundSessionRoute: async (params) => await resolveSlackOutboundSessionRoute(params),
-      transformReplyPayload: ({ payload, cfg, accountId }) =>
-        isSlackInteractiveRepliesEnabled({ cfg, accountId })
-          ? compileSlackInteractiveReplies(payload)
-          : payload,
       enableInteractiveReplies: ({ cfg, accountId }) =>
         isSlackInteractiveRepliesEnabled({ cfg, accountId }),
       hasStructuredReplyPayload: ({ payload }) => {
@@ -576,7 +573,7 @@ export const slackPlugin: ChannelPlugin<ResolvedSlackAccount, SlackProbe> = crea
         return await slackOutbound.sendPayload!({
           ...ctx,
           deps: {
-            ...ctx.deps,
+            ...(ctx.deps ?? {}),
             slack: async (
               to: Parameters<SlackSendFn>[0],
               text: Parameters<SlackSendFn>[1],

@@ -1,15 +1,27 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   collectFilesSync,
   isCodeFile,
   relativeToCwd,
   toPosixPath,
 } from "../../scripts/check-file-utils.js";
-import { createScriptTestHarness } from "./test-helpers.js";
 
-const { createTempDir } = createScriptTestHarness();
+const tempDirs: string[] = [];
+
+afterEach(() => {
+  for (const dir of tempDirs.splice(0)) {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+function makeTempDir(): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "openclaw-check-file-utils-"));
+  tempDirs.push(dir);
+  return dir;
+}
 
 describe("scripts/check-file-utils isCodeFile", () => {
   it("accepts source files and skips declarations", () => {
@@ -21,7 +33,7 @@ describe("scripts/check-file-utils isCodeFile", () => {
 
 describe("scripts/check-file-utils collectFilesSync", () => {
   it("collects matching files while skipping common generated dirs", () => {
-    const rootDir = createTempDir("openclaw-check-file-utils-");
+    const rootDir = makeTempDir();
     fs.mkdirSync(path.join(rootDir, "src", "nested"), { recursive: true });
     fs.mkdirSync(path.join(rootDir, "dist"), { recursive: true });
     fs.mkdirSync(path.join(rootDir, "docs", ".generated"), { recursive: true });
@@ -41,7 +53,7 @@ describe("scripts/check-file-utils collectFilesSync", () => {
   });
 
   it("supports custom skipped directories", () => {
-    const rootDir = createTempDir("openclaw-check-file-utils-");
+    const rootDir = makeTempDir();
     fs.mkdirSync(path.join(rootDir, "fixtures"), { recursive: true });
     fs.mkdirSync(path.join(rootDir, "src"), { recursive: true });
     fs.writeFileSync(path.join(rootDir, "fixtures", "skip.ts"), "");

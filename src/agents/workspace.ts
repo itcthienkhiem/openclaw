@@ -6,7 +6,6 @@ import { openBoundaryFile } from "../infra/boundary-file-read.js";
 import { resolveRequiredHomeDir } from "../infra/home-dir.js";
 import { runCommandWithTimeout } from "../process/exec.js";
 import { isCronSessionKey, isSubagentSessionKey } from "../routing/session-key.js";
-import { readStringValue } from "../shared/string-coerce.js";
 import { resolveUserPath } from "../utils.js";
 import { resolveWorkspaceTemplateDir } from "./workspace-templates.js";
 
@@ -218,11 +217,14 @@ function parseWorkspaceSetupState(raw: string): WorkspaceSetupState | null {
     if (!parsed || typeof parsed !== "object") {
       return null;
     }
-    const legacyCompletedAt = readStringValue(parsed.onboardingCompletedAt);
+    const legacyCompletedAt =
+      typeof parsed.onboardingCompletedAt === "string" ? parsed.onboardingCompletedAt : undefined;
     return {
       version: WORKSPACE_STATE_VERSION,
-      bootstrapSeededAt: readStringValue(parsed.bootstrapSeededAt),
-      setupCompletedAt: readStringValue(parsed.setupCompletedAt) ?? legacyCompletedAt,
+      bootstrapSeededAt:
+        typeof parsed.bootstrapSeededAt === "string" ? parsed.bootstrapSeededAt : undefined,
+      setupCompletedAt:
+        typeof parsed.setupCompletedAt === "string" ? parsed.setupCompletedAt : legacyCompletedAt,
     };
   } catch {
     return null;

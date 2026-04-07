@@ -1,4 +1,5 @@
 import type { OpenClawConfig } from "../config/config.js";
+import { normalizeSecretInputString, resolveSecretInputRef } from "../config/types.secrets.js";
 import { logVerbose } from "../globals.js";
 import type {
   PluginWebFetchProviderEntry,
@@ -8,13 +9,7 @@ import { resolvePluginWebFetchProviders } from "../plugins/web-fetch-providers.r
 import { sortWebFetchProvidersForAutoDetect } from "../plugins/web-fetch-providers.shared.js";
 import { getActiveRuntimeWebToolsMetadata } from "../secrets/runtime-web-tools-state.js";
 import type { RuntimeWebFetchMetadata } from "../secrets/runtime-web-tools.types.js";
-import {
-  hasWebProviderEntryCredential,
-  providerRequiresCredential,
-  readWebProviderEnvValue,
-  resolveWebProviderConfig,
-  resolveWebProviderDefinition,
-} from "../web/provider-runtime-shared.js";
+import { normalizeSecretInput } from "../utils/normalize-secret-input.js";
 
 type WebFetchConfig = NonNullable<OpenClawConfig["tools"]>["web"] extends infer Web
   ? Web extends { fetch?: infer Fetch }
@@ -30,6 +25,14 @@ export type ResolveWebFetchDefinitionParams = {
   preferRuntimeProviders?: boolean;
 };
 
+function resolveFetchConfig(cfg?: OpenClawConfig): WebFetchConfig {
+  const fetch = cfg?.tools?.web?.fetch;
+  if (!fetch || typeof fetch !== "object") {
+    return undefined;
+  }
+  return fetch as WebFetchConfig;
+}
+
 export function resolveWebFetchEnabled(params: {
   fetch?: WebFetchConfig;
   sandboxed?: boolean;
@@ -40,6 +43,22 @@ export function resolveWebFetchEnabled(params: {
   return true;
 }
 
+function readProviderEnvValue(envVars: string[]): string | undefined {
+  for (const envVar of envVars) {
+    const value = normalizeSecretInput(process.env[envVar]);
+    if (value) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function providerRequiresCredential(
+  provider: Pick<PluginWebFetchProviderEntry, "requiresCredential">,
+): boolean {
+  return provider.requiresCredential !== false;
+}
+
 function hasEntryCredential(
   provider: Pick<
     PluginWebFetchProviderEntry,
@@ -48,16 +67,19 @@ function hasEntryCredential(
   config: OpenClawConfig | undefined,
   fetch: WebFetchConfig | undefined,
 ): boolean {
-  return hasWebProviderEntryCredential({
-    provider,
-    config,
-    toolConfig: fetch as Record<string, unknown> | undefined,
-    resolveRawValue: ({ provider: currentProvider, config: currentConfig, toolConfig }) =>
-      currentProvider.getConfiguredCredentialValue?.(currentConfig) ??
-      currentProvider.getCredentialValue(toolConfig),
-    resolveEnvValue: ({ provider: currentProvider }) =>
-      readWebProviderEnvValue(currentProvider.envVars),
-  });
+  if (!providerRequiresCredential(provider)) {
+    return true;
+  }
+  const configuredValue = provider.getConfiguredCredentialValue?.(config);
+  const rawValue = configuredValue ?? provider.getCredentialValue(fetch as Record<string, unknown>);
+  const configuredRef = resolveSecretInputRef({
+    value: rawValue,
+  }).ref;
+  if (configuredRef && configuredRef.source !== "env") {
+    return true;
+  }
+  const fromConfig = normalizeSecretInput(normalizeSecretInputString(rawValue));
+  return Boolean(fromConfig || readProviderEnvValue(provider.envVars));
 }
 
 export function listWebFetchProviders(params?: {
@@ -126,41 +148,44 @@ export function resolveWebFetchProviderId(params: {
 export function resolveWebFetchDefinition(
   options?: ResolveWebFetchDefinitionParams,
 ): { provider: PluginWebFetchProviderEntry; definition: WebFetchProviderToolDefinition } | null {
-  const fetch = resolveWebProviderConfig<"fetch", NonNullable<WebFetchConfig>>(
-    options?.config,
-    "fetch",
-  );
+  const fetch = resolveFetchConfig(options?.config);
   const runtimeWebFetch = options?.runtimeWebFetch ?? getActiveRuntimeWebToolsMetadata()?.fetch;
+  if (!resolveWebFetchEnabled({ fetch, sandboxed: options?.sandboxed })) {
+    return null;
+  }
+
   const providers = sortWebFetchProvidersForAutoDetect(
     resolvePluginWebFetchProviders({
       config: options?.config,
       bundledAllowlistCompat: true,
       origin: "bundled",
     }),
-  );
-  return resolveWebProviderDefinition({
+  ).filter(Boolean);
+  if (providers.length === 0) {
+    return null;
+  }
+
+  const providerId =
+    options?.providerId ??
+    runtimeWebFetch?.selectedProvider ??
+    runtimeWebFetch?.providerConfigured ??
+    resolveWebFetchProviderId({ config: options?.config, fetch, providers });
+  if (!providerId) {
+    return null;
+  }
+  const provider = providers.find((entry) => entry.id === providerId);
+  if (!provider) {
+    return null;
+  }
+
+  const definition = provider.createTool({
     config: options?.config,
-    toolConfig: fetch as Record<string, unknown> | undefined,
+    fetchConfig: fetch as Record<string, unknown> | undefined,
     runtimeMetadata: runtimeWebFetch,
-    sandboxed: options?.sandboxed,
-    providerId: options?.providerId,
-    providers,
-    resolveEnabled: ({ toolConfig, sandboxed }) =>
-      resolveWebFetchEnabled({
-        fetch: toolConfig as WebFetchConfig | undefined,
-        sandboxed,
-      }),
-    resolveAutoProviderId: ({ config, toolConfig, providers }) =>
-      resolveWebFetchProviderId({
-        config,
-        fetch: toolConfig as WebFetchConfig | undefined,
-        providers,
-      }),
-    createTool: ({ provider, config, toolConfig, runtimeMetadata }) =>
-      provider.createTool({
-        config,
-        fetchConfig: toolConfig,
-        runtimeMetadata,
-      }),
   });
+  if (!definition) {
+    return null;
+  }
+
+  return { provider, definition };
 }

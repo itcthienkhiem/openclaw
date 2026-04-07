@@ -1,7 +1,6 @@
 import { hasExplicitMatrixAccountConfig } from "./matrix/account-config.js";
 import { resolveMatrixAccountConfig } from "./matrix/accounts.js";
 import { bootstrapMatrixVerification } from "./matrix/actions/verification.js";
-import { formatMatrixErrorMessage } from "./matrix/errors.js";
 import type { RuntimeEnv } from "./runtime-api.js";
 import type { CoreConfig } from "./types.js";
 
@@ -39,7 +38,7 @@ export async function maybeBootstrapNewEncryptedMatrixAccount(params: {
     const bootstrap = await bootstrapMatrixVerification({ accountId: params.accountId });
     return {
       attempted: true,
-      success: bootstrap.success,
+      success: bootstrap.success === true,
       recoveryKeyCreatedAt: bootstrap.verification.recoveryKeyCreatedAt,
       backupVersion: bootstrap.verification.backupVersion,
       ...(bootstrap.success
@@ -52,7 +51,7 @@ export async function maybeBootstrapNewEncryptedMatrixAccount(params: {
       success: false,
       recoveryKeyCreatedAt: null,
       backupVersion: null,
-      error: formatMatrixErrorMessage(err),
+      error: err instanceof Error ? err.message : String(err),
     };
   }
 }

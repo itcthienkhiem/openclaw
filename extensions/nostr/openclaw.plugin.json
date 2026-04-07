@@ -1,9 +1,6 @@
 {
   "id": "nostr",
   "channels": ["nostr"],
-  "channelEnvVars": {
-    "nostr": ["NOSTR_PRIVATE_KEY"]
-  },
   "configSchema": {
     "type": "object",
     "additionalProperties": false,

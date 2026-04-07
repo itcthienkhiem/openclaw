@@ -159,6 +159,7 @@ describe("telegram group policy", () => {
           },
         },
       },
+      // oxlint-disable-next-line typescript/no-explicit-any
     } as any;
     expect(
       resolveTelegramGroupRequireMention({ cfg: telegramCfg, groupId: "-1001:topic:77" }),
@@ -201,6 +202,7 @@ describe("telegram group policy", () => {
           },
         },
       },
+      // oxlint-disable-next-line typescript/no-explicit-any
     } as any;
 
     expect(

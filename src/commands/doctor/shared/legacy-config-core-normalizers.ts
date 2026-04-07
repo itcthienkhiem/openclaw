@@ -1,23 +1,14 @@
 import { isDeepStrictEqual } from "node:util";
 import { normalizeProviderId } from "../../../agents/model-selection.js";
-import { resolveSingleAccountKeysToMove } from "../../../channels/plugins/setup-helpers.js";
+import { shouldMoveSingleAccountChannelKey } from "../../../channels/plugins/setup-helpers.js";
 import type { OpenClawConfig } from "../../../config/config.js";
 import { resolveNormalizedProviderModelMaxTokens } from "../../../config/defaults.js";
 import { normalizeTalkSection } from "../../../config/talk.js";
 import { DEFAULT_GOOGLE_API_BASE_URL } from "../../../infra/google-api-base-url.js";
 import { DEFAULT_ACCOUNT_ID } from "../../../routing/session-key.js";
-import { isRecord } from "./legacy-config-record-shared.js";
 
-function buildLegacyTalkProviderCompat(
-  talk: Record<string, unknown>,
-): Record<string, unknown> | undefined {
-  const compat: Record<string, unknown> = {};
-  for (const key of ["voiceId", "voiceAliases", "modelId", "outputFormat", "apiKey"] as const) {
-    if (talk[key] !== undefined) {
-      compat[key] = talk[key];
-    }
-  }
-  return Object.keys(compat).length > 0 ? compat : undefined;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 export function normalizeLegacyBrowserConfig(
@@ -132,10 +123,15 @@ export function seedMissingDefaultAccountsFromSingleAccountBase(
     if (hasDefault) {
       continue;
     }
-    const keysToMove = resolveSingleAccountKeysToMove({
-      channelKey: channelId,
-      channel: rawChannel,
-    });
+
+    const keysToMove = Object.entries(rawChannel)
+      .filter(([key, value]) => {
+        if (key === "accounts" || key === "enabled" || value === undefined) {
+          return false;
+        }
+        return shouldMoveSingleAccountChannelKey({ channelKey: channelId, key });
+      })
+      .map(([key]) => key);
     if (keysToMove.length === 0) {
       continue;
     }
@@ -321,18 +317,8 @@ export function normalizeLegacyTalkConfig(cfg: OpenClawConfig, changes: string[]
     return cfg;
   }
 
-  const normalizedTalk = normalizeTalkSection(rawTalk as OpenClawConfig["talk"]) ?? {};
-  const legacyProviderCompat = buildLegacyTalkProviderCompat(rawTalk);
-  if (legacyProviderCompat) {
-    normalizedTalk.providers = {
-      ...normalizedTalk.providers,
-      elevenlabs: {
-        ...legacyProviderCompat,
-        ...normalizedTalk.providers?.elevenlabs,
-      },
-    };
-  }
-  if (Object.keys(normalizedTalk).length === 0 || isDeepStrictEqual(normalizedTalk, rawTalk)) {
+  const normalizedTalk = normalizeTalkSection(rawTalk as OpenClawConfig["talk"]);
+  if (!normalizedTalk || isDeepStrictEqual(normalizedTalk, rawTalk)) {
     return cfg;
   }
 

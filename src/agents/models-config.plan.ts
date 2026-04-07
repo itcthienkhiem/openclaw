@@ -14,12 +14,6 @@ import {
 } from "./models-config.providers.js";
 
 type ModelsConfig = NonNullable<OpenClawConfig["models"]>;
-export type ResolveImplicitProvidersForModelsJson = (params: {
-  agentDir: string;
-  config: OpenClawConfig;
-  env: NodeJS.ProcessEnv;
-  explicitProviders: Record<string, ProviderConfig>;
-}) => Promise<Record<string, ProviderConfig>>;
 
 export type ModelsJsonPlan =
   | {
@@ -33,20 +27,14 @@ export type ModelsJsonPlan =
       contents: string;
     };
 
-export async function resolveProvidersForModelsJsonWithDeps(
-  params: {
-    cfg: OpenClawConfig;
-    agentDir: string;
-    env: NodeJS.ProcessEnv;
-  },
-  deps?: {
-    resolveImplicitProviders?: ResolveImplicitProvidersForModelsJson;
-  },
-): Promise<Record<string, ProviderConfig>> {
+async function resolveProvidersForModelsJson(params: {
+  cfg: OpenClawConfig;
+  agentDir: string;
+  env: NodeJS.ProcessEnv;
+}): Promise<Record<string, ProviderConfig>> {
   const { cfg, agentDir, env } = params;
   const explicitProviders = cfg.models?.providers ?? {};
-  const resolveImplicitProvidersImpl = deps?.resolveImplicitProviders ?? resolveImplicitProviders;
-  const implicitProviders = await resolveImplicitProvidersImpl({
+  const implicitProviders = await resolveImplicitProviders({
     agentDir,
     config: cfg,
     env,
@@ -98,21 +86,16 @@ function resolveProvidersForMode(params: {
   });
 }
 
-export async function planOpenClawModelsJsonWithDeps(
-  params: {
-    cfg: OpenClawConfig;
-    sourceConfigForSecrets?: OpenClawConfig;
-    agentDir: string;
-    env: NodeJS.ProcessEnv;
-    existingRaw: string;
-    existingParsed: unknown;
-  },
-  deps?: {
-    resolveImplicitProviders?: ResolveImplicitProvidersForModelsJson;
-  },
-): Promise<ModelsJsonPlan> {
+export async function planOpenClawModelsJson(params: {
+  cfg: OpenClawConfig;
+  sourceConfigForSecrets?: OpenClawConfig;
+  agentDir: string;
+  env: NodeJS.ProcessEnv;
+  existingRaw: string;
+  existingParsed: unknown;
+}): Promise<ModelsJsonPlan> {
   const { cfg, agentDir, env } = params;
-  const providers = await resolveProvidersForModelsJsonWithDeps({ cfg, agentDir, env }, deps);
+  const providers = await resolveProvidersForModelsJson({ cfg, agentDir, env });
 
   if (Object.keys(providers).length === 0) {
     return { action: "skip" };
@@ -155,10 +138,4 @@ export async function planOpenClawModelsJsonWithDeps(
     action: "write",
     contents: nextContents,
   };
-}
-
-export async function planOpenClawModelsJson(
-  params: Parameters<typeof planOpenClawModelsJsonWithDeps>[0],
-): Promise<ModelsJsonPlan> {
-  return planOpenClawModelsJsonWithDeps(params);
 }

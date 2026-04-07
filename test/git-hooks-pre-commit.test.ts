@@ -1,15 +1,14 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanupTempDirs, makeTempRepoRoot } from "./helpers/temp-repo.js";
+import { describe, expect, it } from "vitest";
 
 const baseGitEnv = {
   GIT_CONFIG_NOSYSTEM: "1",
   GIT_TERMINAL_PROMPT: "0",
 };
 const baseRunEnv: NodeJS.ProcessEnv = { ...process.env, ...baseGitEnv };
-const tempDirs: string[] = [];
 
 const run = (cwd: string, cmd: string, args: string[] = [], env?: NodeJS.ProcessEnv) => {
   return execFileSync(cmd, args, {
@@ -26,13 +25,9 @@ function writeExecutable(dir: string, name: string, contents: string): void {
   });
 }
 
-afterEach(() => {
-  cleanupTempDirs(tempDirs);
-});
-
 describe("git-hooks/pre-commit (integration)", () => {
   it("does not treat staged filenames as git-add flags (e.g. --all)", () => {
-    const dir = makeTempRepoRoot(tempDirs, "openclaw-pre-commit-");
+    const dir = mkdtempSync(path.join(os.tmpdir(), "openclaw-pre-commit-"));
     run(dir, "git", ["init", "-q", "--initial-branch=main"]);
 
     // Use the real hook script and lightweight helper stubs.
@@ -79,7 +74,7 @@ describe("git-hooks/pre-commit (integration)", () => {
   });
 
   it("skips pnpm check when FAST_COMMIT is enabled", () => {
-    const dir = makeTempRepoRoot(tempDirs, "openclaw-pre-commit-yolo-");
+    const dir = mkdtempSync(path.join(os.tmpdir(), "openclaw-pre-commit-yolo-"));
     run(dir, "git", ["init", "-q", "--initial-branch=main"]);
 
     mkdirSync(path.join(dir, "git-hooks"), { recursive: true });

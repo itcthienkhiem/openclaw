@@ -3,17 +3,16 @@ import {
   ChannelType,
   Command,
   StringSelectMenu,
+  type TopLevelComponents,
   type AutocompleteInteraction,
   type ButtonInteraction,
   type CommandInteraction,
   type CommandOptions,
   type StringSelectMenuInteraction,
-  type TopLevelComponents,
 } from "@buape/carbon";
 import { ApplicationCommandOptionType } from "discord-api-types/v10";
 import { resolveHumanDelayConfig } from "openclaw/plugin-sdk/agent-runtime";
 import { createChannelReplyPipeline } from "openclaw/plugin-sdk/channel-reply-pipeline";
-import { resolveChannelStreamingBlockEnabled } from "openclaw/plugin-sdk/channel-streaming";
 import {
   resolveCommandAuthorizedFromAuthorizers,
   resolveNativeCommandSessionTargets,
@@ -25,6 +24,7 @@ import { getAgentScopedMediaLocalRoots } from "openclaw/plugin-sdk/media-runtime
 import {
   buildCommandTextFromArgs,
   findCommandByNativeName,
+  listChatCommands,
   parseCommandArgs,
   resolveCommandArgChoices,
   resolveCommandArgMenu,
@@ -45,21 +45,23 @@ import {
   resolveSendableOutboundReplyParts,
   resolveTextChunksWithFallback,
 } from "openclaw/plugin-sdk/reply-payload";
-import { createSubsystemLogger, logVerbose } from "openclaw/plugin-sdk/runtime-env";
+import { logVerbose } from "openclaw/plugin-sdk/runtime-env";
+import { createSubsystemLogger } from "openclaw/plugin-sdk/runtime-env";
 import { resolveOpenProviderRuntimeGroupPolicy } from "openclaw/plugin-sdk/runtime-group-policy";
 import { loadWebMedia } from "openclaw/plugin-sdk/web-media";
 import { resolveDiscordMaxLinesPerMessage } from "../accounts.js";
 import { chunkDiscordTextWithMode } from "../chunk.js";
 import {
+  isDiscordGroupAllowedByPolicy,
   normalizeDiscordAllowList,
   normalizeDiscordSlug,
-  resolveDiscordAllowListMatch,
-  resolveDiscordChannelConfigWithFallback,
   resolveDiscordChannelPolicyCommandAuthorizer,
+  resolveGroupDmAllow,
+  resolveDiscordChannelConfigWithFallback,
+  resolveDiscordAllowListMatch,
   resolveDiscordGuildEntry,
   resolveDiscordMemberAccessState,
   resolveDiscordOwnerAccess,
-  resolveGroupDmAllow,
 } from "./allow-list.js";
 import { resolveDiscordDmCommandAccess } from "./dm-command-auth.js";
 import { handleDiscordDmCommandDecision } from "./dm-command-decision.js";
@@ -229,16 +231,15 @@ function resolveDiscordGuildNativeCommandAuthorized(params: {
     configured: hasAccessRestrictions,
     allowed: memberAllowed,
   };
-  const fallbackAuthorizers = [policyAuthorizer, ownerAuthorizer, memberAuthorizer];
   return resolveCommandAuthorizedFromAuthorizers({
     useAccessGroups: params.useAccessGroups,
     authorizers: params.useAccessGroups
       ? params.commandsAllowFromAccess.configured
         ? [commandAllowlistAuthorizer]
-        : fallbackAuthorizers
+        : [policyAuthorizer, ownerAuthorizer, memberAuthorizer]
       : params.commandsAllowFromAccess.configured
         ? [commandAllowlistAuthorizer]
-        : fallbackAuthorizers,
+        : [memberAuthorizer],
     modeWhenAccessGroupsOff: "configured",
   });
 }
@@ -341,14 +342,7 @@ function buildDiscordCommandOptions(params: {
 
 function shouldBypassConfiguredAcpEnsure(commandName: string): boolean {
   const normalized = commandName.trim().toLowerCase();
-  // Recovery slash commands still need configured ACP readiness so stale dead
-  // bindings are recreated before /new or /reset dispatches through them.
-  return normalized === "acp";
-}
-
-function shouldBypassConfiguredAcpGuildGuards(commandName: string): boolean {
-  const normalized = commandName.trim().toLowerCase();
-  return normalized === "new" || normalized === "reset";
+  return normalized === "acp" || normalized === "new" || normalized === "reset";
 }
 
 function resolveDiscordNativeGroupDmAccess(params: {
@@ -847,49 +841,11 @@ async function dispatchDiscordCommandInteraction(params: {
         scope: isThreadChannel ? "thread" : "channel",
       })
     : null;
-  let nativeRouteStatePromise:
-    | ReturnType<typeof resolveDiscordNativeInteractionRouteStateImpl>
-    | undefined;
-  const getNativeRouteState = () =>
-    (nativeRouteStatePromise ??= resolveDiscordNativeInteractionRouteStateImpl({
-      cfg,
-      accountId,
-      guildId: interaction.guild?.id ?? undefined,
-      memberRoleIds,
-      isDirectMessage,
-      isGroupDm,
-      directUserId: user.id,
-      conversationId: rawChannelId || "unknown",
-      parentConversationId: threadParentId,
-      threadBinding: isThreadChannel ? threadBindings.getByThreadId(rawChannelId) : undefined,
-      enforceConfiguredBindingReadiness: !shouldBypassConfiguredAcpEnsure(
-        command.nativeName ?? command.key,
-      ),
-    }));
-  const canBypassConfiguredAcpGuildGuards = async () => {
-    if (
-      !interaction.guild ||
-      !shouldBypassConfiguredAcpGuildGuards(command.nativeName ?? command.key)
-    ) {
-      return false;
-    }
-    const routeState = await getNativeRouteState();
-    return (
-      routeState.effectiveRoute.matchedBy === "binding.channel" ||
-      routeState.boundSessionKey != null ||
-      routeState.configuredBinding != null ||
-      routeState.configuredRoute != null
-    );
-  };
-  if (channelConfig?.enabled === false && !(await canBypassConfiguredAcpGuildGuards())) {
+  if (channelConfig?.enabled === false) {
     await respond("This channel is disabled.");
     return;
   }
-  if (
-    interaction.guild &&
-    channelConfig?.allowed === false &&
-    !(await canBypassConfiguredAcpGuildGuards())
-  ) {
+  if (interaction.guild && channelConfig?.allowed === false) {
     await respond("This channel is not allowed.");
     return;
   }
@@ -904,7 +860,7 @@ async function dispatchDiscordCommandInteraction(params: {
       guildInfo,
       channelConfig,
     });
-    if (!policyAuthorizer.allowed && !(await canBypassConfiguredAcpGuildGuards())) {
+    if (!policyAuthorizer.allowed) {
       await respond("This channel is not allowed.");
       return;
     }
@@ -986,7 +942,7 @@ async function dispatchDiscordCommandInteraction(params: {
       ownerAllowListConfigured: ownerAllowList != null,
       ownerAllowed: ownerOk,
     });
-    if (!commandAuthorized && !(await canBypassConfiguredAcpGuildGuards())) {
+    if (!commandAuthorized) {
       await respond("You are not authorized to use this command.", { ephemeral: true });
       return;
     }
@@ -1033,6 +989,25 @@ async function dispatchDiscordCommandInteraction(params: {
   }
 
   const pluginMatch = matchPluginCommandImpl(prompt);
+  let nativeRouteStatePromise:
+    | ReturnType<typeof resolveDiscordNativeInteractionRouteStateImpl>
+    | undefined;
+  const getNativeRouteState = () =>
+    (nativeRouteStatePromise ??= resolveDiscordNativeInteractionRouteStateImpl({
+      cfg,
+      accountId,
+      guildId: interaction.guild?.id ?? undefined,
+      memberRoleIds,
+      isDirectMessage,
+      isGroupDm,
+      directUserId: user.id,
+      conversationId: rawChannelId || "unknown",
+      parentConversationId: threadParentId,
+      threadBinding: isThreadChannel ? threadBindings.getByThreadId(rawChannelId) : undefined,
+      enforceConfiguredBindingReadiness: !shouldBypassConfiguredAcpEnsure(
+        command.nativeName ?? command.key,
+      ),
+    }));
   if (pluginMatch) {
     if (suppressReplies) {
       return;
@@ -1158,7 +1133,6 @@ async function dispatchDiscordCommandInteraction(params: {
     accountId: effectiveRoute.accountId,
   });
   const mediaLocalRoots = getAgentScopedMediaLocalRoots(cfg, effectiveRoute.agentId);
-  const blockStreamingEnabled = resolveChannelStreamingBlockEnabled(discordConfig);
 
   let didReply = false;
   const dispatchResult = await dispatchReplyWithDispatcherImpl({
@@ -1200,7 +1174,9 @@ async function dispatchDiscordCommandInteraction(params: {
     replyOptions: {
       skillFilter: channelConfig?.skills,
       disableBlockStreaming:
-        typeof blockStreamingEnabled === "boolean" ? !blockStreamingEnabled : undefined,
+        typeof discordConfig?.blockStreaming === "boolean"
+          ? !discordConfig.blockStreaming
+          : undefined,
       onModelSelected,
     },
   });

@@ -1,4 +1,3 @@
-import { coerceNativeSetting, normalizeAllowFromList } from "openclaw/plugin-sdk/channel-policy";
 import {
   resolveNativeCommandsEnabled,
   resolveNativeSkillsEnabled,
@@ -6,6 +5,20 @@ import {
 import { readChannelAllowFromStore } from "openclaw/plugin-sdk/conversation-runtime";
 import type { ResolvedSlackAccount } from "./accounts.js";
 import type { OpenClawConfig } from "./runtime-api.js";
+
+function normalizeAllowFromList(list: Array<string | number> | undefined | null): string[] {
+  if (!Array.isArray(list)) {
+    return [];
+  }
+  return list.map((value) => String(value).trim()).filter(Boolean);
+}
+
+function coerceNativeSetting(value: unknown): boolean | "auto" | undefined {
+  if (value === true || value === false || value === "auto") {
+    return value;
+  }
+  return undefined;
+}
 
 export async function collectSlackSecurityAuditFindings(params: {
   cfg: OpenClawConfig;
@@ -21,24 +34,24 @@ export async function collectSlackSecurityAuditFindings(params: {
   }> = [];
   const slackCfg = params.account.config ?? {};
   const accountId = params.accountId?.trim() || params.account.accountId || "default";
-  const slashCommandConfigured =
-    (slackCfg.slashCommand as { enabled?: unknown } | undefined)?.enabled === true;
+  const nativeEnabled = resolveNativeCommandsEnabled({
+    providerId: "slack",
+    providerSetting: coerceNativeSetting(
+      (slackCfg.commands as { native?: unknown } | undefined)?.native,
+    ),
+    globalSetting: params.cfg.commands?.native,
+  });
+  const nativeSkillsEnabled = resolveNativeSkillsEnabled({
+    providerId: "slack",
+    providerSetting: coerceNativeSetting(
+      (slackCfg.commands as { nativeSkills?: unknown } | undefined)?.nativeSkills,
+    ),
+    globalSetting: params.cfg.commands?.nativeSkills,
+  });
   const slashCommandEnabled =
-    slashCommandConfigured ||
-    resolveNativeCommandsEnabled({
-      providerId: "slack",
-      providerSetting: coerceNativeSetting(
-        (slackCfg.commands as { native?: unknown } | undefined)?.native,
-      ),
-      globalSetting: params.cfg.commands?.native,
-    }) ||
-    resolveNativeSkillsEnabled({
-      providerId: "slack",
-      providerSetting: coerceNativeSetting(
-        (slackCfg.commands as { nativeSkills?: unknown } | undefined)?.nativeSkills,
-      ),
-      globalSetting: params.cfg.commands?.nativeSkills,
-    });
+    nativeEnabled ||
+    nativeSkillsEnabled ||
+    (slackCfg.slashCommand as { enabled?: unknown } | undefined)?.enabled === true;
   if (!slashCommandEnabled) {
     return findings;
   }

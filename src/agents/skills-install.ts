@@ -2,7 +2,6 @@ import fs from "node:fs";
 import path from "node:path";
 import type { OpenClawConfig } from "../config/config.js";
 import { resolveBrewExecutable } from "../infra/brew.js";
-import { formatErrorMessage } from "../infra/errors.js";
 import {
   type InstallSafetyOverrides,
   scanSkillInstallSource,
@@ -249,7 +248,7 @@ async function runCommandSafely(
     return {
       code: null,
       stdout: "",
-      stderr: formatErrorMessage(err),
+      stderr: err instanceof Error ? err.message : String(err),
     };
   }
 }

@@ -77,6 +77,26 @@ function isShellCommentStart(source: string, index: number): boolean {
   return Boolean(prev && /\s/.test(prev));
 }
 
+function parseFdDupRedirection(source: string, start: number): { end: number } | null {
+  const op = source[start];
+  if (op !== ">" && op !== "<") {
+    return null;
+  }
+  let i = start + 1;
+  if (source[i] !== "&") {
+    return null;
+  }
+  i += 1;
+  const targetStart = i;
+  while (i < source.length && /[0-9]/.test(source[i])) {
+    i += 1;
+  }
+  if (i === targetStart) {
+    return null;
+  }
+  return { end: i };
+}
+
 function splitShellPipeline(command: string): { ok: boolean; reason?: string; segments: string[] } {
   type HeredocSpec = {
     delimiter: string;
@@ -310,6 +330,16 @@ function splitShellPipeline(command: string): { ok: boolean; reason?: string; se
         buf += command.slice(scanIndex, parsed.end);
         i = parsed.end - 1;
       }
+      continue;
+    }
+    if ((ch === ">" || ch === "<") && next === "&") {
+      const redirect = parseFdDupRedirection(command, i);
+      if (!redirect) {
+        return { ok: false, reason: `unsupported shell token: ${ch}`, segments: [] };
+      }
+      buf += command.slice(i, redirect.end);
+      i = redirect.end - 1;
+      emptySegment = false;
       continue;
     }
     if (DISALLOWED_PIPELINE_TOKENS.has(ch)) {

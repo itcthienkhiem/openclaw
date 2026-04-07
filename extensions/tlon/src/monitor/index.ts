@@ -1,4 +1,4 @@
-import type { ReplyPayload, RuntimeEnv } from "../../api.js";
+import type { RuntimeEnv, ReplyPayload, OpenClawConfig } from "../../api.js";
 import { createLoggerBackedRuntime } from "../../api.js";
 import { getTlonRuntime } from "../runtime.js";
 import { createSettingsManager, type TlonSettingsStore } from "../settings.js";
@@ -6,20 +6,21 @@ import { normalizeShip, parseChannelNest } from "../targets.js";
 import { resolveTlonAccount } from "../types.js";
 import { authenticate } from "../urbit/auth.js";
 import { ssrfPolicyFromDangerouslyAllowPrivateNetwork } from "../urbit/context.js";
-import type { DmInvite, Foreigns } from "../urbit/foreigns.js";
+import type { Foreigns, DmInvite } from "../urbit/foreigns.js";
 import { sendDm, sendGroupMessage } from "../urbit/send.js";
 import { UrbitSSEClient } from "../urbit/sse-client.js";
 import { createTlonApprovalRuntime } from "./approval-runtime.js";
 import {
-  createPendingApproval,
-  isAdminCommand,
-  isApprovalResponse,
   type PendingApproval,
+  type AdminCommand,
+  createPendingApproval,
+  isApprovalResponse,
+  isAdminCommand,
 } from "./approval.js";
 import { resolveChannelAuthorization } from "./authorization.js";
 import { createTlonCitationResolver } from "./cites.js";
 import { fetchAllChannels, fetchInitData } from "./discovery.js";
-import { cacheMessage, fetchThreadHistory, getChannelHistory } from "./history.js";
+import { cacheMessage, getChannelHistory, fetchThreadHistory } from "./history.js";
 import { downloadMessageImages } from "./media.js";
 import { createProcessedMessageTracker } from "./processed-messages.js";
 import {
@@ -28,16 +29,17 @@ import {
   mergeUniqueStrings,
   shouldMigrateTlonSetting,
 } from "./settings-helpers.js";
-import { asRecord, formatErrorMessage, readString } from "./utils.js";
 import {
   extractMessageText,
+  extractCites,
   formatModelName,
   isBotMentioned,
+  stripBotMention,
   isDmAllowed,
   isGroupInviteAllowed,
   isSummarizationRequest,
   resolveAuthorizedMessageText,
-  stripBotMention,
+  type ParsedCite,
 } from "./utils.js";
 
 export type MonitorTlonOpts = {
@@ -46,14 +48,9 @@ export type MonitorTlonOpts = {
   accountId?: string | null;
 };
 
-function readNumber(record: Record<string, unknown> | null, key: string): number | undefined {
-  const value = record?.[key];
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
-}
-
 export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<void> {
   const core = getTlonRuntime();
-  const cfg = core.config.loadConfig();
+  const cfg = core.config.loadConfig() as OpenClawConfig;
   if (cfg.channels?.tlon?.enabled === false) {
     return;
   }
@@ -93,9 +90,9 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
       try {
         runtime.log?.(`[tlon] Attempting authentication to ${accountUrl}...`);
         return await authenticate(accountUrl, accountCode, { ssrfPolicy });
-      } catch (error: unknown) {
+      } catch (error: any) {
         runtime.error?.(
-          `[tlon] Failed to authenticate (attempt ${attempt}): ${formatErrorMessage(error)}`,
+          `[tlon] Failed to authenticate (attempt ${attempt}): ${error?.message ?? String(error)}`,
         );
         if (attempt >= maxAttempts) {
           throw error;
@@ -174,8 +171,8 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
         runtime.log?.(`[tlon] Bot nickname: ${botNickname}`);
       }
     }
-  } catch (error: unknown) {
-    runtime.log?.(`[tlon] Could not fetch nickname: ${formatErrorMessage(error)}`);
+  } catch (error: any) {
+    runtime.log?.(`[tlon] Could not fetch nickname: ${error?.message ?? String(error)}`);
   }
 
   // Store init foreigns for processing after settings are loaded
@@ -241,8 +238,8 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
         groupChannels = initData.channels;
       }
       initForeigns = initData.foreigns;
-    } catch (error: unknown) {
-      runtime.error?.(`[tlon] Auto-discovery failed: ${formatErrorMessage(error)}`);
+    } catch (error: any) {
+      runtime.error?.(`[tlon] Auto-discovery failed: ${error?.message ?? String(error)}`);
     }
   }
 
@@ -308,8 +305,8 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
       senderShip,
       isGroup,
       channelNest,
-      hostShip: _hostShip,
-      channelName: _channelName,
+      hostShip,
+      channelName,
       timestamp,
       parentId,
       isThreadReply,
@@ -326,8 +323,8 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
         if (attachments.length > 0) {
           runtime.log?.(`[tlon] Downloaded ${attachments.length} image(s) from message`);
         }
-      } catch (error: unknown) {
-        runtime.log?.(`[tlon] Failed to download images: ${formatErrorMessage(error)}`);
+      } catch (error: any) {
+        runtime.log?.(`[tlon] Failed to download images: ${error?.message ?? String(error)}`);
       }
     }
 
@@ -349,8 +346,8 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
             `[tlon] Added thread context (${threadHistory.length} replies) to message`,
           );
         }
-      } catch (error: unknown) {
-        runtime?.log?.(`[tlon] Could not fetch thread context: ${formatErrorMessage(error)}`);
+      } catch (error: any) {
+        runtime?.log?.(`[tlon] Could not fetch thread context: ${error?.message ?? String(error)}`);
         // Continue without thread context - not critical
       }
     }
@@ -396,8 +393,8 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
           "2. Key decisions or conclusions\n" +
           "3. Action items if any\n" +
           "4. Notable participants";
-      } catch (error: unknown) {
-        const errorMsg = `Sorry, I encountered an error while fetching the channel history: ${formatErrorMessage(error)}`;
+      } catch (error: any) {
+        const errorMsg = `Sorry, I encountered an error while fetching the channel history: ${error?.message ?? String(error)}`;
         if (isGroup && groupChannel) {
           const parsed = parseChannelNest(groupChannel);
           if (parsed) {
@@ -572,6 +569,10 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
               extPayload.model ||
               extRoute.model ||
               (typeof defaultModel === "string" ? defaultModel : defaultModel?.primary);
+            extPayload.metadata?.model ||
+              extPayload.model ||
+              extRoute.model ||
+              (typeof defaultModel === "string" ? defaultModel : defaultModel?.primary);
             replyText = `${replyText}\n\n_[Generated by ${formatModelName(modelInfo)}]_`;
           }
 
@@ -612,7 +613,7 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
   const _watchedDMs = new Set<string>();
 
   const refreshWatchedChannels = async (): Promise<number> => {
-    const discoveredChannels = await fetchAllChannels(api, runtime);
+    const discoveredChannels = await fetchAllChannels(api!, runtime);
     let newCount = 0;
     for (const channelNest of discoveredChannels) {
       if (!watchedChannels.has(channelNest)) {
@@ -624,15 +625,15 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
   };
 
   const { resolveAllCites } = createTlonCitationResolver({
-    api: { scry: (path) => api.scry(path) },
+    api: { scry: (path) => api!.scry(path) },
     runtime,
   });
 
   const { queueApprovalRequest, handleApprovalResponse, handleAdminCommand } =
     createTlonApprovalRuntime({
       api: {
-        poke: (payload) => api.poke(payload),
-        scry: (path) => api.scry(path),
+        poke: (payload) => api!.poke(payload),
+        scry: (path) => api!.scry(path),
       },
       runtime,
       botShipName,
@@ -685,10 +686,9 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
     });
 
   // Firehose handler for all channel messages (/v2)
-  const handleChannelsFirehose = async (event: unknown) => {
+  const handleChannelsFirehose = async (event: any) => {
     try {
-      const eventRecord = asRecord(event);
-      const nest = readString(eventRecord, "nest");
+      const nest = event?.nest;
       if (!nest) {
         return;
       }
@@ -698,39 +698,27 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
         return;
       }
 
-      const response = asRecord(eventRecord?.response);
+      const response = event?.response;
       if (!response) {
         return;
       }
 
       // Handle post responses (new posts and replies)
-      const post = asRecord(response.post);
-      const rPost = asRecord(post?.["r-post"]);
-      const set = asRecord(rPost?.set);
-      const reply = asRecord(rPost?.reply);
-      const replyPayload = asRecord(reply?.["r-reply"]);
-      const replySet = asRecord(replyPayload?.set);
-      const essay = asRecord(set?.essay);
-      const memo = asRecord(replySet?.memo);
+      const essay = response?.post?.["r-post"]?.set?.essay;
+      const memo = response?.post?.["r-post"]?.reply?.["r-reply"]?.set?.memo;
       if (!essay && !memo) {
         return;
       }
 
-      const content = memo ?? essay;
-      if (!content) {
-        return;
-      }
+      const content = memo || essay;
       const isThreadReply = Boolean(memo);
-      const messageId = isThreadReply ? readString(reply, "id") : readString(post, "id");
-      if (!messageId) {
-        return;
-      }
+      const messageId = isThreadReply ? response?.post?.["r-post"]?.reply?.id : response?.post?.id;
 
       if (!processedTracker.mark(messageId)) {
         return;
       }
 
-      const senderShip = normalizeShip(readString(content, "author") ?? "");
+      const senderShip = normalizeShip(content.author ?? "");
       if (!senderShip || senderShip === botShipName) {
         return;
       }
@@ -740,19 +728,18 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
         return;
       }
 
-      const contentBody = content.content;
-      const sentAt = readNumber(content, "sent") ?? Date.now();
-
       cacheMessage(nest, {
         author: senderShip,
         content: rawText,
-        timestamp: sentAt,
+        timestamp: content.sent || Date.now(),
         id: messageId,
       });
 
       // Get thread info early for participation check
-      const seal = isThreadReply ? asRecord(replySet?.seal) : asRecord(set?.seal);
-      const parentId = readString(seal, "parent-id") ?? readString(seal, "parent") ?? null;
+      const seal = isThreadReply
+        ? response?.post?.["r-post"]?.reply?.["r-reply"]?.set?.seal
+        : response?.post?.["r-post"]?.set?.seal;
+      const parentId = seal?.["parent-id"] || seal?.parent || null;
 
       // Check if we should respond:
       // 1. Direct mention always triggers response
@@ -788,8 +775,8 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
                 originalMessage: {
                   messageId: messageId ?? "",
                   messageText: rawText,
-                  messageContent: contentBody,
-                  timestamp: sentAt,
+                  messageContent: content.content,
+                  timestamp: content.sent || Date.now(),
                   parentId: parentId ?? undefined,
                   isThreadReply,
                 },
@@ -807,7 +794,7 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
 
       const messageText = await resolveAuthorizedMessageText({
         rawText,
-        content: contentBody,
+        content: content.content,
         authorizedForCites: true,
         resolveAllCites,
       });
@@ -817,17 +804,19 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
         messageId: messageId ?? "",
         senderShip,
         messageText,
-        messageContent: contentBody, // Pass raw content for media extraction
+        messageContent: content.content, // Pass raw content for media extraction
         isGroup: true,
         channelNest: nest,
         hostShip: parsed?.hostShip,
         channelName: parsed?.channelName,
-        timestamp: sentAt,
+        timestamp: content.sent || Date.now(),
         parentId,
         isThreadReply,
       });
-    } catch (error: unknown) {
-      runtime.error?.(`[tlon] Error handling channel firehose event: ${formatErrorMessage(error)}`);
+    } catch (error: any) {
+      runtime.error?.(
+        `[tlon] Error handling channel firehose event: ${error?.message ?? String(error)}`,
+      );
     }
   };
 
@@ -835,7 +824,7 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
   // Track which DM invites we've already processed to avoid duplicate accepts
   const processedDmInvites = new Set<string>();
 
-  const handleChatFirehose = async (event: unknown) => {
+  const handleChatFirehose = async (event: any) => {
     try {
       // Handle DM invite lists (arrays)
       if (Array.isArray(event)) {
@@ -890,20 +879,16 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
         }
         return;
       }
-      const eventRecord = asRecord(event);
-      if (!eventRecord) {
+      if (!("whom" in event) || !("response" in event)) {
         return;
       }
 
-      const whom = eventRecord.whom; // DM partner ship or club ID
-      const messageId = readString(eventRecord, "id");
-      const response = asRecord(eventRecord.response);
-      if (!messageId || !response) {
-        return;
-      }
+      const whom = event.whom; // DM partner ship or club ID
+      const messageId = event.id;
+      const response = event.response;
 
       // Handle add events (new messages)
-      const essay = asRecord(asRecord(response.add)?.essay);
+      const essay = response?.add?.essay;
       if (!essay) {
         return;
       }
@@ -912,7 +897,7 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
         return;
       }
 
-      const authorShip = normalizeShip(readString(essay, "author") ?? "");
+      const authorShip = normalizeShip(essay.author ?? "");
       const partnerShip = extractDmPartnerShip(whom);
       const senderShip = partnerShip || authorShip;
 
@@ -970,7 +955,7 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
           messageText: resolvedMessageText,
           messageContent: essay.content,
           isGroup: false,
-          timestamp: readNumber(essay, "sent") ?? Date.now(),
+          timestamp: essay.sent || Date.now(),
         });
         return;
       }
@@ -987,7 +972,7 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
               messageId: messageId ?? "",
               messageText,
               messageContent: essay.content,
-              timestamp: readNumber(essay, "sent") ?? Date.now(),
+              timestamp: essay.sent || Date.now(),
             },
           });
           await queueApprovalRequest(approval);
@@ -1008,10 +993,12 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
         senderShip,
         messageContent: essay.content, // Pass raw content for media extraction
         isGroup: false,
-        timestamp: readNumber(essay, "sent") ?? Date.now(),
+        timestamp: essay.sent || Date.now(),
       });
-    } catch (error: unknown) {
-      runtime.error?.(`[tlon] Error handling chat firehose event: ${formatErrorMessage(error)}`);
+    } catch (error: any) {
+      runtime.error?.(
+        `[tlon] Error handling chat firehose event: ${error?.message ?? String(error)}`,
+      );
     }
   };
 
@@ -1050,24 +1037,23 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
     await api.subscribe({
       app: "contacts",
       path: "/v1/news",
-      event: (event: unknown) => {
+      event: (event: any) => {
         try {
-          const eventRecord = asRecord(event);
           // Look for self profile updates
-          if (eventRecord?.self) {
-            const selfUpdate = asRecord(eventRecord.self);
-            const contact = asRecord(selfUpdate?.contact);
-            const nickname = asRecord(contact?.nickname);
-            if (nickname && "value" in nickname) {
-              const newNickname = readString(nickname, "value") ?? null;
+          if (event?.self) {
+            const selfUpdate = event.self;
+            if (selfUpdate?.contact?.nickname?.value !== undefined) {
+              const newNickname = selfUpdate.contact.nickname.value || null;
               if (newNickname !== botNickname) {
                 botNickname = newNickname;
                 runtime.log?.(`[tlon] Nickname updated: ${botNickname}`);
               }
             }
           }
-        } catch (error: unknown) {
-          runtime.error?.(`[tlon] Error handling contacts event: ${formatErrorMessage(error)}`);
+        } catch (error: any) {
+          runtime.error?.(
+            `[tlon] Error handling contacts event: ${error?.message ?? String(error)}`,
+          );
         }
       },
       err: (error) => {
@@ -1126,15 +1112,14 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
       await api.subscribe({
         app: "groups",
         path: "/groups/ui",
-        event: async (event: unknown) => {
+        event: async (event: any) => {
           try {
-            const eventRecord = asRecord(event);
             // Handle group/channel join events
             // Event structure: { group: { flag: "~host/group-name", ... }, channels: { ... } }
-            if (eventRecord) {
+            if (event && typeof event === "object") {
               // Check for new channels being added to groups
-              const channels = asRecord(eventRecord.channels);
-              if (channels) {
+              if (event.channels && typeof event.channels === "object") {
+                const channels = event.channels as Record<string, any>;
                 for (const [channelNest, _channelData] of Object.entries(channels)) {
                   // Only monitor chat channels
                   if (!channelNest.startsWith("chat/")) {
@@ -1180,14 +1165,10 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
               }
 
               // Also check for the "join" event structure
-              const join = asRecord(eventRecord.join);
-              if (join) {
-                const joinChannels = Array.isArray(join.channels) ? join.channels : [];
-                if (joinChannels.length > 0) {
-                  for (const channelNest of joinChannels) {
-                    if (typeof channelNest !== "string") {
-                      continue;
-                    }
+              if (event.join && typeof event.join === "object") {
+                const join = event.join as { group?: string; channels?: string[] };
+                if (join.channels) {
+                  for (const channelNest of join.channels) {
                     if (!channelNest.startsWith("chat/")) {
                       continue;
                     }
@@ -1226,8 +1207,10 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
                 }
               }
             }
-          } catch (error: unknown) {
-            runtime.error?.(`[tlon] Error handling groups-ui event: ${formatErrorMessage(error)}`);
+          } catch (error: any) {
+            runtime.error?.(
+              `[tlon] Error handling groups-ui event: ${error?.message ?? String(error)}`,
+            );
           }
         },
         err: (error) => {
@@ -1357,9 +1340,9 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
             void (async () => {
               try {
                 await processPendingInvites(data as Foreigns);
-              } catch (error: unknown) {
+              } catch (error: any) {
                 runtime.error?.(
-                  `[tlon] Error handling foreigns event: ${formatErrorMessage(error)}`,
+                  `[tlon] Error handling foreigns event: ${error?.message ?? String(error)}`,
                 );
               }
             })();
@@ -1411,8 +1394,8 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
                 }
               }
             }
-          } catch (error: unknown) {
-            runtime.error?.(`[tlon] Channel refresh error: ${formatErrorMessage(error)}`);
+          } catch (error: any) {
+            runtime.error?.(`[tlon] Channel refresh error: ${error?.message ?? String(error)}`);
           }
         }
       },
@@ -1437,8 +1420,8 @@ export async function monitorTlonProvider(opts: MonitorTlonOpts = {}): Promise<v
   } finally {
     try {
       await api?.close();
-    } catch (error: unknown) {
-      runtime.error?.(`[tlon] Cleanup error: ${formatErrorMessage(error)}`);
+    } catch (error: any) {
+      runtime.error?.(`[tlon] Cleanup error: ${error?.message ?? String(error)}`);
     }
   }
 }

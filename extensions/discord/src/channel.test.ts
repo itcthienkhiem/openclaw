@@ -57,7 +57,7 @@ function createCfg(): OpenClawConfig {
 }
 
 function resolveAccount(cfg: OpenClawConfig, accountId = "default"): ResolvedDiscordAccount {
-  return discordPlugin.config.resolveAccount(cfg, accountId);
+  return discordPlugin.config.resolveAccount(cfg, accountId) as ResolvedDiscordAccount;
 }
 
 function startDiscordAccount(cfg: OpenClawConfig, accountId = "default") {
@@ -414,7 +414,7 @@ describe("discordPlugin security", () => {
 
     const result = resolveDmPolicy({
       cfg,
-      account: discordPlugin.config.resolveAccount(cfg, "default"),
+      account: discordPlugin.config.resolveAccount(cfg, "default") as ResolvedDiscordAccount,
     });
     if (!result) {
       throw new Error("discord resolveDmPolicy returned null");

@@ -29,31 +29,23 @@ vi.spyOn(replyRuntimeModule, "dispatchInboundMessageWithBufferedDispatcher").moc
   (...args) => dispatchMock(...args) as never,
 );
 
-const conversationRuntimeModule = await import("openclaw/plugin-sdk/conversation-runtime");
-type ReadChannelAllowFromStore = typeof conversationRuntimeModule.readChannelAllowFromStore;
-type UpsertChannelPairingRequest = typeof conversationRuntimeModule.upsertChannelPairingRequest;
-
 function createPairingStoreMocks() {
   return {
-    readChannelAllowFromStore(
-      ...args: Parameters<ReadChannelAllowFromStore>
-    ): ReturnType<ReadChannelAllowFromStore> {
-      return readAllowFromStoreMock(...args) as ReturnType<ReadChannelAllowFromStore>;
+    readChannelAllowFromStore(...args: unknown[]) {
+      return readAllowFromStoreMock(...args);
     },
-    upsertChannelPairingRequest(
-      ...args: Parameters<UpsertChannelPairingRequest>
-    ): ReturnType<UpsertChannelPairingRequest> {
-      return upsertPairingRequestMock(...args) as ReturnType<UpsertChannelPairingRequest>;
+    upsertChannelPairingRequest(...args: unknown[]) {
+      return upsertPairingRequestMock(...args);
     },
   };
 }
 
-const pairingStoreMocks = createPairingStoreMocks();
-vi.spyOn(conversationRuntimeModule, "readChannelAllowFromStore").mockImplementation((...args) =>
-  pairingStoreMocks.readChannelAllowFromStore(...args),
+const conversationRuntimeModule = await import("openclaw/plugin-sdk/conversation-runtime");
+vi.spyOn(conversationRuntimeModule, "readChannelAllowFromStore").mockImplementation(
+  createPairingStoreMocks().readChannelAllowFromStore,
 );
-vi.spyOn(conversationRuntimeModule, "upsertChannelPairingRequest").mockImplementation((...args) =>
-  pairingStoreMocks.upsertChannelPairingRequest(...args),
+vi.spyOn(conversationRuntimeModule, "upsertChannelPairingRequest").mockImplementation(
+  createPairingStoreMocks().upsertChannelPairingRequest,
 );
 
 const configRuntimeModule = await import("openclaw/plugin-sdk/config-runtime");

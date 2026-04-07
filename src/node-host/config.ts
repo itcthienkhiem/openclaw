@@ -21,7 +21,7 @@ export type NodeHostConfig = {
 
 const NODE_HOST_FILE = "node.json";
 
-function resolveNodeHostConfigPath(): string {
+export function resolveNodeHostConfigPath(): string {
   return path.join(resolveStateDir(), NODE_HOST_FILE);
 }
 

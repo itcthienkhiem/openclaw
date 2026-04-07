@@ -1,6 +1,5 @@
 import * as dns from "node:dns";
 import type { TelegramNetworkConfig } from "openclaw/plugin-sdk/config-runtime";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import {
   createPinnedLookup,
   hasEnvHttpProxyConfigured,
@@ -271,7 +270,7 @@ function createTelegramDispatcher(policy: PinnedDispatcherPolicy): {
         effectivePolicy: policy,
       };
     } catch (err) {
-      const reason = formatErrorMessage(err);
+      const reason = err instanceof Error ? err.message : String(err);
       throw new Error(`explicit proxy dispatcher init failed: ${reason}`, { cause: err });
     }
   }
@@ -294,7 +293,9 @@ function createTelegramDispatcher(policy: PinnedDispatcherPolicy): {
       };
     } catch (err) {
       log.warn(
-        `env proxy dispatcher init failed; falling back to direct dispatcher: ${formatErrorMessage(err)}`,
+        `env proxy dispatcher init failed; falling back to direct dispatcher: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
       );
       const directPolicy: PinnedDispatcherPolicy = {
         mode: "direct",

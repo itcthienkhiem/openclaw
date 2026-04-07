@@ -28,9 +28,8 @@ describe("buildProviderReplayFamilyHooks", () => {
         },
         match: {
           validateAnthropicTurns: true,
-          // Sonnet 4.6 preserves thinking blocks (no dropThinkingBlocks)
+          dropThinkingBlocks: true,
         },
-        absent: ["dropThinkingBlocks"],
         hasSanitizeReplayHistory: false,
         reasoningMode: undefined,
       },
@@ -79,9 +78,8 @@ describe("buildProviderReplayFamilyHooks", () => {
         },
         match: {
           validateAnthropicTurns: true,
-          // Sonnet 4.6 preserves thinking blocks even with flag set
+          dropThinkingBlocks: true,
         },
-        absent: ["dropThinkingBlocks"],
         hasSanitizeReplayHistory: false,
         reasoningMode: undefined,
       },
@@ -97,13 +95,7 @@ describe("buildProviderReplayFamilyHooks", () => {
           : { family: testCase.family },
       );
 
-      const policy = hooks.buildReplayPolicy?.(testCase.ctx as never);
-      expect(policy).toMatchObject(testCase.match);
-      if ((testCase as { absent?: string[] }).absent) {
-        for (const key of (testCase as { absent: string[] }).absent) {
-          expect(policy).not.toHaveProperty(key);
-        }
-      }
+      expect(hooks.buildReplayPolicy?.(testCase.ctx as never)).toMatchObject(testCase.match);
       expect(Boolean(hooks.sanitizeReplayHistory)).toBe(testCase.hasSanitizeReplayHistory);
       expect(hooks.resolveReasoningOutputMode?.(testCase.ctx as never)).toBe(
         testCase.reasoningMode,

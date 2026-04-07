@@ -9,7 +9,6 @@ import {
   isAnthropicRateLimitError,
 } from "./live-auth-keys.js";
 import { isHighSignalLiveModelRef, selectHighSignalLiveItems } from "./live-model-filter.js";
-import { createLiveTargetMatcher } from "./live-target-matcher.js";
 import { isLiveProfileKeyModeEnabled, isLiveTestEnabled } from "./live-test-helpers.js";
 import { getApiKeyForModel, requireApiKey } from "./model-auth.js";
 import { shouldSuppressBuiltInModel } from "./model-suppression.js";
@@ -20,7 +19,6 @@ import { discoverAuthStorage, discoverModels } from "./pi-model-discovery.js";
 const LIVE = isLiveTestEnabled();
 const DIRECT_ENABLED = Boolean(process.env.OPENCLAW_LIVE_MODELS?.trim());
 const REQUIRE_PROFILE_KEYS = isLiveProfileKeyModeEnabled();
-const LIVE_CREDENTIAL_PRECEDENCE = REQUIRE_PROFILE_KEYS ? "profile-first" : "env-first";
 const LIVE_HEARTBEAT_MS = Math.max(1_000, toInt(process.env.OPENCLAW_LIVE_HEARTBEAT_MS, 30_000));
 const LIVE_SETUP_TIMEOUT_MS = Math.max(
   1_000,
@@ -420,12 +418,6 @@ describeLive("live models (profile keys)", () => {
       const providers = parseProviderFilter(process.env.OPENCLAW_LIVE_PROVIDERS);
       const perModelTimeoutMs = toInt(process.env.OPENCLAW_LIVE_MODEL_TIMEOUT_MS, 30_000);
       const maxModels = toInt(process.env.OPENCLAW_LIVE_MAX_MODELS, 0);
-      const targetMatcher = createLiveTargetMatcher({
-        providerFilter: providers,
-        modelFilter: filter,
-        config: cfg,
-        env: process.env,
-      });
 
       const failures: Array<{ model: string; error: string }> = [];
       const skipped: Array<{ model: string; reason: string }> = [];
@@ -438,11 +430,11 @@ describeLive("live models (profile keys)", () => {
         if (shouldSuppressBuiltInModel({ provider: model.provider, id: model.id })) {
           continue;
         }
-        if (!targetMatcher.matchesProvider(model.provider)) {
+        if (providers && !providers.has(model.provider)) {
           continue;
         }
         const id = `${model.provider}/${model.id}`;
-        if (!targetMatcher.matchesModel(model.provider, model.id)) {
+        if (filter && !filter.has(id)) {
           continue;
         }
         if (!filter && useModern) {
@@ -451,11 +443,7 @@ describeLive("live models (profile keys)", () => {
           }
         }
         try {
-          const apiKeyInfo = await getApiKeyForModel({
-            model,
-            cfg,
-            credentialPrecedence: LIVE_CREDENTIAL_PRECEDENCE,
-          });
+          const apiKeyInfo = await getApiKeyForModel({ model, cfg });
           if (REQUIRE_PROFILE_KEYS && !apiKeyInfo.source.startsWith("profile:")) {
             skipped.push({
               model: id,

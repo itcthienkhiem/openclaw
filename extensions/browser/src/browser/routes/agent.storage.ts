@@ -1,4 +1,3 @@
-import { readStringValue } from "openclaw/plugin-sdk/text-runtime";
 import type { BrowserRouteContext } from "../server-context.js";
 import {
   readBody,
@@ -293,7 +292,7 @@ export function registerBrowserAgentStorageRoutes(
     const targetId = resolveTargetIdFromBody(body);
     const clear = toBoolean(body.clear) ?? false;
     const username = toStringOrEmpty(body.username) || undefined;
-    const password = readStringValue(body.password);
+    const password = typeof body.password === "string" ? body.password : undefined;
 
     await withPlaywrightRouteContext({
       req,

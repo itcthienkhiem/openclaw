@@ -10,7 +10,6 @@ import type { ProviderAuthMethod, ProviderPlugin } from "../../../src/plugins/ty
 const resolvePluginProvidersMock = vi.fn();
 
 vi.mock("../../../src/plugins/providers.runtime.js", () => ({
-  isPluginProvidersLoadInFlight: () => false,
   resolvePluginProviders: (...args: unknown[]) => resolvePluginProvidersMock(...args),
 }));
 

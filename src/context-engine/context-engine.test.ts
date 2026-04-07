@@ -24,16 +24,9 @@ import type {
   IngestResult,
 } from "./types.js";
 
-const { compactEmbeddedPiSessionDirectMock } = vi.hoisted(() => ({
-  compactEmbeddedPiSessionDirectMock: vi.fn(),
-}));
-
-vi.mock("../agents/pi-embedded-runner/compact.runtime.js", () => ({
-  compactEmbeddedPiSessionDirect: compactEmbeddedPiSessionDirectMock,
-}));
-
-function installCompactRuntimeSpy() {
-  return compactEmbeddedPiSessionDirectMock.mockResolvedValue({
+async function installCompactRuntimeSpy() {
+  const runtimeModule = await import("../agents/pi-embedded-runner/compact.runtime.js");
+  return vi.spyOn(runtimeModule, "compactEmbeddedPiSessionDirect").mockResolvedValue({
     ok: true,
     compacted: false,
     reason: "mock compaction",
@@ -317,7 +310,6 @@ class LegacyAssembleStrictEngine implements ContextEngine {
 describe("Engine contract tests", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    compactEmbeddedPiSessionDirectMock.mockReset();
   });
 
   it("a mock engine implementing ContextEngine can be registered and resolved", async () => {

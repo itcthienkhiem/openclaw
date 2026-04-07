@@ -1,6 +1,5 @@
 import { normalizeChatType } from "../../channels/chat-type.js";
-import { getBundledChannelPlugin } from "../../channels/plugins/bundled.js";
-import { getLoadedChannelPlugin, normalizeChannelId } from "../../channels/plugins/index.js";
+import { getChannelPlugin, normalizeChannelId } from "../../channels/plugins/index.js";
 import { resolveSenderLabel } from "../../channels/sender-label.js";
 import type { EnvelopeFormatOptions } from "../envelope.js";
 import { formatEnvelopeTimestamp } from "../envelope.js";
@@ -46,18 +45,12 @@ function resolveInboundFormattingHints(ctx: TemplateContext):
     return undefined;
   }
   const normalizedChannel = normalizeChannelId(channelValue) ?? channelValue;
-  const agentPrompt =
-    getLoadedChannelPlugin(normalizedChannel)?.agentPrompt ??
-    getBundledChannelPlugin(normalizedChannel)?.agentPrompt;
-  return agentPrompt?.inboundFormattingHints?.({
+  return getChannelPlugin(normalizedChannel)?.agentPrompt?.inboundFormattingHints?.({
     accountId: safeTrim(ctx.AccountId) ?? undefined,
   });
 }
 
-export function buildInboundMetaSystemPrompt(
-  ctx: TemplateContext,
-  options?: { includeFormattingHints?: boolean },
-): string {
+export function buildInboundMetaSystemPrompt(ctx: TemplateContext): string {
   const chatType = normalizeChatType(ctx.ChatType);
   const isDirect = !chatType || chatType === "direct";
 
@@ -80,8 +73,7 @@ export function buildInboundMetaSystemPrompt(
     provider: safeTrim(ctx.Provider),
     surface: safeTrim(ctx.Surface),
     chat_type: chatType ?? (isDirect ? "direct" : undefined),
-    response_format:
-      options?.includeFormattingHints === false ? undefined : resolveInboundFormattingHints(ctx),
+    response_format: resolveInboundFormattingHints(ctx),
   };
 
   // Keep the instructions local to the payload so the meaning survives prompt overrides.

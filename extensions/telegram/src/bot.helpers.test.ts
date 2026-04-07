@@ -55,14 +55,10 @@ describe("resolveTelegramDraftStreamingChunking", () => {
           accounts: {
             default: {
               allowFrom: ["*"],
-              streaming: {
-                preview: {
-                  chunk: {
-                    minChars: 10,
-                    maxChars: 20,
-                    breakPreference: "sentence",
-                  },
-                },
+              draftChunk: {
+                minChars: 10,
+                maxChars: 20,
+                breakPreference: "sentence",
               },
             },
           },

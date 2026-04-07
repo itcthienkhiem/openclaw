@@ -65,7 +65,7 @@ function createMessagesClient(params: {
   }));
   const hydrateEvents = vi.fn(
     async (_roomId: string, _events: Array<Record<string, unknown>>) =>
-      (params.hydratedChunk ?? params.chunk) as unknown,
+      (params.hydratedChunk ?? params.chunk) as any,
   );
   const getEvent = vi.fn(async () => params.pollRoot ?? null);
   const getRelations = vi.fn(async () => ({

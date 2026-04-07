@@ -3,7 +3,6 @@ import { resolveStorePath } from "../config/sessions/paths.js";
 import { loadSessionStore } from "../config/sessions/store-load.js";
 import { normalizeOptionalAccountId } from "../routing/account-id.js";
 import { parseAgentSessionKey } from "../routing/session-key.js";
-import { normalizeOptionalString } from "../shared/string-coerce.js";
 import { normalizeMessageChannel } from "../utils/message-channel.js";
 import type { ExecApprovalRequest } from "./exec-approvals.js";
 import type { PluginApprovalRequest } from "./plugin-approvals.js";
@@ -14,6 +13,11 @@ type ApprovalRequestSessionBinding = {
   channel?: string;
   accountId?: string;
 };
+
+function normalizeOptionalString(value?: string | null): string | undefined {
+  const normalized = value?.trim();
+  return normalized ? normalized : undefined;
+}
 
 function normalizeOptionalChannel(value?: string | null): string | undefined {
   return normalizeMessageChannel(value);

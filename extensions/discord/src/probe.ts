@@ -1,5 +1,4 @@
 import type { BaseProbeResult } from "openclaw/plugin-sdk/channel-contract";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import { resolveFetch } from "openclaw/plugin-sdk/fetch-runtime";
 import { fetchWithTimeout } from "openclaw/plugin-sdk/text-runtime";
 import { normalizeDiscordToken } from "./token.js";
@@ -168,7 +167,7 @@ export async function probeDiscord(
     return {
       ...result,
       status: err instanceof Response ? err.status : result.status,
-      error: formatErrorMessage(err),
+      error: err instanceof Error ? err.message : String(err),
       elapsedMs: Date.now() - started,
     };
   }

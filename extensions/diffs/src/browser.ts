@@ -1,7 +1,6 @@
 import { constants as fsConstants } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import { chromium } from "playwright-core";
 import type { OpenClawConfig } from "../api.js";
 import type { DiffRenderOptions, DiffTheme } from "./types.js";
@@ -256,10 +255,9 @@ export class PlaywrightDiffScreenshotter implements DiffScreenshotter {
       if (error instanceof Error && error.message === IMAGE_SIZE_LIMIT_ERROR) {
         throw error;
       }
-      const reason = formatErrorMessage(error);
+      const reason = error instanceof Error ? error.message : String(error);
       throw new Error(
         `Diff PNG/PDF rendering requires a Chromium-compatible browser. Set browser.executablePath or install Chrome/Chromium. ${reason}`,
-        { cause: error },
       );
     } finally {
       await page?.close().catch(() => {});

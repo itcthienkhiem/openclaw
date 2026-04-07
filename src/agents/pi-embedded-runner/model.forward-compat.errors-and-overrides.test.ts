@@ -3,22 +3,16 @@ import type { ModelProviderConfig } from "../../config/config.js";
 import { discoverModels } from "../pi-model-discovery.js";
 import { createProviderRuntimeTestMock } from "./model.provider-runtime.test-support.js";
 
-vi.mock("../../plugins/provider-runtime.js", async () => {
-  const actual = await vi.importActual<typeof import("../../plugins/provider-runtime.js")>(
-    "../../plugins/provider-runtime.js",
-  );
-  return {
-    ...actual,
-    applyProviderResolvedModelCompatWithPlugins: () => undefined,
-    applyProviderResolvedTransportWithPlugin: () => undefined,
-    buildProviderUnknownModelHintWithPlugin: () => undefined,
-    clearProviderRuntimeHookCache: () => {},
-    normalizeProviderTransportWithPlugin: () => undefined,
-    normalizeProviderResolvedModelWithPlugin: () => undefined,
-    prepareProviderDynamicModel: async () => {},
-    runProviderDynamicModel: () => undefined,
-  };
-});
+vi.mock("../../plugins/provider-runtime.js", () => ({
+  applyProviderResolvedModelCompatWithPlugins: () => undefined,
+  applyProviderResolvedTransportWithPlugin: () => undefined,
+  buildProviderUnknownModelHintWithPlugin: () => undefined,
+  clearProviderRuntimeHookCache: () => {},
+  normalizeProviderTransportWithPlugin: () => undefined,
+  normalizeProviderResolvedModelWithPlugin: () => undefined,
+  prepareProviderDynamicModel: async () => {},
+  runProviderDynamicModel: () => undefined,
+}));
 
 vi.mock("../model-suppression.js", () => ({
   shouldSuppressBuiltInModel: ({ provider, id }: { provider?: string; id?: string }) =>
@@ -110,7 +104,7 @@ describe("resolveModel forward-compat errors and overrides", () => {
     expectResolvedForwardCompatFallbackResult({
       result: resolveModelForTest("google-antigravity", "claude-opus-4-6-thinking", "/tmp/agent"),
       expectedModel: {
-        api: "google-gemini-cli",
+        api: "google-generative-ai",
         baseUrl: "https://cloudcode-pa.googleapis.com",
         id: "claude-opus-4-6-thinking",
         provider: "google-antigravity",

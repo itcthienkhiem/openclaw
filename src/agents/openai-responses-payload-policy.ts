@@ -1,4 +1,3 @@
-import { readStringValue } from "../shared/string-coerce.js";
 import { resolveProviderRequestPolicyConfig } from "./provider-request-config.js";
 
 type OpenAIResponsesPayloadModel = {
@@ -94,9 +93,9 @@ export function resolveOpenAIResponsesPayloadPolicy(
   options: OpenAIResponsesPayloadPolicyOptions = {},
 ): OpenAIResponsesPayloadPolicy {
   const capabilities = resolveProviderRequestPolicyConfig({
-    provider: readStringValue(model.provider),
-    api: readStringValue(model.api),
-    baseUrl: readStringValue(model.baseUrl),
+    provider: typeof model.provider === "string" ? model.provider : undefined,
+    api: typeof model.api === "string" ? model.api : undefined,
+    baseUrl: typeof model.baseUrl === "string" ? model.baseUrl : undefined,
     compat: model.compat,
     capability: "llm",
     transport: "stream",

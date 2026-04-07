@@ -1,7 +1,6 @@
 import { spawn } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
-import { formatErrorMessage } from "../infra/errors.js";
 import { resolveGatewayLaunchAgentLabel } from "./constants.js";
 
 export type LaunchdRestartHandoffMode = "kickstart" | "start-after-exit";
@@ -133,7 +132,7 @@ export function scheduleDetachedLaunchdRestartHandoff(params: {
   } catch (err) {
     return {
       ok: false,
-      detail: formatErrorMessage(err),
+      detail: err instanceof Error ? err.message : String(err),
     };
   }
 }

@@ -17,11 +17,7 @@ import {
   SsrFBlockedError,
   type SsrFPolicy,
 } from "./ssrf.js";
-import {
-  createHttp1Agent,
-  createHttp1EnvHttpProxyAgent,
-  createHttp1ProxyAgent,
-} from "./undici-runtime.js";
+import { loadUndiciRuntimeDeps } from "./undici-runtime.js";
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
@@ -108,15 +104,14 @@ function createPolicyDispatcherWithoutPinnedDns(
   if (!dispatcherPolicy) {
     return null;
   }
+  const { Agent, EnvHttpProxyAgent, ProxyAgent } = loadUndiciRuntimeDeps();
 
   if (dispatcherPolicy.mode === "direct") {
-    return createHttp1Agent(
-      dispatcherPolicy.connect ? { connect: { ...dispatcherPolicy.connect } } : undefined,
-    );
+    return new Agent(dispatcherPolicy.connect ? { connect: { ...dispatcherPolicy.connect } } : {});
   }
 
   if (dispatcherPolicy.mode === "env-proxy") {
-    return createHttp1EnvHttpProxyAgent({
+    return new EnvHttpProxyAgent({
       ...(dispatcherPolicy.connect ? { connect: { ...dispatcherPolicy.connect } } : {}),
       ...(dispatcherPolicy.proxyTls ? { proxyTls: { ...dispatcherPolicy.proxyTls } } : {}),
     });
@@ -124,11 +119,11 @@ function createPolicyDispatcherWithoutPinnedDns(
 
   const proxyUrl = dispatcherPolicy.proxyUrl.trim();
   return dispatcherPolicy.proxyTls
-    ? createHttp1ProxyAgent({
+    ? new ProxyAgent({
         uri: proxyUrl,
         requestTls: { ...dispatcherPolicy.proxyTls },
       })
-    : createHttp1ProxyAgent({ uri: proxyUrl });
+    : new ProxyAgent(proxyUrl);
 }
 
 async function assertExplicitProxyAllowed(
@@ -287,7 +282,8 @@ export async function fetchWithSsrFGuard(params: GuardedFetchOptions): Promise<G
       const canUseTrustedEnvProxy =
         mode === GUARDED_FETCH_MODE.TRUSTED_ENV_PROXY && hasProxyEnvConfigured();
       if (canUseTrustedEnvProxy) {
-        dispatcher = createHttp1EnvHttpProxyAgent();
+        const { EnvHttpProxyAgent } = loadUndiciRuntimeDeps();
+        dispatcher = new EnvHttpProxyAgent();
       } else if (params.pinDns === false) {
         dispatcher = createPolicyDispatcherWithoutPinnedDns(params.dispatcherPolicy);
       } else {

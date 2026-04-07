@@ -4,7 +4,6 @@ let resolveTranscriptPolicy: typeof import("./transcript-policy.js").resolveTran
 
 beforeEach(async () => {
   vi.resetModules();
-  vi.doUnmock("../plugins/provider-runtime.js");
   ({ resolveTranscriptPolicy } = await import("./transcript-policy.js"));
 });
 

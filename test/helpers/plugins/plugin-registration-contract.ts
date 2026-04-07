@@ -11,7 +11,6 @@ import { loadPluginManifestRegistry } from "../../../src/plugins/manifest-regist
 
 type PluginRegistrationContractParams = {
   pluginId: string;
-  cliBackendIds?: string[];
   providerIds?: string[];
   webFetchProviderIds?: string[];
   webSearchProviderIds?: string[];
@@ -122,12 +121,6 @@ function findMusicGenerationProviderIds(pluginId: string) {
 
 export function describePluginRegistrationContract(params: PluginRegistrationContractParams) {
   describe(`${params.pluginId} plugin registration contract`, () => {
-    if (params.cliBackendIds) {
-      it("keeps bundled cli-backend ownership explicit", () => {
-        expect(findRegistration(params.pluginId).cliBackendIds).toEqual(params.cliBackendIds);
-      });
-    }
-
     if (params.providerIds) {
       it("keeps bundled provider ownership explicit", () => {
         expect(findRegistration(params.pluginId).providerIds).toEqual(params.providerIds);

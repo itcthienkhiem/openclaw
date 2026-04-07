@@ -1,9 +1,7 @@
 import { randomUUID } from "node:crypto";
 import fsSync from "node:fs";
-import type { Agent } from "node:https";
 import { formatCliCommand } from "openclaw/plugin-sdk/cli-runtime";
 import { VERSION } from "openclaw/plugin-sdk/cli-runtime";
-import { resolveAmbientNodeProxyAgent } from "openclaw/plugin-sdk/extension-shared";
 import { danger, success } from "openclaw/plugin-sdk/runtime-env";
 import { getChildLogger, toPinoLikeLogger } from "openclaw/plugin-sdk/runtime-env";
 import { ensureDir, resolveUserPath } from "openclaw/plugin-sdk/text-runtime";
@@ -52,9 +50,7 @@ function enqueueSaveCreds(
       logger.warn({ error: String(err) }, "WhatsApp creds save queue error");
     })
     .finally(() => {
-      if (credsSaveQueues.get(authDir) === next) {
-        credsSaveQueues.delete(authDir);
-      }
+      if (credsSaveQueues.get(authDir) === next) credsSaveQueues.delete(authDir);
     });
   credsSaveQueues.set(authDir, next);
 }
@@ -120,7 +116,6 @@ export async function createWaSocket(
   maybeRestoreCredsFromBackup(authDir);
   const { state, saveCreds } = await useMultiFileAuthState(authDir);
   const { version } = await fetchLatestBaileysVersion();
-  const agent = await resolveEnvProxyAgent(sessionLogger);
   const sock = makeWASocket({
     auth: {
       creds: state.creds,
@@ -132,8 +127,6 @@ export async function createWaSocket(
     browser: ["openclaw", "cli", VERSION],
     syncFullHistory: false,
     markOnlineOnConnect: false,
-    agent,
-    fetchAgent: agent,
   });
 
   sock.ev.on("creds.update", () => enqueueSaveCreds(authDir, saveCreds, sessionLogger));
@@ -176,22 +169,6 @@ export async function createWaSocket(
   }
 
   return sock;
-}
-
-async function resolveEnvProxyAgent(
-  logger: ReturnType<typeof getChildLogger>,
-): Promise<Agent | undefined> {
-  return resolveAmbientNodeProxyAgent<Agent>({
-    onError: (err) => {
-      logger.warn(
-        { error: String(err) },
-        "Failed to initialize env proxy agent for WhatsApp WebSocket connection",
-      );
-    },
-    onUsingProxy: () => {
-      logger.info("Using ambient env proxy for WhatsApp WebSocket connection");
-    },
-  });
 }
 
 export async function waitForWaConnection(sock: ReturnType<typeof makeWASocket>) {

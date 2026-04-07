@@ -200,11 +200,7 @@ export function startAcpSpawnParentStreamRelay(params: {
     if (!shouldSurfaceUpdates) {
       return;
     }
-    enqueueSystemEvent(cleaned, {
-      sessionKey: parentSessionKey,
-      contextKey,
-      trusted: false,
-    });
+    enqueueSystemEvent(cleaned, { sessionKey: parentSessionKey, contextKey });
     wake();
   };
   const emitStartNotice = () => {

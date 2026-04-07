@@ -39,27 +39,14 @@ export function buildComfyVideoGenerationProvider(): VideoGenerationProvider {
         capability: "video",
       }),
     capabilities: {
-      generate: {
-        maxVideos: 1,
-        supportsSize: false,
-        supportsAspectRatio: false,
-        supportsResolution: false,
-        supportsAudio: false,
-        supportsWatermark: false,
-      },
-      imageToVideo: {
-        enabled: true,
-        maxVideos: 1,
-        maxInputImages: 1,
-        supportsSize: false,
-        supportsAspectRatio: false,
-        supportsResolution: false,
-        supportsAudio: false,
-        supportsWatermark: false,
-      },
-      videoToVideo: {
-        enabled: false,
-      },
+      maxVideos: 1,
+      maxInputImages: 1,
+      maxInputVideos: 0,
+      supportsSize: false,
+      supportsAspectRatio: false,
+      supportsResolution: false,
+      supportsAudio: false,
+      supportsWatermark: false,
     },
     async generateVideo(req) {
       if ((req.inputImages?.length ?? 0) > 1) {

@@ -1,33 +1,18 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 const mockLoadPluginManifestRegistry = vi.hoisted(() => vi.fn());
 
 let validateConfigObjectWithPlugins: typeof import("./validation.js").validateConfigObjectWithPlugins;
 let validateConfigObjectRawWithPlugins: typeof import("./validation.js").validateConfigObjectRawWithPlugins;
 
-vi.mock("../plugins/manifest-registry.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../plugins/manifest-registry.js")>();
-  return {
-    ...actual,
-    loadPluginManifestRegistry: (...args: unknown[]) => mockLoadPluginManifestRegistry(...args),
-    resolveManifestContractPluginIds: () => [],
-  };
-});
+vi.mock("../plugins/manifest-registry.js", () => ({
+  loadPluginManifestRegistry: (...args: unknown[]) => mockLoadPluginManifestRegistry(...args),
+}));
 
-vi.mock("../plugins/doctor-contract-registry.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../plugins/doctor-contract-registry.js")>();
-  return {
-    ...actual,
-    listPluginDoctorLegacyConfigRules: () => [],
-    applyPluginDoctorCompatibilityMigrations: () => ({ next: null, changes: [] }),
-  };
-});
-
-async function loadValidationModule() {
-  vi.resetModules();
+beforeAll(async () => {
   ({ validateConfigObjectWithPlugins, validateConfigObjectRawWithPlugins } =
     await import("./validation.js"));
-}
+});
 
 function setupTelegramSchemaWithDefault() {
   mockLoadPluginManifestRegistry.mockReturnValue({
@@ -67,36 +52,9 @@ function setupTelegramSchemaWithDefault() {
   });
 }
 
-function setupPluginSchemaWithRequiredDefault() {
-  mockLoadPluginManifestRegistry.mockReturnValue({
-    diagnostics: [],
-    plugins: [
-      {
-        id: "opik",
-        origin: "bundled",
-        channels: [],
-        providers: [],
-        kind: ["tool"],
-        configSchema: {
-          type: "object",
-          properties: {
-            workspace: {
-              type: "string",
-              default: "default-workspace",
-            },
-          },
-          required: ["workspace"],
-          additionalProperties: true,
-        },
-      },
-    ],
-  });
-}
-
 describe("validateConfigObjectWithPlugins channel metadata (applyDefaults: true)", () => {
   it("applies bundled channel defaults from plugin-owned schema metadata", async () => {
     setupTelegramSchemaWithDefault();
-    await loadValidationModule();
 
     const result = validateConfigObjectWithPlugins({
       channels: {
@@ -123,7 +81,6 @@ describe("validateConfigObjectRawWithPlugins channel metadata", () => {
     // writeConfigFile (io.ts), which uses persistCandidate (the pre-validation
     // merge-patched value) instead of validated.config.
     setupTelegramSchemaWithDefault();
-    await loadValidationModule();
 
     const result = validateConfigObjectRawWithPlugins({
       channels: {
@@ -138,28 +95,6 @@ describe("validateConfigObjectRawWithPlugins channel metadata", () => {
       expect(result.config.channels?.telegram).toEqual(
         expect.objectContaining({ dmPolicy: "pairing" }),
       );
-    }
-  });
-});
-
-describe("validateConfigObjectRawWithPlugins plugin config defaults", () => {
-  it("does not inject plugin AJV defaults in raw mode for plugin-owned config", async () => {
-    setupPluginSchemaWithRequiredDefault();
-    await loadValidationModule();
-
-    const result = validateConfigObjectRawWithPlugins({
-      plugins: {
-        entries: {
-          opik: {
-            enabled: true,
-          },
-        },
-      },
-    });
-
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.config.plugins?.entries?.opik?.config).toBeUndefined();
     }
   });
 });

@@ -1,7 +1,6 @@
 import { vi } from "vitest";
 import type { ChannelPluginCatalogEntry } from "../channels/plugins/catalog.js";
 import type { ChannelPlugin } from "../channels/plugins/types.js";
-import type { ChannelsConfig } from "../config/types.channels.js";
 import { createChannelTestPluginBase, createTestRegistry } from "../test-utils/channel-plugins.js";
 
 export function createMockChannelSetupPluginInstallModule(
@@ -72,7 +71,7 @@ export function createMSTeamsDeletePlugin(): ChannelPlugin {
         delete nextChannels.msteams;
         return {
           ...cfg,
-          channels: nextChannels as ChannelsConfig,
+          channels: nextChannels,
         };
       }),
     },

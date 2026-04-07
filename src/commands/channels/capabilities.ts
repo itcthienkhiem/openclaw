@@ -16,7 +16,6 @@ import {
   type OpenClawConfig,
 } from "../../config/config.js";
 import { danger } from "../../globals.js";
-import { formatErrorMessage } from "../../infra/errors.js";
 import { defaultRuntime, type RuntimeEnv, writeRuntimeJson } from "../../runtime.js";
 import { theme } from "../../terminal/theme.js";
 import { resolveInstallableChannelPlugin } from "../channel-setup/channel-plugin-resolution.js";
@@ -162,7 +161,7 @@ async function resolveChannelReports(params: {
           cfg,
         });
       } catch (err) {
-        probe = { ok: false, error: formatErrorMessage(err) };
+        probe = { ok: false, error: err instanceof Error ? err.message : String(err) };
       }
     }
 

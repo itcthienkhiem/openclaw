@@ -23,10 +23,6 @@ type ImageBlock = {
   alt?: string;
 };
 
-type AudioClip = {
-  url: string;
-};
-
 function extractImages(message: unknown): ImageBlock[] {
   const m = message as Record<string, unknown>;
   const content = m.content;
@@ -62,32 +58,6 @@ function extractImages(message: unknown): ImageBlock[] {
   }
 
   return images;
-}
-
-function extractAudioClips(message: unknown): AudioClip[] {
-  const m = message as Record<string, unknown>;
-  const content = m.content;
-  const clips: AudioClip[] = [];
-  if (!Array.isArray(content)) {
-    return clips;
-  }
-  for (const block of content) {
-    if (typeof block !== "object" || block === null) {
-      continue;
-    }
-    const b = block as Record<string, unknown>;
-    if (b.type !== "audio") {
-      continue;
-    }
-    const source = b.source as Record<string, unknown> | undefined;
-    if (source?.type === "base64" && typeof source.data === "string") {
-      const data = source.data;
-      const mediaType = (source.media_type as string) || "audio/mpeg";
-      const url = data.startsWith("data:") ? data : `data:${mediaType};base64,${data}`;
-      clips.push({ url });
-    }
-  }
-  return clips;
 }
 
 export function renderReadingIndicatorGroup(assistant?: AssistantIdentity, basePath?: string) {
@@ -207,9 +177,11 @@ export function renderMessageGroup(
           <span class="chat-group-timestamp">${timestamp}</span>
           ${renderMessageMeta(meta)}
           ${normalizedRole === "assistant" && isTtsSupported() ? renderTtsButton(group) : nothing}
-          ${opts.onDelete
-            ? renderDeleteButton(opts.onDelete, normalizedRole === "user" ? "left" : "right")
-            : nothing}
+          ${
+            opts.onDelete
+              ? renderDeleteButton(opts.onDelete, normalizedRole === "user" ? "left" : "right")
+              : nothing
+          }
         </div>
       </div>
     </div>
@@ -610,25 +582,6 @@ function renderMessageImages(images: ImageBlock[]) {
   `;
 }
 
-function renderMessageAudio(clips: AudioClip[]) {
-  if (clips.length === 0) {
-    return nothing;
-  }
-  return html`
-    <div class="chat-message-audio">
-      ${clips.map(
-        (clip) =>
-          html`<audio
-            class="chat-message-audio-el"
-            controls
-            preload="metadata"
-            src=${clip.url}
-          ></audio>`,
-      )}
-    </div>
-  `;
-}
-
 /** Render tool cards inside a collapsed `<details>` element. */
 function renderCollapsedToolCards(
   toolCards: ToolCard[],
@@ -737,8 +690,6 @@ function renderGroupedMessage(
   const hasToolCards = toolCards.length > 0;
   const images = extractImages(message);
   const hasImages = images.length > 0;
-  const audioClips = extractAudioClips(message);
-  const hasAudio = audioClips.length > 0;
 
   const extractedText = extractTextCached(message);
   const extractedThinking =
@@ -752,7 +703,7 @@ function renderGroupedMessage(
   // Detect pure-JSON messages and render as collapsible block
   const jsonResult = markdown && !opts.isStreaming ? detectJson(markdown) : null;
 
-  const bubbleClasses = ["chat-bubble", opts.isStreaming ? "streaming" : "", "fade-in", canCopyMarkdown ? "has-copy" : ""]
+  const bubbleClasses = ["chat-bubble", opts.isStreaming ? "streaming" : "", "fade-in"]
     .filter(Boolean)
     .join(" ");
 
@@ -762,7 +713,7 @@ function renderGroupedMessage(
 
   // Suppress empty bubbles when tool cards are the only content and toggle is off
   const visibleToolCards = hasToolCards && (opts.showToolCalls ?? true);
-  if (!markdown && !visibleToolCards && !hasImages && !hasAudio) {
+  if (!markdown && !visibleToolCards && !hasImages) {
     return nothing;
   }
 
@@ -779,70 +730,84 @@ function renderGroupedMessage(
 
   return html`
     <div class="${bubbleClasses}">
-      ${hasActions
-        ? html`<div class="chat-bubble-actions">
+      ${
+        hasActions
+          ? html`<div class="chat-bubble-actions">
             ${canExpand ? renderExpandButton(markdown!, onOpenSidebar!) : nothing}
             ${canCopyMarkdown ? renderCopyAsMarkdownButton(markdown!) : nothing}
           </div>`
-        : nothing}
-      ${isToolMessage
-        ? html`
+          : nothing
+      }
+      ${
+        isToolMessage
+          ? html`
             <details class="chat-tool-msg-collapse">
               <summary class="chat-tool-msg-summary">
                 <span class="chat-tool-msg-summary__icon">${icons.zap}</span>
                 <span class="chat-tool-msg-summary__label">Tool output</span>
-                ${toolSummaryLabel
-                  ? html`<span class="chat-tool-msg-summary__names">${toolSummaryLabel}</span>`
-                  : toolPreview
-                    ? html`<span class="chat-tool-msg-summary__preview">${toolPreview}</span>`
-                    : nothing}
+                ${
+                  toolSummaryLabel
+                    ? html`<span class="chat-tool-msg-summary__names">${toolSummaryLabel}</span>`
+                    : toolPreview
+                      ? html`<span class="chat-tool-msg-summary__preview">${toolPreview}</span>`
+                      : nothing
+                }
               </summary>
               <div class="chat-tool-msg-body">
-                ${renderMessageImages(images)} ${renderMessageAudio(audioClips)}
-                ${reasoningMarkdown
-                  ? html`<div class="chat-thinking">
+                ${renderMessageImages(images)}
+                ${
+                  reasoningMarkdown
+                    ? html`<div class="chat-thinking">
                       ${unsafeHTML(toSanitizedMarkdownHtml(reasoningMarkdown))}
                     </div>`
-                  : nothing}
-                ${jsonResult
-                  ? html`<details class="chat-json-collapse">
+                    : nothing
+                }
+                ${
+                  jsonResult
+                    ? html`<details class="chat-json-collapse">
                       <summary class="chat-json-summary">
                         <span class="chat-json-badge">JSON</span>
                         <span class="chat-json-label">${jsonSummaryLabel(jsonResult.parsed)}</span>
                       </summary>
                       <pre class="chat-json-content"><code>${jsonResult.pretty}</code></pre>
                     </details>`
-                  : markdown
-                    ? html`<div class="chat-text" dir="${detectTextDirection(markdown)}">
+                    : markdown
+                      ? html`<div class="chat-text" dir="${detectTextDirection(markdown)}">
                         ${unsafeHTML(toSanitizedMarkdownHtml(markdown))}
                       </div>`
-                    : nothing}
+                      : nothing
+                }
                 ${hasToolCards ? renderCollapsedToolCards(toolCards, onOpenSidebar) : nothing}
               </div>
             </details>
           `
-        : html`
-            ${renderMessageImages(images)} ${renderMessageAudio(audioClips)}
-            ${reasoningMarkdown
-              ? html`<div class="chat-thinking">
+          : html`
+            ${renderMessageImages(images)}
+            ${
+              reasoningMarkdown
+                ? html`<div class="chat-thinking">
                   ${unsafeHTML(toSanitizedMarkdownHtml(reasoningMarkdown))}
                 </div>`
-              : nothing}
-            ${jsonResult
-              ? html`<details class="chat-json-collapse">
+                : nothing
+            }
+            ${
+              jsonResult
+                ? html`<details class="chat-json-collapse">
                   <summary class="chat-json-summary">
                     <span class="chat-json-badge">JSON</span>
                     <span class="chat-json-label">${jsonSummaryLabel(jsonResult.parsed)}</span>
                   </summary>
                   <pre class="chat-json-content"><code>${jsonResult.pretty}</code></pre>
                 </details>`
-              : markdown
-                ? html`<div class="chat-text" dir="${detectTextDirection(markdown)}">
+                : markdown
+                  ? html`<div class="chat-text" dir="${detectTextDirection(markdown)}">
                     ${unsafeHTML(toSanitizedMarkdownHtml(markdown))}
                   </div>`
-                : nothing}
+                  : nothing
+            }
             ${hasToolCards ? renderCollapsedToolCards(toolCards, onOpenSidebar) : nothing}
-          `}
+          `
+      }
     </div>
   `;
 }

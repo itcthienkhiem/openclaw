@@ -7,7 +7,6 @@ import type { OpenClawConfig } from "../config/config.js";
 import { readJsonBodyWithLimit, requestBodyErrorToText } from "../infra/http-body.js";
 import { normalizeAgentId, parseAgentSessionKey } from "../routing/session-key.js";
 import type { HookExternalContentSource } from "../security/external-content.js";
-import { normalizeOptionalString } from "../shared/string-coerce.js";
 import { normalizeMessageChannel } from "../utils/message-channel.js";
 import { type HookMappingResolved, resolveHookMappings } from "./hooks-mapping.js";
 import { resolveAllowedAgentIds } from "./hooks-policy.js";
@@ -364,27 +363,30 @@ export function normalizeAgentPayload(payload: Record<string, unknown>):
     return { ok: false, error: "message required" };
   }
   const nameRaw = payload.name;
-  const name = normalizeOptionalString(nameRaw) ?? "Hook";
+  const name = typeof nameRaw === "string" && nameRaw.trim() ? nameRaw.trim() : "Hook";
   const agentIdRaw = payload.agentId;
-  const agentId = normalizeOptionalString(agentIdRaw);
+  const agentId =
+    typeof agentIdRaw === "string" && agentIdRaw.trim() ? agentIdRaw.trim() : undefined;
   const idempotencyKey = resolveOptionalHookIdempotencyKey(payload.idempotencyKey);
   const wakeMode = payload.wakeMode === "next-heartbeat" ? "next-heartbeat" : "now";
   const sessionKeyRaw = payload.sessionKey;
-  const sessionKey = normalizeOptionalString(sessionKeyRaw);
+  const sessionKey =
+    typeof sessionKeyRaw === "string" && sessionKeyRaw.trim() ? sessionKeyRaw.trim() : undefined;
   const channel = resolveHookChannel(payload.channel);
   if (!channel) {
     return { ok: false, error: getHookChannelError() };
   }
   const toRaw = payload.to;
-  const to = normalizeOptionalString(toRaw);
+  const to = typeof toRaw === "string" && toRaw.trim() ? toRaw.trim() : undefined;
   const modelRaw = payload.model;
-  const model = normalizeOptionalString(modelRaw);
+  const model = typeof modelRaw === "string" && modelRaw.trim() ? modelRaw.trim() : undefined;
   if (modelRaw !== undefined && !model) {
     return { ok: false, error: "model required" };
   }
   const deliver = resolveHookDeliver(payload.deliver);
   const thinkingRaw = payload.thinking;
-  const thinking = normalizeOptionalString(thinkingRaw);
+  const thinking =
+    typeof thinkingRaw === "string" && thinkingRaw.trim() ? thinkingRaw.trim() : undefined;
   const timeoutRaw = payload.timeoutSeconds;
   const timeoutSeconds =
     typeof timeoutRaw === "number" && Number.isFinite(timeoutRaw) && timeoutRaw > 0

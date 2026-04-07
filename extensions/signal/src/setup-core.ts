@@ -6,20 +6,24 @@ import {
   createSetupInputPresenceValidator,
   DEFAULT_ACCOUNT_ID,
   mergeAllowFromEntries,
-  parseSetupEntriesAllowingWildcard,
   patchChannelConfigForAccount,
+  parseSetupEntriesAllowingWildcard,
   promptParsedAllowFromForAccount,
   setAccountAllowFromForChannel,
   setSetupChannelEnabled,
+  type OpenClawConfig,
+  type WizardPrompter,
   type ChannelSetupAdapter,
   type ChannelSetupWizard,
   type ChannelSetupWizardTextInput,
-  type OpenClawConfig,
-  type WizardPrompter,
 } from "openclaw/plugin-sdk/setup-runtime";
 import { formatCliCommand, formatDocsLink } from "openclaw/plugin-sdk/setup-tools";
 import { normalizeE164 } from "openclaw/plugin-sdk/text-runtime";
-import { resolveDefaultSignalAccountId, resolveSignalAccount } from "./accounts.js";
+import {
+  listSignalAccountIds,
+  resolveDefaultSignalAccountId,
+  resolveSignalAccount,
+} from "./accounts.js";
 
 const channel = "signal" as const;
 const MIN_E164_DIGITS = 5;

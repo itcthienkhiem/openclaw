@@ -62,6 +62,7 @@ describe("signal createSignalEventHandler inbound context", () => {
   it("passes a finalized MsgContext to dispatchInboundMessage", async () => {
     const handler = createSignalEventHandler(
       createBaseSignalEventHandlerDeps({
+        // oxlint-disable-next-line typescript/no-explicit-any
         cfg: { messages: { inbound: { debounceMs: 0 } } } as any,
         historyLimit: 0,
       }),
@@ -89,6 +90,7 @@ describe("signal createSignalEventHandler inbound context", () => {
   it("normalizes direct chat To/OriginatingTo targets to canonical Signal ids", async () => {
     const handler = createSignalEventHandler(
       createBaseSignalEventHandlerDeps({
+        // oxlint-disable-next-line typescript/no-explicit-any
         cfg: { messages: { inbound: { debounceMs: 0 } } } as any,
         historyLimit: 0,
       }),

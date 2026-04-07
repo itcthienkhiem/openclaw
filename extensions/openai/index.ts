@@ -1,5 +1,4 @@
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
-import { buildOpenAICodexCliBackend } from "./cli-backend.js";
 import { buildOpenAIImageGenerationProvider } from "./image-generation-provider.js";
 import {
   openaiCodexMediaUnderstandingProvider,
@@ -22,7 +21,11 @@ export default definePluginEntry({
   description: "Bundled OpenAI provider plugins",
   register(api) {
     const promptOverlayMode = resolveOpenAIPromptOverlayMode(api.pluginConfig);
-    const buildProviderWithPromptContribution = <T extends ReturnType<typeof buildOpenAIProvider>>(
+    const buildProviderWithPromptContribution = <
+      T extends
+        | ReturnType<typeof buildOpenAIProvider>
+        | ReturnType<typeof buildOpenAICodexProviderPlugin>,
+    >(
       provider: T,
     ): T => ({
       ...provider,
@@ -33,7 +36,6 @@ export default definePluginEntry({
           modelId: ctx.modelId,
         }),
     });
-    api.registerCliBackend(buildOpenAICodexCliBackend());
     api.registerProvider(buildProviderWithPromptContribution(buildOpenAIProvider()));
     api.registerProvider(buildProviderWithPromptContribution(buildOpenAICodexProviderPlugin()));
     api.registerImageGenerationProvider(buildOpenAIImageGenerationProvider());

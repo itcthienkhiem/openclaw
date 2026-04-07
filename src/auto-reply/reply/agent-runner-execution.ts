@@ -5,11 +5,8 @@ import {
   resolveSendableOutboundReplyParts,
 } from "openclaw/plugin-sdk/reply-payload";
 import { resolveBootstrapWarningSignaturesSeen } from "../../agents/bootstrap-budget.js";
-import { runCliAgent } from "../../agents/cli-runner.js";
-import { getCliSessionBinding } from "../../agents/cli-session.js";
 import { LiveSessionModelSwitchError } from "../../agents/live-model-switch-error.js";
 import { runWithModelFallback, isFallbackSummaryError } from "../../agents/model-fallback.js";
-import { isCliProvider } from "../../agents/model-selection.js";
 import {
   BILLING_ERROR_USER_MESSAGE,
   isCompactionFailureError,
@@ -30,11 +27,9 @@ import {
   updateSessionStore,
 } from "../../config/sessions.js";
 import { logVerbose } from "../../globals.js";
-import { emitAgentEvent, registerAgentRunContext } from "../../infra/agent-events.js";
-import { formatErrorMessage } from "../../infra/errors.js";
+import { registerAgentRunContext } from "../../infra/agent-events.js";
 import { CommandLaneClearedError, GatewayDrainingError } from "../../process/command-queue.js";
 import { defaultRuntime } from "../../runtime.js";
-import { readStringValue } from "../../shared/string-coerce.js";
 import { sanitizeForLog } from "../../terminal/ansi.js";
 import {
   isMarkdownCapableMessageChannel,
@@ -699,126 +694,6 @@ export async function runAgentTurnWithFallback(params: {
             );
           }
 
-          if (isCliProvider(provider, params.followupRun.run.config)) {
-            const startedAt = Date.now();
-            notifyAgentRunStart();
-            emitAgentEvent({
-              runId,
-              stream: "lifecycle",
-              data: {
-                phase: "start",
-                startedAt,
-              },
-            });
-            const cliSessionBinding = getCliSessionBinding(
-              params.getActiveSessionEntry(),
-              provider,
-            );
-            const authProfileId =
-              provider === params.followupRun.run.provider
-                ? params.followupRun.run.authProfileId
-                : undefined;
-            return (async () => {
-              let lifecycleTerminalEmitted = false;
-              try {
-                const result = await runCliAgent({
-                  sessionId: params.followupRun.run.sessionId,
-                  sessionKey: params.sessionKey,
-                  agentId: params.followupRun.run.agentId,
-                  sessionFile: params.followupRun.run.sessionFile,
-                  workspaceDir: params.followupRun.run.workspaceDir,
-                  config: params.followupRun.run.config,
-                  prompt: params.commandBody,
-                  provider,
-                  model,
-                  thinkLevel: params.followupRun.run.thinkLevel,
-                  timeoutMs: params.followupRun.run.timeoutMs,
-                  runId,
-                  extraSystemPrompt: params.followupRun.run.extraSystemPrompt,
-                  ownerNumbers: params.followupRun.run.ownerNumbers,
-                  cliSessionId: cliSessionBinding?.sessionId,
-                  cliSessionBinding,
-                  authProfileId,
-                  bootstrapPromptWarningSignaturesSeen,
-                  bootstrapPromptWarningSignature:
-                    bootstrapPromptWarningSignaturesSeen[
-                      bootstrapPromptWarningSignaturesSeen.length - 1
-                    ],
-                  images: params.opts?.images,
-                  imageOrder: params.opts?.imageOrder,
-                  messageProvider: params.followupRun.run.messageProvider,
-                  agentAccountId: params.followupRun.run.agentAccountId,
-                  abortSignal: params.replyOperation?.abortSignal ?? params.opts?.abortSignal,
-                  replyOperation: params.replyOperation,
-                });
-                bootstrapPromptWarningSignaturesSeen = resolveBootstrapWarningSignaturesSeen(
-                  result.meta?.systemPromptReport,
-                );
-
-                // CLI backends don't emit streaming assistant events, so we need to
-                // emit one with the final text so server-chat can populate its buffer
-                // and send the response to TUI/WebSocket clients.
-                const cliText = result.payloads?.[0]?.text?.trim();
-                if (cliText) {
-                  emitAgentEvent({
-                    runId,
-                    stream: "assistant",
-                    data: { text: cliText },
-                  });
-                }
-
-                emitAgentEvent({
-                  runId,
-                  stream: "lifecycle",
-                  data: {
-                    phase: "end",
-                    startedAt,
-                    endedAt: Date.now(),
-                  },
-                });
-                lifecycleTerminalEmitted = true;
-
-                return result;
-              } catch (err) {
-                if (rollbackFallbackCandidateSelection) {
-                  try {
-                    await rollbackFallbackCandidateSelection();
-                  } catch (rollbackError) {
-                    logVerbose(
-                      `failed to roll back fallback candidate selection (non-fatal): ${String(rollbackError)}`,
-                    );
-                  }
-                }
-                emitAgentEvent({
-                  runId,
-                  stream: "lifecycle",
-                  data: {
-                    phase: "error",
-                    startedAt,
-                    endedAt: Date.now(),
-                    error: String(err),
-                  },
-                });
-                lifecycleTerminalEmitted = true;
-                throw err;
-              } finally {
-                // Defensive backstop: never let a CLI run complete without a terminal
-                // lifecycle event, otherwise downstream consumers can hang.
-                if (!lifecycleTerminalEmitted) {
-                  emitAgentEvent({
-                    runId,
-                    stream: "lifecycle",
-                    data: {
-                      phase: "error",
-                      startedAt,
-                      endedAt: Date.now(),
-                      error: "CLI run completed without lifecycle terminal event",
-                    },
-                  });
-                }
-              }
-            })();
-          }
           const { embeddedContext, senderContext, runBaseParams } = buildEmbeddedRunExecutionParams(
             {
               run: params.followupRun.run,
@@ -902,8 +777,8 @@ export async function runAgentTurnWithFallback(params: {
                   // Trigger typing when tools start executing.
                   // Must await to ensure typing indicator starts before tool summaries are emitted.
                   if (evt.stream === "tool") {
-                    const phase = readStringValue(evt.data.phase) ?? "";
-                    const name = readStringValue(evt.data.name);
+                    const phase = typeof evt.data.phase === "string" ? evt.data.phase : "";
+                    const name = typeof evt.data.name === "string" ? evt.data.name : undefined;
                     if (phase === "start" || phase === "update") {
                       await params.typingSignals.signalToolStart();
                       await params.opts?.onToolStart?.({ name, phase });
@@ -911,70 +786,85 @@ export async function runAgentTurnWithFallback(params: {
                   }
                   if (evt.stream === "item") {
                     await params.opts?.onItemEvent?.({
-                      itemId: readStringValue(evt.data.itemId),
-                      kind: readStringValue(evt.data.kind),
-                      title: readStringValue(evt.data.title),
-                      name: readStringValue(evt.data.name),
-                      phase: readStringValue(evt.data.phase),
-                      status: readStringValue(evt.data.status),
-                      summary: readStringValue(evt.data.summary),
-                      progressText: readStringValue(evt.data.progressText),
-                      approvalId: readStringValue(evt.data.approvalId),
-                      approvalSlug: readStringValue(evt.data.approvalSlug),
+                      itemId: typeof evt.data.itemId === "string" ? evt.data.itemId : undefined,
+                      kind: typeof evt.data.kind === "string" ? evt.data.kind : undefined,
+                      title: typeof evt.data.title === "string" ? evt.data.title : undefined,
+                      name: typeof evt.data.name === "string" ? evt.data.name : undefined,
+                      phase: typeof evt.data.phase === "string" ? evt.data.phase : undefined,
+                      status: typeof evt.data.status === "string" ? evt.data.status : undefined,
+                      summary: typeof evt.data.summary === "string" ? evt.data.summary : undefined,
+                      progressText:
+                        typeof evt.data.progressText === "string"
+                          ? evt.data.progressText
+                          : undefined,
+                      approvalId:
+                        typeof evt.data.approvalId === "string" ? evt.data.approvalId : undefined,
+                      approvalSlug:
+                        typeof evt.data.approvalSlug === "string"
+                          ? evt.data.approvalSlug
+                          : undefined,
                     });
                   }
                   if (evt.stream === "plan") {
                     await params.opts?.onPlanUpdate?.({
-                      phase: readStringValue(evt.data.phase),
-                      title: readStringValue(evt.data.title),
-                      explanation: readStringValue(evt.data.explanation),
+                      phase: typeof evt.data.phase === "string" ? evt.data.phase : undefined,
+                      title: typeof evt.data.title === "string" ? evt.data.title : undefined,
+                      explanation:
+                        typeof evt.data.explanation === "string" ? evt.data.explanation : undefined,
                       steps: Array.isArray(evt.data.steps)
                         ? evt.data.steps.filter((step): step is string => typeof step === "string")
                         : undefined,
-                      source: readStringValue(evt.data.source),
+                      source: typeof evt.data.source === "string" ? evt.data.source : undefined,
                     });
                   }
                   if (evt.stream === "approval") {
                     await params.opts?.onApprovalEvent?.({
-                      phase: readStringValue(evt.data.phase),
-                      kind: readStringValue(evt.data.kind),
-                      status: readStringValue(evt.data.status),
-                      title: readStringValue(evt.data.title),
-                      itemId: readStringValue(evt.data.itemId),
-                      toolCallId: readStringValue(evt.data.toolCallId),
-                      approvalId: readStringValue(evt.data.approvalId),
-                      approvalSlug: readStringValue(evt.data.approvalSlug),
-                      command: readStringValue(evt.data.command),
-                      host: readStringValue(evt.data.host),
-                      reason: readStringValue(evt.data.reason),
-                      message: readStringValue(evt.data.message),
+                      phase: typeof evt.data.phase === "string" ? evt.data.phase : undefined,
+                      kind: typeof evt.data.kind === "string" ? evt.data.kind : undefined,
+                      status: typeof evt.data.status === "string" ? evt.data.status : undefined,
+                      title: typeof evt.data.title === "string" ? evt.data.title : undefined,
+                      itemId: typeof evt.data.itemId === "string" ? evt.data.itemId : undefined,
+                      toolCallId:
+                        typeof evt.data.toolCallId === "string" ? evt.data.toolCallId : undefined,
+                      approvalId:
+                        typeof evt.data.approvalId === "string" ? evt.data.approvalId : undefined,
+                      approvalSlug:
+                        typeof evt.data.approvalSlug === "string"
+                          ? evt.data.approvalSlug
+                          : undefined,
+                      command: typeof evt.data.command === "string" ? evt.data.command : undefined,
+                      host: typeof evt.data.host === "string" ? evt.data.host : undefined,
+                      reason: typeof evt.data.reason === "string" ? evt.data.reason : undefined,
+                      message: typeof evt.data.message === "string" ? evt.data.message : undefined,
                     });
                   }
                   if (evt.stream === "command_output") {
                     await params.opts?.onCommandOutput?.({
-                      itemId: readStringValue(evt.data.itemId),
-                      phase: readStringValue(evt.data.phase),
-                      title: readStringValue(evt.data.title),
-                      toolCallId: readStringValue(evt.data.toolCallId),
-                      name: readStringValue(evt.data.name),
-                      output: readStringValue(evt.data.output),
-                      status: readStringValue(evt.data.status),
+                      itemId: typeof evt.data.itemId === "string" ? evt.data.itemId : undefined,
+                      phase: typeof evt.data.phase === "string" ? evt.data.phase : undefined,
+                      title: typeof evt.data.title === "string" ? evt.data.title : undefined,
+                      toolCallId:
+                        typeof evt.data.toolCallId === "string" ? evt.data.toolCallId : undefined,
+                      name: typeof evt.data.name === "string" ? evt.data.name : undefined,
+                      output: typeof evt.data.output === "string" ? evt.data.output : undefined,
+                      status: typeof evt.data.status === "string" ? evt.data.status : undefined,
                       exitCode:
                         typeof evt.data.exitCode === "number" || evt.data.exitCode === null
                           ? evt.data.exitCode
                           : undefined,
                       durationMs:
                         typeof evt.data.durationMs === "number" ? evt.data.durationMs : undefined,
-                      cwd: readStringValue(evt.data.cwd),
+                      cwd: typeof evt.data.cwd === "string" ? evt.data.cwd : undefined,
                     });
                   }
                   if (evt.stream === "patch") {
                     await params.opts?.onPatchSummary?.({
-                      itemId: readStringValue(evt.data.itemId),
-                      phase: readStringValue(evt.data.phase),
-                      title: readStringValue(evt.data.title),
-                      toolCallId: readStringValue(evt.data.toolCallId),
-                      name: readStringValue(evt.data.name),
+                      itemId: typeof evt.data.itemId === "string" ? evt.data.itemId : undefined,
+                      phase: typeof evt.data.phase === "string" ? evt.data.phase : undefined,
+                      title: typeof evt.data.title === "string" ? evt.data.title : undefined,
+                      toolCallId:
+                        typeof evt.data.toolCallId === "string" ? evt.data.toolCallId : undefined,
+                      name: typeof evt.data.name === "string" ? evt.data.name : undefined,
                       added: Array.isArray(evt.data.added)
                         ? evt.data.added.filter(
                             (entry): entry is string => typeof entry === "string",
@@ -990,12 +880,12 @@ export async function runAgentTurnWithFallback(params: {
                             (entry): entry is string => typeof entry === "string",
                           )
                         : undefined,
-                      summary: readStringValue(evt.data.summary),
+                      summary: typeof evt.data.summary === "string" ? evt.data.summary : undefined,
                     });
                   }
                   // Track auto-compaction and notify higher layers.
                   if (evt.stream === "compaction") {
-                    const phase = readStringValue(evt.data.phase) ?? "";
+                    const phase = typeof evt.data.phase === "string" ? evt.data.phase : "";
                     if (phase === "start") {
                       // Keep custom compaction callbacks active, but gate the
                       // fallback user-facing notice behind explicit opt-in.
@@ -1194,7 +1084,7 @@ export async function runAgentTurnWithFallback(params: {
         fallbackModel = err.model;
         continue;
       }
-      const message = formatErrorMessage(err);
+      const message = err instanceof Error ? err.message : String(err);
       const isBilling = isBillingErrorMessage(message);
       const isContextOverflow = !isBilling && isLikelyContextOverflowError(message);
       const isCompactionFailure = !isBilling && isCompactionFailureError(message);

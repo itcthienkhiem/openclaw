@@ -1,18 +1,28 @@
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   buildVitestProfileCommand,
   parseArgs,
   resolveVitestProfileDir,
 } from "../../scripts/run-vitest-profile.mjs";
-import { createScriptTestHarness } from "./test-helpers.js";
 
 describe("scripts/run-vitest-profile", () => {
-  const { trackTempDir } = createScriptTestHarness();
+  const tempDirs: string[] = [];
+
+  afterEach(() => {
+    while (tempDirs.length > 0) {
+      const dir = tempDirs.pop();
+      if (dir) {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    }
+  });
 
   it("defaults profile output outside the repo", () => {
-    const outputDir = trackTempDir(resolveVitestProfileDir({ mode: "main", outputDir: "" }));
+    const outputDir = resolveVitestProfileDir({ mode: "main", outputDir: "" });
+    tempDirs.push(outputDir);
 
     expect(outputDir.startsWith(os.tmpdir())).toBe(true);
     expect(outputDir.startsWith(process.cwd())).toBe(false);

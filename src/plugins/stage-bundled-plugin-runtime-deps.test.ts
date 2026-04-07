@@ -1,7 +1,7 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanupTrackedTempDirs, makeTrackedTempDir } from "./test-helpers/fs-fixtures.js";
 
 type StageBundledPluginRuntimeDeps = (params?: { cwd?: string; repoRoot?: string }) => void;
 
@@ -16,7 +16,9 @@ async function loadStageBundledPluginRuntimeDeps(): Promise<StageBundledPluginRu
 const tempDirs: string[] = [];
 
 function makeRepoRoot(prefix: string): string {
-  return makeTrackedTempDir(prefix, tempDirs);
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  tempDirs.push(repoRoot);
+  return repoRoot;
 }
 
 function writeRepoFile(repoRoot: string, relativePath: string, value: string) {
@@ -26,7 +28,9 @@ function writeRepoFile(repoRoot: string, relativePath: string, value: string) {
 }
 
 afterEach(() => {
-  cleanupTrackedTempDirs(tempDirs);
+  for (const dir of tempDirs.splice(0, tempDirs.length)) {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 describe("stageBundledPluginRuntimeDeps", () => {
@@ -39,7 +43,7 @@ describe("stageBundledPluginRuntimeDeps", () => {
       JSON.stringify(
         {
           name: "@openclaw/feishu",
-          version: "2026.4.6",
+          version: "2026.4.5",
           dependencies: {
             "@larksuiteoapi/node-sdk": "^1.60.0",
           },

@@ -2,21 +2,31 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const gatewayRuntimeHoisted = vi.hoisted(() => ({
   requestSpy: vi.fn(),
-  withClientSpy: vi.fn(),
+  startSpy: vi.fn(),
+  stopSpy: vi.fn(),
+  stopAndWaitSpy: vi.fn(async () => undefined),
+  createClientSpy: vi.fn(),
 }));
 
 vi.mock("openclaw/plugin-sdk/gateway-runtime", () => ({
-  withOperatorApprovalsGatewayClient: gatewayRuntimeHoisted.withClientSpy,
+  createOperatorApprovalsGatewayClient: gatewayRuntimeHoisted.createClientSpy,
 }));
 
 describe("resolveTelegramExecApproval", () => {
   beforeEach(() => {
     gatewayRuntimeHoisted.requestSpy.mockReset();
-    gatewayRuntimeHoisted.withClientSpy.mockReset().mockImplementation(async (_params, run) => {
-      await run({
-        request: gatewayRuntimeHoisted.requestSpy,
-      } as never);
-    });
+    gatewayRuntimeHoisted.startSpy.mockReset();
+    gatewayRuntimeHoisted.stopSpy.mockReset();
+    gatewayRuntimeHoisted.stopAndWaitSpy.mockReset().mockResolvedValue(undefined);
+    gatewayRuntimeHoisted.createClientSpy.mockReset().mockImplementation((opts) => ({
+      start: () => {
+        gatewayRuntimeHoisted.startSpy();
+        opts.onHelloOk?.();
+      },
+      request: gatewayRuntimeHoisted.requestSpy,
+      stop: gatewayRuntimeHoisted.stopSpy,
+      stopAndWait: gatewayRuntimeHoisted.stopAndWaitSpy,
+    }));
   });
 
   it("routes plugin approval ids through plugin.approval.resolve", async () => {

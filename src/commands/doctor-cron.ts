@@ -2,7 +2,6 @@ import { formatCliCommand } from "../cli/command-format.js";
 import type { OpenClawConfig } from "../config/config.js";
 import { resolveCronStorePath, loadCronStore, saveCronStore } from "../cron/store.js";
 import type { CronJob } from "../cron/types.js";
-import { normalizeOptionalString } from "../shared/string-coerce.js";
 import { note } from "../terminal/note.js";
 import { shortenHomePath } from "../utils.js";
 import { normalizeStoredCronJobs } from "./doctor-cron-store-migration.js";
@@ -56,6 +55,10 @@ function formatLegacyIssuePreview(issues: Partial<Record<string, number>>): stri
   return lines;
 }
 
+function trimString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
 function migrateLegacyNotifyFallback(params: {
   jobs: Array<Record<string, unknown>>;
   legacyWebhook?: string;
@@ -68,8 +71,7 @@ function migrateLegacyNotifyFallback(params: {
       continue;
     }
 
-    const jobName =
-      normalizeOptionalString(raw.name) ?? normalizeOptionalString(raw.id) ?? "<unnamed>";
+    const jobName = trimString(raw.name) ?? trimString(raw.id) ?? "<unnamed>";
     const notify = raw.notify === true;
     if (!notify) {
       delete raw.notify;
@@ -81,8 +83,8 @@ function migrateLegacyNotifyFallback(params: {
       raw.delivery && typeof raw.delivery === "object" && !Array.isArray(raw.delivery)
         ? (raw.delivery as Record<string, unknown>)
         : null;
-    const mode = normalizeOptionalString(delivery?.mode)?.toLowerCase();
-    const to = normalizeOptionalString(delivery?.to);
+    const mode = trimString(delivery?.mode)?.toLowerCase();
+    const to = trimString(delivery?.to);
 
     if (mode === "webhook" && to) {
       delete raw.notify;
@@ -129,7 +131,7 @@ export async function maybeRepairLegacyCronStore(params: {
   }
 
   const normalized = normalizeStoredCronJobs(rawJobs);
-  const legacyWebhook = normalizeOptionalString(params.cfg.cron?.webhook);
+  const legacyWebhook = trimString(params.cfg.cron?.webhook);
   const notifyCount = rawJobs.filter((job) => job.notify === true).length;
   const previewLines = formatLegacyIssuePreview(normalized.issues);
   if (notifyCount > 0) {

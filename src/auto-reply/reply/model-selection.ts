@@ -11,7 +11,7 @@ import {
   normalizeModelRef,
   normalizeProviderId,
   resolveModelRefFromString,
-  resolvePersistedOverrideModelRef,
+  resolvePersistedModelRef,
   resolveReasoningDefault,
   resolveThinkingDefault,
 } from "../../agents/model-selection.js";
@@ -41,23 +41,6 @@ type ModelSelectionState = {
   resolveDefaultReasoningLevel: () => Promise<"on" | "off">;
   needsModelCatalog: boolean;
 };
-
-export function createFastTestModelSelectionState(params: {
-  agentCfg: NonNullable<NonNullable<OpenClawConfig["agents"]>["defaults"]> | undefined;
-  provider: string;
-  model: string;
-}): ModelSelectionState {
-  return {
-    provider: params.provider,
-    model: params.model,
-    allowedModelKeys: new Set<string>(),
-    allowedModelCatalog: [],
-    resetModelOverride: false,
-    resolveDefaultThinkingLevel: async () => params.agentCfg?.thinkingDefault as ThinkLevel,
-    resolveDefaultReasoningLevel: async () => "off",
-    needsModelCatalog: false,
-  };
-}
 
 function shouldLogModelSelectionTiming(): boolean {
   return process.env.OPENCLAW_DEBUG_INGRESS_TIMING === "1";
@@ -166,7 +149,7 @@ export function resolveStoredModelOverride(params: {
   parentSessionKey?: string;
   defaultProvider: string;
 }): StoredModelOverride | null {
-  const direct = resolvePersistedOverrideModelRef({
+  const direct = resolvePersistedModelRef({
     defaultProvider: params.defaultProvider,
     overrideProvider: params.sessionEntry?.providerOverride,
     overrideModel: params.sessionEntry?.modelOverride,
@@ -182,7 +165,7 @@ export function resolveStoredModelOverride(params: {
     return null;
   }
   const parentEntry = params.sessionStore[parentKey];
-  const parentOverride = resolvePersistedOverrideModelRef({
+  const parentOverride = resolvePersistedModelRef({
     defaultProvider: params.defaultProvider,
     overrideProvider: parentEntry?.providerOverride,
     overrideModel: parentEntry?.modelOverride,
@@ -353,7 +336,7 @@ export async function createModelSelectionState(params: {
   let modelCatalog: ModelCatalog | null = null;
   let resetModelOverride = false;
   const agentEntry = params.agentId ? resolveAgentConfig(cfg, params.agentId) : undefined;
-  const directStoredOverride = resolvePersistedOverrideModelRef({
+  const directStoredOverride = resolvePersistedModelRef({
     defaultProvider,
     overrideProvider: sessionEntry?.providerOverride,
     overrideModel: sessionEntry?.modelOverride,

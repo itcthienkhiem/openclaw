@@ -211,9 +211,7 @@ function createRoomHistoryTrackerInternal(
 
     getPendingHistory(agentId, roomId, limit) {
       const queue = roomQueues.get(roomId);
-      if (!queue) {
-        return [];
-      }
+      if (!queue) return [];
       return computePendingHistory(queue, agentId, roomId, limit);
     },
 

@@ -65,29 +65,9 @@ export function resolveXaiResponseTextAndCitations(data: XaiWebSearchResponse): 
   };
 }
 
-export function resolveXaiResponseTextCitationsAndInline(
-  data: XaiWebSearchResponse,
-  inlineCitationsEnabled: boolean,
-): {
-  content: string;
-  citations: string[];
-  inlineCitations?: XaiWebSearchResponse["inline_citations"];
-} {
-  const { content, citations } = resolveXaiResponseTextAndCitations(data);
-  return {
-    content,
-    citations,
-    inlineCitations:
-      inlineCitationsEnabled && Array.isArray(data.inline_citations)
-        ? data.inline_citations
-        : undefined,
-  };
-}
-
 export const __testing = {
   buildXaiResponsesToolBody,
   extractXaiWebSearchContent,
-  resolveXaiResponseTextCitationsAndInline,
   resolveXaiResponseTextAndCitations,
   XAI_RESPONSES_ENDPOINT,
 } as const;

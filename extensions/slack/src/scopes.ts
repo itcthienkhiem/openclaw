@@ -1,6 +1,5 @@
 import type { WebClient } from "@slack/web-api";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
-import { isRecord, normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+import { isRecord } from "openclaw/plugin-sdk/text-runtime";
 import { createSlackWebClient } from "./client.js";
 
 export type SlackScopesResult = {
@@ -71,7 +70,8 @@ function readError(payload: unknown): string | undefined {
   if (!isRecord(payload)) {
     return undefined;
   }
-  return normalizeOptionalString(payload.error);
+  const error = payload.error;
+  return typeof error === "string" && error.trim() ? error.trim() : undefined;
 }
 
 async function callSlack(
@@ -84,7 +84,7 @@ async function callSlack(
   } catch (err) {
     return {
       ok: false,
-      error: formatErrorMessage(err),
+      error: err instanceof Error ? err.message : String(err),
     };
   }
 }

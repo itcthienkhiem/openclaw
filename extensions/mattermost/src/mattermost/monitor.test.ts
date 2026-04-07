@@ -13,15 +13,10 @@ import {
 
 function resolveRequireMentionForTest(params: MattermostRequireMentionResolverInput): boolean {
   const root = params.cfg.channels?.mattermost;
-  const accountGroups = (
-    root?.accounts?.[params.accountId] as
-      | { groups?: Record<string, { requireMention?: boolean }> }
-      | undefined
-  )?.groups;
+  const accountGroups = root?.accounts?.[params.accountId]?.groups;
   const groups = accountGroups ?? root?.groups;
-  const typedGroups = groups as Record<string, { requireMention?: boolean }> | undefined;
-  const groupConfig = params.groupId ? typedGroups?.[params.groupId] : undefined;
-  const defaultGroupConfig = typedGroups?.["*"];
+  const groupConfig = params.groupId ? groups?.[params.groupId] : undefined;
+  const defaultGroupConfig = groups?.["*"];
   const configMention =
     typeof groupConfig?.requireMention === "boolean"
       ? groupConfig.requireMention

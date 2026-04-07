@@ -16,4 +16,19 @@ export function mapThinkingLevel(level?: ThinkLevel): ThinkingLevel {
   return level;
 }
 
+export function describeUnknownError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  try {
+    const serialized = JSON.stringify(error);
+    return serialized ?? "Unknown error";
+  } catch {
+    return "Unknown error";
+  }
+}
+
 export type { ReasoningLevel, ThinkLevel };

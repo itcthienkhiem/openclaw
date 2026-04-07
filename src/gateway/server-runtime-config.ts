@@ -11,12 +11,7 @@ import {
 } from "./auth.js";
 import { normalizeControlUiBasePath } from "./control-ui-shared.js";
 import { resolveHooksConfig } from "./hooks.js";
-import {
-  defaultGatewayBindMode,
-  isLoopbackHost,
-  isValidIPv4,
-  resolveGatewayBindHost,
-} from "./net.js";
+import { isLoopbackHost, isValidIPv4, resolveGatewayBindHost } from "./net.js";
 import { mergeGatewayTailscaleConfig } from "./startup-auth.js";
 
 export type GatewayRuntimeConfig = {
@@ -48,15 +43,7 @@ export async function resolveGatewayRuntimeConfig(params: {
   auth?: GatewayAuthConfig;
   tailscale?: GatewayTailscaleConfig;
 }): Promise<GatewayRuntimeConfig> {
-  // Tailscale serve/funnel hard-requires loopback.  When bind is not
-  // explicitly set, we must resolve Tailscale mode *before* choosing the
-  // bind default so that container auto-detection does not override the
-  // Tailscale loopback constraint.
-  const tailscaleModeEarly =
-    (params.tailscale?.mode ?? params.cfg.gateway?.tailscale?.mode) || "off";
-  const bindExplicit = params.bind ?? params.cfg.gateway?.bind;
-  const bindMode =
-    bindExplicit ?? (tailscaleModeEarly !== "off" ? "loopback" : defaultGatewayBindMode());
+  const bindMode = params.bind ?? params.cfg.gateway?.bind ?? "loopback";
   const customBindHost = params.cfg.gateway?.customBindHost;
   const bindHost = params.host ?? (await resolveGatewayBindHost(bindMode, customBindHost));
   if (bindMode === "loopback" && !isLoopbackHost(bindHost)) {

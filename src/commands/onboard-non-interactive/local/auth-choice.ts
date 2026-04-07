@@ -1,7 +1,6 @@
 import type { ApiKeyCredential } from "../../../agents/auth-profiles/types.js";
 import type { OpenClawConfig } from "../../../config/config.js";
 import type { SecretInput } from "../../../config/types.secrets.js";
-import { formatErrorMessage } from "../../../infra/errors.js";
 import { resolveManifestDeprecatedProviderAuthChoice } from "../../../plugins/provider-auth-choices.js";
 import type { RuntimeEnv } from "../../../runtime.js";
 import { resolveDefaultSecretProviderAlias } from "../../../secrets/ref-contract.js";
@@ -234,7 +233,7 @@ export async function applyNonInteractiveAuthChoice(params: {
         runtime.exit(1);
         return null;
       }
-      const reason = formatErrorMessage(err);
+      const reason = err instanceof Error ? err.message : String(err);
       runtime.error(`Invalid custom provider config: ${reason}`);
       runtime.exit(1);
       return null;

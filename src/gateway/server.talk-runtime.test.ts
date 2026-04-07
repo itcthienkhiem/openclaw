@@ -121,32 +121,30 @@ describe("gateway talk runtime", () => {
       },
     });
 
-    await withServer(async () => {
-      await withSpeechProviders(
-        [
-          {
-            pluginId: "acme-plugin",
-            source: "test",
-            provider: {
-              id: "acme",
-              label: "Acme Speech",
-              isConfigured: () => true,
-              synthesize: async () => {
-                throw new Error("provider failed");
-              },
+    await withSpeechProviders(
+      [
+        {
+          pluginId: "acme-plugin",
+          source: "test",
+          provider: {
+            id: "acme",
+            label: "Acme Speech",
+            isConfigured: () => true,
+            synthesize: async () => {
+              throw new Error("provider failed");
             },
           },
-        ],
-        async () => {
-          const res = await invokeTalkSpeakDirect({ text: "Hello from talk mode." });
-          expect(res?.ok).toBe(false);
-          expect(res?.error?.details).toEqual({
-            reason: "synthesis_failed",
-            fallbackEligible: false,
-          });
         },
-      );
-    });
+      ],
+      async () => {
+        const res = await invokeTalkSpeakDirect({ text: "Hello from talk mode." });
+        expect(res?.ok).toBe(false);
+        expect(res?.error?.details).toEqual({
+          reason: "synthesis_failed",
+          fallbackEligible: false,
+        });
+      },
+    );
   });
 
   it("rejects empty audio results as invalid_audio_result", async () => {
@@ -162,34 +160,32 @@ describe("gateway talk runtime", () => {
       },
     });
 
-    await withServer(async () => {
-      await withSpeechProviders(
-        [
-          {
-            pluginId: "acme-plugin",
-            source: "test",
-            provider: {
-              id: "acme",
-              label: "Acme Speech",
-              isConfigured: () => true,
-              synthesize: async () => ({
-                audioBuffer: Buffer.alloc(0),
-                outputFormat: "mp3",
-                fileExtension: ".mp3",
-                voiceCompatible: false,
-              }),
-            },
+    await withSpeechProviders(
+      [
+        {
+          pluginId: "acme-plugin",
+          source: "test",
+          provider: {
+            id: "acme",
+            label: "Acme Speech",
+            isConfigured: () => true,
+            synthesize: async () => ({
+              audioBuffer: Buffer.alloc(0),
+              outputFormat: "mp3",
+              fileExtension: ".mp3",
+              voiceCompatible: false,
+            }),
           },
-        ],
-        async () => {
-          const res = await invokeTalkSpeakDirect({ text: "Hello from talk mode." });
-          expect(res?.ok).toBe(false);
-          expect(res?.error?.details).toEqual({
-            reason: "invalid_audio_result",
-            fallbackEligible: false,
-          });
         },
-      );
-    });
+      ],
+      async () => {
+        const res = await invokeTalkSpeakDirect({ text: "Hello from talk mode." });
+        expect(res?.ok).toBe(false);
+        expect(res?.error?.details).toEqual({
+          reason: "invalid_audio_result",
+          fallbackEligible: false,
+        });
+      },
+    );
   });
 });

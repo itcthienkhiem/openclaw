@@ -6,8 +6,4 @@ export default defineBundledChannelSetupEntry({
     specifier: "./api.js",
     exportName: "msteamsPlugin",
   },
-  secrets: {
-    specifier: "./src/secret-contract.js",
-    exportName: "channelSecrets",
-  },
 });

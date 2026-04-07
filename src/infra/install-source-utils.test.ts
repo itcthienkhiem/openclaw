@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createTrackedTempDirs } from "../test-utils/tracked-temp-dirs.js";
 import {
   packNpmSpecToArchive,
   resolveArchiveSourcePath,
@@ -10,14 +10,17 @@ import {
 
 const runCommandWithTimeoutMock = vi.fn();
 const TEMP_DIR_PREFIX = "openclaw-install-source-utils-";
-const tempDirs = createTrackedTempDirs();
 
 vi.mock("../process/exec.js", () => ({
   runCommandWithTimeout: (...args: unknown[]) => runCommandWithTimeoutMock(...args),
 }));
 
+const tempDirs: string[] = [];
+
 async function createTempDir(prefix: string) {
-  return await tempDirs.make(prefix);
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
+  tempDirs.push(dir);
+  return dir;
 }
 
 async function createFixtureDir() {
@@ -96,7 +99,13 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  await tempDirs.cleanup();
+  while (tempDirs.length > 0) {
+    const dir = tempDirs.pop();
+    if (!dir) {
+      break;
+    }
+    await fs.rm(dir, { recursive: true, force: true });
+  }
 });
 
 describe("withTempDir", () => {

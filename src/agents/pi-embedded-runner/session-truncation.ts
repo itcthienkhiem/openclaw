@@ -2,11 +2,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { CompactionEntry, SessionEntry } from "@mariozechner/pi-coding-agent";
 import { SessionManager } from "@mariozechner/pi-coding-agent";
-import {
-  isHeartbeatOkResponse,
-  isHeartbeatUserMessage,
-} from "../../auto-reply/heartbeat-filter.js";
-import { formatErrorMessage } from "../../infra/errors.js";
 import { log } from "./logger.js";
 
 /**
@@ -39,8 +34,6 @@ export async function truncateSessionAfterCompaction(params: {
   sessionFile: string;
   /** Optional path to archive the pre-truncation file. */
   archivePath?: string;
-  ackMaxChars?: number;
-  heartbeatPrompt?: string;
 }): Promise<TruncationResult> {
   const { sessionFile } = params;
 
@@ -48,7 +41,7 @@ export async function truncateSessionAfterCompaction(params: {
   try {
     sm = SessionManager.open(sessionFile);
   } catch (err) {
-    const reason = formatErrorMessage(err);
+    const reason = err instanceof Error ? err.message : String(err);
     log.warn(`[session-truncation] Failed to open session file: ${reason}`);
     return { truncated: false, entriesRemoved: 0, reason };
   }
@@ -115,25 +108,6 @@ export async function truncateSessionAfterCompaction(params: {
   for (const entry of allEntries) {
     if (summarizedBranchIds.has(entry.id) && entry.type === "message") {
       removedIds.add(entry.id);
-    }
-  }
-
-  for (let i = 0; i < branch.length - 1; i++) {
-    const userEntry = branch[i];
-    const assistantEntry = branch[i + 1];
-    if (
-      userEntry.type === "message" &&
-      assistantEntry.type === "message" &&
-      summarizedBranchIds.has(userEntry.id) &&
-      summarizedBranchIds.has(assistantEntry.id) &&
-      !removedIds.has(userEntry.id) &&
-      !removedIds.has(assistantEntry.id) &&
-      isHeartbeatUserMessage(userEntry.message, params.heartbeatPrompt) &&
-      isHeartbeatOkResponse(assistantEntry.message, params.ackMaxChars)
-    ) {
-      removedIds.add(userEntry.id);
-      removedIds.add(assistantEntry.id);
-      i++;
     }
   }
 
@@ -206,7 +180,7 @@ export async function truncateSessionAfterCompaction(params: {
       await fs.copyFile(sessionFile, params.archivePath);
       log.info(`[session-truncation] Archived pre-truncation file to ${params.archivePath}`);
     } catch (err) {
-      const reason = formatErrorMessage(err);
+      const reason = err instanceof Error ? err.message : String(err);
       log.warn(`[session-truncation] Failed to archive: ${reason}`);
     }
   }
@@ -226,7 +200,7 @@ export async function truncateSessionAfterCompaction(params: {
     } catch {
       // Ignore cleanup errors
     }
-    const reason = formatErrorMessage(err);
+    const reason = err instanceof Error ? err.message : String(err);
     log.warn(`[session-truncation] Failed to write truncated file: ${reason}`);
     return { truncated: false, entriesRemoved: 0, reason };
   }

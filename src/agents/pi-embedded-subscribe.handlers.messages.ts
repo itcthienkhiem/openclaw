@@ -289,11 +289,11 @@ export function handleMessageUpdate(
     assistantRecord?.partial && typeof assistantRecord.partial === "object"
       ? (assistantRecord.partial as AssistantMessage)
       : msg;
+  const phaseAwareVisibleText = coerceText(extractAssistantVisibleText(partialAssistant)).trim();
   const deliveryPhase = resolveAssistantMessagePhase(partialAssistant);
-  if (deliveryPhase === "commentary") {
+  if (deliveryPhase === "commentary" && !phaseAwareVisibleText) {
     return;
   }
-  const phaseAwareVisibleText = coerceText(extractAssistantVisibleText(partialAssistant)).trim();
   const shouldUsePhaseAwareBlockReply = Boolean(deliveryPhase);
 
   if (chunk) {
@@ -313,15 +313,13 @@ export function handleMessageUpdate(
   }
   const next =
     phaseAwareVisibleText ||
-    (deliveryPhase === "final_answer"
-      ? ""
-      : ctx
-          .stripBlockTags(ctx.state.deltaBuffer, {
-            thinking: false,
-            final: false,
-            inlineCode: createInlineCodeState(),
-          })
-          .trim());
+    ctx
+      .stripBlockTags(ctx.state.deltaBuffer, {
+        thinking: false,
+        final: false,
+        inlineCode: createInlineCodeState(),
+      })
+      .trim();
   if (next) {
     const wasThinking = ctx.state.partialBlockState.thinking;
     const visibleDelta = chunk ? ctx.stripBlockTags(chunk, ctx.state.partialBlockState) : "";

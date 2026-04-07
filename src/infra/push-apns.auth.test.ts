@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { createTrackedTempDirs } from "../test-utils/tracked-temp-dirs.js";
 import {
   normalizeApnsEnvironment,
   resolveApnsAuthConfigFromEnv,
@@ -9,14 +9,21 @@ import {
   shouldInvalidateApnsRegistration,
 } from "./push-apns.js";
 
-const tempDirs = createTrackedTempDirs();
+const tempDirs: string[] = [];
 
 async function makeTempDir(): Promise<string> {
-  return await tempDirs.make("openclaw-push-apns-auth-test-");
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-push-apns-auth-test-"));
+  tempDirs.push(dir);
+  return dir;
 }
 
 afterEach(async () => {
-  await tempDirs.cleanup();
+  while (tempDirs.length > 0) {
+    const dir = tempDirs.pop();
+    if (dir) {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  }
 });
 
 describe("push APNs auth and helper coverage", () => {

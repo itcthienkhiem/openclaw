@@ -2,7 +2,6 @@ import { getChannelPlugin, normalizeChannelId } from "../channels/plugins/index.
 import { normalizeTargetForProvider } from "../infra/outbound/target-normalization.js";
 import { splitMediaFromOutput } from "../media/parse.js";
 import { pluginRegistrationContractRegistry } from "../plugins/contracts/registry.js";
-import { normalizeOptionalString, readStringValue } from "../shared/string-coerce.js";
 import { truncateUtf16Safe } from "../utils.js";
 import { collectTextContentBlocks } from "./content-blocks.js";
 import { type MessagingToolSend } from "./pi-embedded-messaging.js";
@@ -99,16 +98,12 @@ export function sanitizeToolResult(result: unknown): unknown {
       return item;
     }
     const entry = item as Record<string, unknown>;
-    const type = readStringValue(entry.type);
+    const type = typeof entry.type === "string" ? entry.type : undefined;
     if (type === "text" && typeof entry.text === "string") {
       return { ...entry, text: truncateToolText(entry.text) };
     }
     if (type === "image") {
-      const data = readStringValue(entry.data);
-      const bytes = data ? data.length : undefined;
-      const cleaned = { ...entry };
-      delete cleaned.data;
-      return { ...cleaned, bytes, omitted: true };
+      return entry;
     }
     return entry;
   });
@@ -182,7 +177,7 @@ function readToolResultDetails(result: unknown): Record<string, unknown> | undef
 
 function readToolResultStatus(result: unknown): string | undefined {
   const status = readToolResultDetails(result)?.status;
-  return normalizeOptionalString(status)?.toLowerCase();
+  return typeof status === "string" ? status.trim().toLowerCase() : undefined;
 }
 
 function isExternalToolResult(result: unknown): boolean {
@@ -373,11 +368,11 @@ export function extractToolErrorMessage(result: unknown): string | undefined {
 }
 
 function resolveMessageToolTarget(args: Record<string, unknown>): string | undefined {
-  const toRaw = readStringValue(args.to);
+  const toRaw = typeof args.to === "string" ? args.to : undefined;
   if (toRaw) {
     return toRaw;
   }
-  return readStringValue(args.target);
+  return typeof args.target === "string" ? args.target : undefined;
 }
 
 export function extractMessagingToolSend(
@@ -386,7 +381,8 @@ export function extractMessagingToolSend(
 ): MessagingToolSend | undefined {
   // Provider docking: new provider tools must implement plugin.actions.extractToolSend.
   const action = typeof args.action === "string" ? args.action.trim() : "";
-  const accountId = normalizeOptionalString(args.accountId);
+  const accountIdRaw = typeof args.accountId === "string" ? args.accountId.trim() : undefined;
+  const accountId = accountIdRaw ? accountIdRaw : undefined;
   if (toolName === "message") {
     if (action !== "send" && action !== "thread-reply") {
       return undefined;

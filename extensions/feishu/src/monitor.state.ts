@@ -105,9 +105,7 @@ const feishuWebhookAnomalyTracker = createWebhookAnomalyTracker({
 });
 
 function closeWsClient(client: Lark.WSClient | undefined): void {
-  if (!client) {
-    return;
-  }
+  if (!client) return;
   try {
     client.close();
   } catch {

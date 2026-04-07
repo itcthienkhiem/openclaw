@@ -3,7 +3,6 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { resolveAgentDir } from "../agents/agent-scope.js";
 import { resolveMemorySearchConfig } from "../agents/memory-search.js";
 import { loadConfig } from "../config/config.js";
-import { formatErrorMessage } from "../infra/errors.js";
 import { logWarn } from "../logger.js";
 import {
   getMemoryEmbeddingProvider,
@@ -84,6 +83,10 @@ function validateInputTexts(texts: string[]): string | undefined {
     }
   }
   return undefined;
+}
+
+function formatErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 function resolveAutoExplicitProviders(cfg: ReturnType<typeof loadConfig>): Set<string> {

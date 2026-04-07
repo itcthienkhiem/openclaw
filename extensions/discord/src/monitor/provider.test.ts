@@ -16,6 +16,7 @@ const {
   clientFetchUserMock,
   clientGetPluginMock,
   clientHandleDeployRequestMock,
+  createDiscordAutoPresenceControllerMock,
   createDiscordMessageHandlerMock,
   createDiscordNativeCommandMock,
   createdBindingManagers,
@@ -28,6 +29,7 @@ const {
   listSkillCommandsForAgentsMock,
   monitorLifecycleMock,
   reconcileAcpThreadBindingsOnStartupMock,
+  resolveDiscordAllowlistConfigMock,
   resolveDiscordAccountMock,
   resolveNativeCommandsEnabledMock,
   resolveNativeSkillsEnabledMock,
@@ -123,7 +125,7 @@ describe("monitorDiscordProvider", () => {
     if (!reconcileParams?.healthProbe) {
       throw new Error("healthProbe was not wired into ACP startup reconciliation");
     }
-    return reconcileParams.healthProbe;
+    return reconcileParams.healthProbe as NonNullable<ReconcileStartupParams["healthProbe"]>;
   };
 
   beforeAll(async () => {
@@ -495,7 +497,7 @@ describe("monitorDiscordProvider", () => {
       params.threadBindings.stop();
     });
     clientFetchUserMock.mockImplementationOnce(async () => {
-      emitter.emit("error", new Error("Fatal gateway close code: 4014"));
+      emitter.emit("error", new Error("Fatal Gateway error: 4014"));
       return { id: "bot-1" };
     });
 

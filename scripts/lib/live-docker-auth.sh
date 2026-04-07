@@ -39,11 +39,11 @@ openclaw_live_should_include_auth_file_for_provider() {
   local provider
   provider="$(openclaw_live_trim "${1:-}")"
   case "$provider" in
-    codex-cli | openai-codex)
+    openai-codex)
       printf '%s\n' ".codex/auth.json"
       printf '%s\n' ".codex/config.toml"
       ;;
-    anthropic | claude-cli)
+    anthropic)
       printf '%s\n' ".claude.json"
       printf '%s\n' ".claude/.credentials.json"
       printf '%s\n' ".claude/settings.json"

@@ -1,10 +1,10 @@
+import { resetModelCatalogCache } from "../../agents/model-catalog.js";
 import {
   abortEmbeddedPiRun,
   getActiveEmbeddedRunCount,
   waitForActiveEmbeddedRuns,
 } from "../../agents/pi-embedded-runner/runs.js";
 import type { startGatewayServer } from "../../gateway/server.js";
-import { formatErrorMessage } from "../../infra/errors.js";
 import { acquireGatewayLock } from "../../infra/gateway-lock.js";
 import { restartGatewayProcessWithFreshPid } from "../../infra/process-respawn.js";
 import {
@@ -238,6 +238,7 @@ export async function runGatewayLoop(params: {
       // coordinator level — rather than inside individual subsystem init
       // functions, to avoid surprising cross-cutting side effects.
       resetAllLanes();
+      resetModelCatalogCache();
     });
 
     // Keep process alive; SIGUSR1 triggers an in-process restart (no supervisor required).
@@ -262,7 +263,7 @@ export async function runGatewayLoop(params: {
         // Without this, the process holds the lock but is not listening,
         // forcing manual cleanup. (#35862)
         await releaseLockIfHeld();
-        const errMsg = formatErrorMessage(err);
+        const errMsg = err instanceof Error ? err.message : String(err);
         const errStack = err instanceof Error && err.stack ? `\n${err.stack}` : "";
         gatewayLog.error(
           `gateway startup failed: ${errMsg}. ` +

@@ -23,7 +23,6 @@ const mocks = vi.hoisted(() => ({
   saveSubagentRegistryToDisk: vi.fn(),
   resetAnnounceQueuesForTests: vi.fn(),
   resolveAgentTimeoutMs: vi.fn(() => 60_000),
-  scheduleOrphanRecovery: vi.fn(),
 }));
 
 vi.mock("../config/config.js", () => ({
@@ -71,10 +70,6 @@ vi.mock("./timeout.js", () => ({
   resolveAgentTimeoutMs: mocks.resolveAgentTimeoutMs,
 }));
 
-vi.mock("./subagent-orphan-recovery.js", () => ({
-  scheduleOrphanRecovery: mocks.scheduleOrphanRecovery,
-}));
-
 describe("announce loop guard (#18264)", () => {
   let registry: typeof import("./subagent-registry.js");
 
@@ -97,7 +92,6 @@ describe("announce loop guard (#18264)", () => {
     mocks.resolveAgentTimeoutMs.mockClear();
     mocks.runSubagentAnnounceFlow.mockReset();
     mocks.runSubagentAnnounceFlow.mockResolvedValue(false);
-    mocks.scheduleOrphanRecovery.mockClear();
     mocks.saveSubagentRegistryToDisk.mockClear();
     mocks.updateSessionStore.mockClear();
     registry.resetSubagentRegistryForTests({ persist: false });

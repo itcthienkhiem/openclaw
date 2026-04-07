@@ -6,8 +6,4 @@ export default defineBundledChannelSetupEntry({
     specifier: "./channel-plugin-api.js",
     exportName: "telegramSetupPlugin",
   },
-  secrets: {
-    specifier: "./src/secret-contract.js",
-    exportName: "channelSecrets",
-  },
 });

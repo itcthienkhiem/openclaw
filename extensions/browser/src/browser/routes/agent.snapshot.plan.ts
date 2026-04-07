@@ -1,4 +1,3 @@
-import { readStringValue } from "openclaw/plugin-sdk/text-runtime";
 import type { ResolvedBrowserProfile } from "../config.js";
 import {
   DEFAULT_AI_SNAPSHOT_EFFICIENT_DEPTH,
@@ -42,13 +41,14 @@ export function resolveSnapshotPlan(params: {
     explicitFormat,
     mode,
   });
-  const limitRaw = readStringValue(params.query.limit);
+  const limitRaw = typeof params.query.limit === "string" ? Number(params.query.limit) : undefined;
   const hasMaxChars = Object.hasOwn(params.query, "maxChars");
-  const maxCharsRaw = readStringValue(params.query.maxChars);
-  const limit = Number.isFinite(Number(limitRaw)) ? Number(limitRaw) : undefined;
+  const maxCharsRaw =
+    typeof params.query.maxChars === "string" ? Number(params.query.maxChars) : undefined;
+  const limit = Number.isFinite(limitRaw) ? limitRaw : undefined;
   const maxChars =
-    Number.isFinite(Number(maxCharsRaw)) && Number(maxCharsRaw) > 0
-      ? Math.floor(Number(maxCharsRaw))
+    typeof maxCharsRaw === "number" && Number.isFinite(maxCharsRaw) && maxCharsRaw > 0
+      ? Math.floor(maxCharsRaw)
       : undefined;
   const resolvedMaxChars =
     format === "ai"

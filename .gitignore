@@ -53,7 +53,8 @@ apps/ios/*.xcworkspace/
 apps/ios/.swiftpm/
 apps/ios/.derivedData/
 apps/ios/.local-signing.xcconfig
-vendor/
+vendor/*
+!vendor/a2ui/
 apps/ios/Clawdbot.xcodeproj/
 apps/ios/Clawdbot.xcodeproj/**
 apps/macos/.build/**
@@ -81,7 +82,8 @@ apps/ios/*.dSYM.zip
 
 # provisioning profiles (local)
 apps/ios/*.mobileprovision
-
+.env
+.idea/**
 # Local untracked files
 .local/
 docs/.local/
@@ -94,6 +96,7 @@ USER.md
 
 # local tooling
 .serena/
+.history/
 
 # Agent credentials and memory (NEVER COMMIT)
 /memory/

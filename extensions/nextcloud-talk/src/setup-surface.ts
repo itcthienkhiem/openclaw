@@ -1,3 +1,5 @@
+import type { ChannelSetupInput } from "openclaw/plugin-sdk/channel-setup";
+import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
 import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/routing";
 import { hasConfiguredSecretInput } from "openclaw/plugin-sdk/secret-input";
 import {
@@ -6,7 +8,7 @@ import {
   setSetupChannelEnabled,
   type ChannelSetupWizard,
 } from "openclaw/plugin-sdk/setup";
-import { resolveNextcloudTalkAccount } from "./accounts.js";
+import { listNextcloudTalkAccountIds, resolveNextcloudTalkAccount } from "./accounts.js";
 import {
   clearNextcloudTalkAccountFields,
   nextcloudTalkDmPolicy,
@@ -15,7 +17,7 @@ import {
   setNextcloudTalkAccountConfig,
   validateNextcloudTalkBaseUrl,
 } from "./setup-core.js";
-import type { CoreConfig } from "./types.js";
+import type { CoreConfig, DmPolicy } from "./types.js";
 
 const channel = "nextcloud-talk" as const;
 const CONFIGURE_API_FLAG = "__nextcloudTalkConfigureApiCredentials";

@@ -3,10 +3,6 @@ import path from "node:path";
 import { createJiti } from "jiti";
 import { buildChannelConfigSchema } from "../channels/plugins/config-schema.js";
 import type { ChannelConfigRuntimeSchema } from "../channels/plugins/types.plugin.js";
-import {
-  normalizeBundledPluginStringList,
-  trimBundledPluginString,
-} from "./bundled-plugin-scan.js";
 import type {
   OpenClawPackageManifest,
   PluginManifest,
@@ -37,6 +33,17 @@ type ChannelConfigSurface = {
 };
 
 const jitiLoaders = new Map<string, ReturnType<typeof createJiti>>();
+
+function trimString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function normalizeStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map((entry) => trimString(entry) ?? "").filter(Boolean);
+}
 
 function isBuiltChannelConfigSchema(value: unknown): value is ChannelConfigSurface {
   if (!value || typeof value !== "object") {
@@ -134,7 +141,7 @@ export function collectBundledChannelConfigs(params: {
   manifest: PluginManifest;
   packageManifest?: OpenClawPackageManifest;
 }): Record<string, PluginManifestChannelConfig> | undefined {
-  const channelIds = normalizeBundledPluginStringList(params.manifest.channels);
+  const channelIds = normalizeStringList(params.manifest.channels);
   const existingChannelConfigs: Record<string, PluginManifestChannelConfig> =
     params.manifest.channelConfigs && Object.keys(params.manifest.channelConfigs).length > 0
       ? { ...params.manifest.channelConfigs }
@@ -149,7 +156,7 @@ export function collectBundledChannelConfigs(params: {
   for (const channelId of channelIds) {
     const existing = existingChannelConfigs[channelId];
     const channelMeta = resolvePackageChannelMeta(params.packageManifest, channelId);
-    const preferOver = normalizeBundledPluginStringList(channelMeta?.preferOver);
+    const preferOver = normalizeStringList(channelMeta?.preferOver);
     const uiHints: Record<string, PluginConfigUiHint> | undefined =
       surface?.uiHints || existing?.uiHints
         ? {
@@ -170,19 +177,12 @@ export function collectBundledChannelConfigs(params: {
       ...((surface?.runtime ?? existing?.runtime)
         ? { runtime: surface?.runtime ?? existing?.runtime }
         : {}),
-      ...((trimBundledPluginString(existing?.label) ?? trimBundledPluginString(channelMeta?.label))
-        ? {
-            label:
-              trimBundledPluginString(existing?.label) ??
-              trimBundledPluginString(channelMeta?.label)!,
-          }
+      ...((trimString(existing?.label) ?? trimString(channelMeta?.label))
+        ? { label: trimString(existing?.label) ?? trimString(channelMeta?.label)! }
         : {}),
-      ...((trimBundledPluginString(existing?.description) ??
-      trimBundledPluginString(channelMeta?.blurb))
+      ...((trimString(existing?.description) ?? trimString(channelMeta?.blurb))
         ? {
-            description:
-              trimBundledPluginString(existing?.description) ??
-              trimBundledPluginString(channelMeta?.blurb)!,
+            description: trimString(existing?.description) ?? trimString(channelMeta?.blurb)!,
           }
         : {}),
       ...(existing?.preferOver?.length

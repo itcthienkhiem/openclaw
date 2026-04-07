@@ -1,0 +1,182 @@
+/* ── BannerCarousel ── */
+
+.BannerCarousel {
+  position: fixed;
+  top: 12px;
+  left: calc(50% + 110px);
+  transform: translateX(-50%);
+  z-index: 9998;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  animation: bannerSlideIn 300ms cubic-bezier(0.2, 0.9, 0.2, 1);
+  pointer-events: auto;
+}
+
+@keyframes bannerSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%);
+  }
+}
+
+.BannerSlide {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-xl);
+  background:
+    linear-gradient(var(--bg-card), var(--bg-card)) padding-box,
+    linear-gradient(
+        150deg,
+        rgba(255, 255, 255, 0.18) 0%,
+        rgba(255, 255, 255, 0) 50%,
+        rgba(255, 255, 255, 0.18) 100%
+      )
+      border-box;
+  border: 1px solid transparent;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  min-width: 360px;
+  max-width: 480px;
+  color: var(--text);
+  font-size: 13px;
+  overflow: hidden;
+  user-select: none;
+}
+
+.BannerIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-10);
+}
+
+.BannerIcon--warning {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--error);
+}
+
+.BannerIcon--info {
+  background: rgba(13, 111, 255, 0.12);
+  color: var(--info);
+}
+
+.BannerIcon--success {
+  background: rgba(56, 187, 88, 0.12);
+  color: var(--success);
+}
+
+.BannerIcon--error {
+  background: rgba(255, 122, 0, 0.12);
+  color: var(--accent);
+}
+
+.BannerBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.BannerTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.BannerSubtitle {
+  font-size: 12px;
+  color: var(--muted2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.BannerAction {
+  appearance: none;
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 7px 16px;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  background: var(--lime);
+  color: var(--surface-primary);
+  transition: opacity 150ms ease;
+}
+
+.BannerAction:hover {
+  opacity: 0.85;
+}
+
+.BannerAction:active {
+  opacity: 0.7;
+}
+
+.BannerDismiss {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--muted2);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    color 150ms ease,
+    background 150ms ease;
+}
+
+.BannerDismiss:hover {
+  color: var(--text);
+  background: var(--surface-overlay-subtle);
+}
+
+.BannerDots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+}
+
+.BannerDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted3);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: background 200ms ease;
+  appearance: none;
+}
+
+.BannerDot--active {
+  background: var(--text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .BannerCarousel {
+    animation: none;
+  }
+}

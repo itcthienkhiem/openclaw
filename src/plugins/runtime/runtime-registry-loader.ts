@@ -1,12 +1,17 @@
+import { resolveAgentWorkspaceDir, resolveDefaultAgentId } from "../../agents/agent-scope.js";
 import type { OpenClawConfig } from "../../config/config.js";
+import { loadConfig } from "../../config/config.js";
+import { applyPluginAutoEnable } from "../../config/plugin-auto-enable.js";
+import { createSubsystemLogger } from "../../logging.js";
 import {
   resolveChannelPluginIds,
   resolveConfiguredChannelPluginIds,
 } from "../channel-plugin-ids.js";
 import { loadOpenClawPlugins } from "../loader.js";
 import { getActivePluginRegistry } from "../runtime.js";
-import { buildPluginRuntimeLoadOptions, resolvePluginRuntimeLoadContext } from "./load-context.js";
+import type { PluginLogger } from "../types.js";
 
+const log = createSubsystemLogger("plugins");
 let pluginRegistryLoaded: "none" | "configured-channels" | "channels" | "all" = "none";
 
 export type PluginRegistryScope = "configured-channels" | "channels" | "all";
@@ -63,30 +68,33 @@ export function ensurePluginRegistryLoaded(options?: {
   const requestedPluginIds =
     options?.onlyPluginIds?.map((pluginId) => pluginId.trim()).filter(Boolean) ?? [];
   const scopedLoad = requestedPluginIds.length > 0;
-  const context = resolvePluginRuntimeLoadContext(options);
+  if (!scopedLoad && scopeRank(pluginRegistryLoaded) >= scopeRank(scope)) {
+    return;
+  }
+  const env = options?.env ?? process.env;
+  const baseConfig = options?.config ?? loadConfig();
+  const autoEnabled = applyPluginAutoEnable({ config: baseConfig, env });
+  const resolvedConfig = autoEnabled.config;
+  const workspaceDir = resolveAgentWorkspaceDir(
+    resolvedConfig,
+    resolveDefaultAgentId(resolvedConfig),
+  );
   const expectedChannelPluginIds = scopedLoad
     ? requestedPluginIds
     : scope === "configured-channels"
       ? resolveConfiguredChannelPluginIds({
-          config: context.config,
-          workspaceDir: context.workspaceDir,
-          env: context.env,
+          config: resolvedConfig,
+          workspaceDir,
+          env,
         })
       : scope === "channels"
         ? resolveChannelPluginIds({
-            config: context.config,
-            workspaceDir: context.workspaceDir,
-            env: context.env,
+            config: resolvedConfig,
+            workspaceDir,
+            env,
           })
         : [];
   const active = getActivePluginRegistry();
-  if (
-    !scopedLoad &&
-    scopeRank(pluginRegistryLoaded) >= scopeRank(scope) &&
-    activeRegistrySatisfiesScope(scope, active, expectedChannelPluginIds, expectedChannelPluginIds)
-  ) {
-    return;
-  }
   if (
     (pluginRegistryLoaded === "none" || scopedLoad) &&
     activeRegistrySatisfiesScope(scope, active, expectedChannelPluginIds, expectedChannelPluginIds)
@@ -96,12 +104,21 @@ export function ensurePluginRegistryLoaded(options?: {
     }
     return;
   }
-  loadOpenClawPlugins(
-    buildPluginRuntimeLoadOptions(context, {
-      throwOnLoadError: true,
-      ...(expectedChannelPluginIds.length > 0 ? { onlyPluginIds: expectedChannelPluginIds } : {}),
-    }),
-  );
+  const logger: PluginLogger = {
+    info: (msg) => log.info(msg),
+    warn: (msg) => log.warn(msg),
+    error: (msg) => log.error(msg),
+    debug: (msg) => log.debug(msg),
+  };
+  loadOpenClawPlugins({
+    config: resolvedConfig,
+    activationSourceConfig: options?.activationSourceConfig ?? baseConfig,
+    autoEnabledReasons: autoEnabled.autoEnabledReasons,
+    workspaceDir,
+    logger,
+    throwOnLoadError: true,
+    ...(expectedChannelPluginIds.length > 0 ? { onlyPluginIds: expectedChannelPluginIds } : {}),
+  });
   if (!scopedLoad) {
     pluginRegistryLoaded = scope;
   }

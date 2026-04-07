@@ -20,9 +20,7 @@ export const DEFAULT_IMAGE_SIZE: ImageSize = { width: 512, height: 512 };
  */
 function parsePngSize(buffer: Buffer): ImageSize | null {
   // PNG signature: 89 50 4E 47 0D 0A 1A 0A
-  if (buffer.length < 24) {
-    return null;
-  }
+  if (buffer.length < 24) return null;
   if (buffer[0] !== 0x89 || buffer[1] !== 0x50 || buffer[2] !== 0x4e || buffer[3] !== 0x47) {
     return null;
   }
@@ -35,9 +33,7 @@ function parsePngSize(buffer: Buffer): ImageSize | null {
 /** Parse image dimensions from JPEG SOF0/SOF2 markers. */
 function parseJpegSize(buffer: Buffer): ImageSize | null {
   // JPEG signature: FF D8 FF
-  if (buffer.length < 4) {
-    return null;
-  }
+  if (buffer.length < 4) return null;
   if (buffer[0] !== 0xff || buffer[1] !== 0xd8) {
     return null;
   }
@@ -74,9 +70,7 @@ function parseJpegSize(buffer: Buffer): ImageSize | null {
 
 /** Parse image dimensions from the GIF header. */
 function parseGifSize(buffer: Buffer): ImageSize | null {
-  if (buffer.length < 10) {
-    return null;
-  }
+  if (buffer.length < 10) return null;
   const signature = buffer.toString("ascii", 0, 6);
   if (signature !== "GIF87a" && signature !== "GIF89a") {
     return null;
@@ -88,9 +82,7 @@ function parseGifSize(buffer: Buffer): ImageSize | null {
 
 /** Parse image dimensions from WebP headers. */
 function parseWebpSize(buffer: Buffer): ImageSize | null {
-  if (buffer.length < 30) {
-    return null;
-  }
+  if (buffer.length < 30) return null;
 
   // Check the RIFF and WEBP signatures.
   const riff = buffer.toString("ascii", 0, 4);
@@ -182,7 +174,7 @@ export async function getImageSizeFromUrl(
 
     return size;
   } catch (err) {
-    debugLog(`[image-size] Error fetching ${url.slice(0, 60)}...: ${String(err)}`);
+    debugLog(`[image-size] Error fetching ${url.slice(0, 60)}...: ${err}`);
     return null;
   }
 }
@@ -206,7 +198,7 @@ export function getImageSizeFromDataUrl(dataUrl: string): ImageSize | null {
 
     return size;
   } catch (err) {
-    debugLog(`[image-size] Error parsing Base64: ${String(err)}`);
+    debugLog(`[image-size] Error parsing Base64: ${err}`);
     return null;
   }
 }

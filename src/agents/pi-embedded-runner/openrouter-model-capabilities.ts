@@ -21,7 +21,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolveStateDir } from "../../config/paths.js";
-import { formatErrorMessage } from "../../infra/errors.js";
 import { resolveProxyFetchFromEnv } from "../../infra/net/proxy-fetch.js";
 import { createSubsystemLogger } from "../../logging/subsystem.js";
 
@@ -98,7 +97,7 @@ function writeDiskCache(map: Map<string, OpenRouterModelCapabilities>): void {
     };
     writeFileSync(resolveDiskCachePath(), JSON.stringify(payload), "utf-8");
   } catch (err: unknown) {
-    const message = formatErrorMessage(err);
+    const message = err instanceof Error ? err.message : String(err);
     log.debug(`Failed to write OpenRouter disk cache: ${message}`);
   }
 }
@@ -213,7 +212,7 @@ async function doFetch(): Promise<void> {
     writeDiskCache(map);
     log.debug(`Cached ${map.size} OpenRouter models from API`);
   } catch (err: unknown) {
-    const message = formatErrorMessage(err);
+    const message = err instanceof Error ? err.message : String(err);
     log.warn(`Failed to fetch OpenRouter models: ${message}`);
   } finally {
     clearTimeout(timeout);

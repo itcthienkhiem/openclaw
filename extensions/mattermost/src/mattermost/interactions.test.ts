@@ -427,7 +427,7 @@ describe("buildButtonAttachments", () => {
     const reordered: Record<string, unknown> = {};
     const keys = Object.keys(ctx).filter((k) => k !== "_token");
     // Reverse the key order to simulate reordering
-    for (const key of keys.toReversed()) {
+    for (const key of keys.reverse()) {
       reordered[key] = ctx[key];
     }
     expect(verifyInteractionToken(reordered, token)).toBe(true);

@@ -1,4 +1,3 @@
-import { readConfiguredProviderCatalogEntries } from "openclaw/plugin-sdk/provider-catalog-shared";
 import { defineSingleProviderPluginEntry } from "openclaw/plugin-sdk/provider-entry";
 import { buildProviderReplayFamilyHooks } from "openclaw/plugin-sdk/provider-model-shared";
 import { buildProviderStreamFamilyHooks } from "openclaw/plugin-sdk/provider-stream-family";
@@ -34,11 +33,6 @@ export default defineSingleProviderPluginEntry({
     catalog: {
       buildProvider: buildKilocodeProviderWithDiscovery,
     },
-    augmentModelCatalog: ({ config }) =>
-      readConfiguredProviderCatalogEntries({
-        config,
-        providerId: PROVIDER_ID,
-      }),
     ...PASSTHROUGH_GEMINI_REPLAY_HOOKS,
     ...KILOCODE_THINKING_STREAM_HOOKS,
     isCacheTtlEligible: (ctx) => ctx.modelId.startsWith("anthropic/"),

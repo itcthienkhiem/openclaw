@@ -68,11 +68,7 @@ export function collectChannelSchemaMetadata(
 
     for (const [channelId, channelConfig] of Object.entries(record.channelConfigs ?? {})) {
       const current = byChannelId.get(channelId);
-      if (
-        current &&
-        current.originRank < originRank &&
-        (current.configSchema !== undefined || current.configUiHints !== undefined)
-      ) {
+      if (current && current.originRank < originRank) {
         continue;
       }
       byChannelId.set(channelId, {

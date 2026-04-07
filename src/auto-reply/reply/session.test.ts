@@ -616,7 +616,7 @@ describe("initSessionState RawBody", () => {
     expect(result.triggerBodyNormalized).toBe("/NEW KeepThisCase");
   });
 
-  it("rotates local session state for /new on bound ACP sessions", async () => {
+  it("does not rotate local session state for /new on bound ACP sessions", async () => {
     const root = await makeCaseDir("openclaw-rawbody-acp-reset-");
     const storePath = path.join(root, "sessions.json");
     const sessionKey = "agent:codex:acp:binding:discord:default:feedface";
@@ -667,9 +667,9 @@ describe("initSessionState RawBody", () => {
       commandAuthorized: true,
     });
 
-    expect(result.resetTriggered).toBe(true);
-    expect(result.sessionId).not.toBe(existingSessionId);
-    expect(result.isNewSession).toBe(true);
+    expect(result.resetTriggered).toBe(false);
+    expect(result.sessionId).toBe(existingSessionId);
+    expect(result.isNewSession).toBe(false);
   });
 
   it("rotates local session state for ACP /new when no matching conversation binding exists", async () => {
@@ -1583,14 +1583,6 @@ describe("initSessionState preserves behavior overrides across /new and /reset",
       authProfileOverride: "20251001",
       authProfileOverrideSource: "user",
       authProfileOverrideCompactionCount: 2,
-      cliSessionIds: { "claude-cli": "cli-session-123" },
-      cliSessionBindings: {
-        "claude-cli": {
-          sessionId: "cli-session-123",
-          authProfileId: "anthropic:default",
-        },
-      },
-      claudeCliSessionId: "cli-session-123",
     } as const;
     const cases = [
       {
@@ -1641,14 +1633,6 @@ describe("initSessionState preserves behavior overrides across /new and /reset",
         authProfileOverrideSource: overrides.authProfileOverrideSource,
         authProfileOverrideCompactionCount: overrides.authProfileOverrideCompactionCount,
       });
-      expect(result.sessionEntry.cliSessionIds).toBeUndefined();
-      expect(result.sessionEntry.cliSessionBindings).toBeUndefined();
-      expect(result.sessionEntry.claudeCliSessionId).toBeUndefined();
-
-      const stored = JSON.parse(await fs.readFile(storePath, "utf-8"));
-      expect(stored[sessionKey].cliSessionIds).toBeUndefined();
-      expect(stored[sessionKey].cliSessionBindings).toBeUndefined();
-      expect(stored[sessionKey].claudeCliSessionId).toBeUndefined();
     }
   });
 
@@ -2116,26 +2100,13 @@ describe("persistSessionUsageUpdate", () => {
       sessionKey,
       usage: { input: 24_000, output: 2_000, cacheRead: 8_000 },
       usageIsContextSnapshot: true,
-      providerUsed: "claude-cli",
-      cliSessionBinding: {
-        sessionId: "cli-session-1",
-        authProfileId: "anthropic:default",
-        extraSystemPromptHash: "prompt-hash",
-        mcpConfigHash: "mcp-hash",
-      },
+      providerUsed: "codex-cli",
       contextTokensUsed: 200_000,
     });
 
     const stored = JSON.parse(await fs.readFile(storePath, "utf-8"));
     expect(stored[sessionKey].totalTokens).toBe(32_000);
     expect(stored[sessionKey].totalTokensFresh).toBe(true);
-    expect(stored[sessionKey].cliSessionIds?.["claude-cli"]).toBe("cli-session-1");
-    expect(stored[sessionKey].cliSessionBindings?.["claude-cli"]).toEqual({
-      sessionId: "cli-session-1",
-      authProfileId: "anthropic:default",
-      extraSystemPromptHash: "prompt-hash",
-      mcpConfigHash: "mcp-hash",
-    });
   });
 
   it("persists totalTokens from promptTokens when usage is unavailable", async () => {

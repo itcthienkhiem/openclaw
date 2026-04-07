@@ -54,11 +54,7 @@ export type OpenAIPromptOverlayMode = "friendly" | "off";
 export function resolveOpenAIPromptOverlayMode(
   pluginConfig?: Record<string, unknown>,
 ): OpenAIPromptOverlayMode {
-  const normalized =
-    typeof pluginConfig?.personality === "string"
-      ? pluginConfig.personality.trim().toLowerCase()
-      : "";
-  return normalized === "off" ? "off" : "friendly";
+  return pluginConfig?.personality === "off" ? "off" : "friendly";
 }
 
 export function shouldApplyOpenAIPromptOverlay(params: {

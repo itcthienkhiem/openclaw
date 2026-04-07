@@ -5,15 +5,9 @@ const providerRuntimeMocks = vi.hoisted(() => ({
   resolveProviderModernModelRef: vi.fn(),
 }));
 
-vi.mock("../plugins/provider-runtime.js", async () => {
-  const actual = await vi.importActual<typeof import("../plugins/provider-runtime.js")>(
-    "../plugins/provider-runtime.js",
-  );
-  return {
-    ...actual,
-    resolveProviderModernModelRef: providerRuntimeMocks.resolveProviderModernModelRef,
-  };
-});
+vi.mock("../plugins/provider-runtime.js", () => ({
+  resolveProviderModernModelRef: providerRuntimeMocks.resolveProviderModernModelRef,
+}));
 
 import { normalizeModelCompat } from "../plugins/provider-model-compat.js";
 import {

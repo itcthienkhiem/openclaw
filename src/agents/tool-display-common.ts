@@ -1,5 +1,4 @@
 import { resolveExecDetail } from "./tool-display-exec.js";
-import { asRecord } from "./tool-display-record.js";
 
 export type ToolDisplayActionSpec = {
   label?: string;
@@ -20,6 +19,12 @@ export type CoerceDisplayValueOptions = {
   maxStringChars?: number;
   maxArrayEntries?: number;
 };
+
+type ArgsRecord = Record<string, unknown>;
+
+function asRecord(args: unknown): ArgsRecord | undefined {
+  return args && typeof args === "object" ? (args as ArgsRecord) : undefined;
+}
 
 export function normalizeToolName(name?: string): string {
   return (name ?? "tool").trim();

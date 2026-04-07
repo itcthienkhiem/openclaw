@@ -1,5 +1,6 @@
 import { Type } from "@sinclair/typebox";
 import { getRuntimeConfigSnapshot } from "openclaw/plugin-sdk/config-runtime";
+import type { OpenClawConfig } from "openclaw/plugin-sdk/plugin-entry";
 import { jsonResult, readStringParam } from "openclaw/plugin-sdk/provider-web-search";
 import {
   buildXaiCodeExecutionPayload,
@@ -8,6 +9,14 @@ import {
   resolveXaiCodeExecutionModel,
 } from "./src/code-execution-shared.js";
 import { isXaiToolEnabled, resolveXaiToolApiKey } from "./src/tool-auth-shared.js";
+
+type XaiPluginConfig = NonNullable<
+  NonNullable<OpenClawConfig["plugins"]>["entries"]
+>["xai"] extends {
+  config?: infer Config;
+}
+  ? Config
+  : undefined;
 
 type CodeExecutionConfig = {
   enabled?: boolean;
@@ -22,19 +31,12 @@ function readCodeExecutionConfigRecord(
   return config && typeof config === "object" ? (config as Record<string, unknown>) : undefined;
 }
 
-function readPluginCodeExecutionConfig(cfg?: unknown): CodeExecutionConfig | undefined {
-  if (!cfg || typeof cfg !== "object") {
+function readPluginCodeExecutionConfig(cfg?: OpenClawConfig): CodeExecutionConfig | undefined {
+  const entries = cfg?.plugins?.entries;
+  if (!entries || typeof entries !== "object") {
     return undefined;
   }
-  const entries = (cfg as Record<string, unknown>).plugins;
-  const pluginEntries =
-    entries && typeof entries === "object"
-      ? ((entries as Record<string, unknown>).entries as Record<string, unknown> | undefined)
-      : undefined;
-  if (!pluginEntries) {
-    return undefined;
-  }
-  const xaiEntry = pluginEntries.xai;
+  const xaiEntry = (entries as Record<string, unknown>).xai;
   if (!xaiEntry || typeof xaiEntry !== "object") {
     return undefined;
   }
@@ -50,20 +52,20 @@ function readPluginCodeExecutionConfig(cfg?: unknown): CodeExecutionConfig | und
 }
 
 function resolveCodeExecutionEnabled(params: {
-  sourceConfig?: unknown;
-  runtimeConfig?: unknown;
+  sourceConfig?: OpenClawConfig;
+  runtimeConfig?: OpenClawConfig;
   config?: CodeExecutionConfig;
 }): boolean {
   return isXaiToolEnabled({
     enabled: readCodeExecutionConfigRecord(params.config)?.enabled as boolean | undefined,
-    runtimeConfig: params.runtimeConfig as never,
-    sourceConfig: params.sourceConfig as never,
+    runtimeConfig: params.runtimeConfig,
+    sourceConfig: params.sourceConfig,
   });
 }
 
 export function createCodeExecutionTool(options?: {
-  config?: unknown;
-  runtimeConfig?: Record<string, unknown> | null;
+  config?: OpenClawConfig;
+  runtimeConfig?: OpenClawConfig | null;
 }) {
   const runtimeConfig = options?.runtimeConfig ?? getRuntimeConfigSnapshot();
   const codeExecutionConfig =
@@ -92,8 +94,8 @@ export function createCodeExecutionTool(options?: {
     }),
     execute: async (_toolCallId: string, args: Record<string, unknown>) => {
       const apiKey = resolveXaiToolApiKey({
-        runtimeConfig: (runtimeConfig ?? undefined) as never,
-        sourceConfig: options?.config as never,
+        runtimeConfig: runtimeConfig ?? undefined,
+        sourceConfig: options?.config,
       });
       if (!apiKey) {
         return jsonResult({

@@ -1,7 +1,7 @@
 import type { GatewayClient } from "./server-methods/types.js";
 
-const CONTROL_PLANE_RATE_LIMIT_MAX_REQUESTS = 3;
-const CONTROL_PLANE_RATE_LIMIT_WINDOW_MS = 60_000;
+const CONTROL_PLANE_RATE_LIMIT_MAX_REQUESTS = 40;
+const CONTROL_PLANE_RATE_LIMIT_WINDOW_MS = 30_000;
 
 type Bucket = {
   count: number;

@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
 import type { PluginLogger } from "../api.js";
 import type { DiffArtifactContext, DiffArtifactMeta, DiffOutputFormat } from "./types.js";
 
@@ -299,7 +298,7 @@ export class DiffArtifactStore {
     id: string,
     fileName: ArtifactMetaFileName,
     context: string,
-  ): Promise<unknown> {
+  ): Promise<unknown | null> {
     try {
       const raw = await fs.readFile(this.metaFilePath(id, fileName), "utf8");
       return JSON.parse(raw) as unknown;
@@ -379,4 +378,8 @@ function normalizeArtifactContext(value: unknown): DiffArtifactContext | undefin
   };
 
   return Object.values(context).some((entry) => entry !== undefined) ? context : undefined;
+}
+
+function normalizeOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }

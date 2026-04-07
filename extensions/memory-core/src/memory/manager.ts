@@ -1,11 +1,11 @@
 import type { DatabaseSync } from "node:sqlite";
 import { type FSWatcher } from "chokidar";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import {
-  createSubsystemLogger,
   resolveAgentDir,
   resolveAgentWorkspaceDir,
+  resolveGlobalSingleton,
   resolveMemorySearchConfig,
+  createSubsystemLogger,
   type OpenClawConfig,
   type ResolvedMemorySearchConfig,
 } from "openclaw/plugin-sdk/memory-core-host-engine-foundation";
@@ -28,49 +28,165 @@ import {
   type EmbeddingProviderRuntime,
 } from "./embeddings.js";
 import { bm25RankToScore, buildFtsQuery, mergeHybridResults } from "./hybrid.js";
-import { awaitPendingManagerWork, startAsyncSearchSync } from "./manager-async-state.js";
-import { MEMORY_BATCH_FAILURE_LIMIT } from "./manager-batch-state.js";
-import {
-  closeManagedCacheEntries,
-  getOrCreateManagedCacheEntry,
-  resolveSingletonManagedCache,
-} from "./manager-cache.js";
 import { MemoryManagerEmbeddingOps } from "./manager-embedding-ops.js";
-import {
-  resolveMemoryPrimaryProviderRequest,
-  resolveMemoryProviderState,
-} from "./manager-provider-state.js";
-import { resolveMemorySearchPreflight } from "./manager-search-preflight.js";
 import { searchKeyword, searchVector } from "./manager-search.js";
-import {
-  collectMemoryStatusAggregate,
-  resolveInitialMemoryDirty,
-  resolveStatusProviderInfo,
-} from "./manager-status-state.js";
-import {
-  enqueueMemoryTargetedSessionSync,
-  extractMemoryErrorReason,
-  isMemoryReadonlyDbError,
-  runMemorySyncWithReadonlyRecovery,
-  type MemoryReadonlyRecoveryState,
-} from "./manager-sync-control.js";
 const SNIPPET_MAX_CHARS = 700;
 const VECTOR_TABLE = "chunks_vec";
 const FTS_TABLE = "chunks_fts";
 const EMBEDDING_CACHE_TABLE = "embedding_cache";
+const BATCH_FAILURE_LIMIT = 2;
+
 const MEMORY_INDEX_MANAGER_CACHE_KEY = Symbol.for("openclaw.memoryIndexManagerCache");
+type MemoryIndexManagerCacheStore = {
+  indexCache: Map<string, MemoryIndexManager>;
+  indexCachePending: Map<string, Promise<MemoryIndexManager>>;
+};
+
+function getMemoryIndexManagerCacheStore(): MemoryIndexManagerCacheStore {
+  // Keep manager caches reachable across `vi.resetModules()` so cleanup still reaches older managers.
+  return resolveGlobalSingleton<MemoryIndexManagerCacheStore>(
+    MEMORY_INDEX_MANAGER_CACHE_KEY,
+    () => ({
+      indexCache: new Map<string, MemoryIndexManager>(),
+      indexCachePending: new Map<string, Promise<MemoryIndexManager>>(),
+    }),
+  );
+}
+
 const log = createSubsystemLogger("memory");
 
-const { cache: INDEX_CACHE, pending: INDEX_CACHE_PENDING } =
-  resolveSingletonManagedCache<MemoryIndexManager>(MEMORY_INDEX_MANAGER_CACHE_KEY);
+const { indexCache: INDEX_CACHE, indexCachePending: INDEX_CACHE_PENDING } =
+  getMemoryIndexManagerCacheStore();
+
+type MemoryReadonlyRecoveryState = {
+  closed: boolean;
+  db: DatabaseSync;
+  vectorReady: Promise<boolean> | null;
+  vector: {
+    enabled: boolean;
+    available: boolean | null;
+    extensionPath?: string;
+    loadError?: string;
+    dims?: number;
+  };
+  readonlyRecoveryAttempts: number;
+  readonlyRecoverySuccesses: number;
+  readonlyRecoveryFailures: number;
+  readonlyRecoveryLastError?: string;
+  runSync: (params?: {
+    reason?: string;
+    force?: boolean;
+    sessionFiles?: string[];
+    progress?: (update: MemorySyncProgressUpdate) => void;
+  }) => Promise<void>;
+  openDatabase: () => DatabaseSync;
+  ensureSchema: () => void;
+  readMeta: () => { vectorDims?: number } | undefined;
+};
+
+export function isMemoryReadonlyDbError(err: unknown): boolean {
+  const readonlyPattern =
+    /attempt to write a readonly database|database is read-only|SQLITE_READONLY/i;
+  const messages = new Set<string>();
+
+  const pushValue = (value: unknown): void => {
+    if (typeof value !== "string") {
+      return;
+    }
+    const normalized = value.trim();
+    if (!normalized) {
+      return;
+    }
+    messages.add(normalized);
+  };
+
+  pushValue(err instanceof Error ? err.message : String(err));
+  if (err && typeof err === "object") {
+    const record = err as Record<string, unknown>;
+    pushValue(record.message);
+    pushValue(record.code);
+    pushValue(record.name);
+    if (record.cause && typeof record.cause === "object") {
+      const cause = record.cause as Record<string, unknown>;
+      pushValue(cause.message);
+      pushValue(cause.code);
+      pushValue(cause.name);
+    }
+  }
+
+  return [...messages].some((value) => readonlyPattern.test(value));
+}
+
+export function extractMemoryErrorReason(err: unknown): string {
+  if (err instanceof Error && err.message.trim()) {
+    return err.message;
+  }
+  if (err && typeof err === "object") {
+    const record = err as Record<string, unknown>;
+    if (typeof record.message === "string" && record.message.trim()) {
+      return record.message;
+    }
+    if (typeof record.code === "string" && record.code.trim()) {
+      return record.code;
+    }
+  }
+  return String(err);
+}
+
+export async function runMemorySyncWithReadonlyRecovery(
+  state: MemoryReadonlyRecoveryState,
+  params?: {
+    reason?: string;
+    force?: boolean;
+    sessionFiles?: string[];
+    progress?: (update: MemorySyncProgressUpdate) => void;
+  },
+): Promise<void> {
+  try {
+    await state.runSync(params);
+    return;
+  } catch (err) {
+    if (!isMemoryReadonlyDbError(err) || state.closed) {
+      throw err;
+    }
+    const reason = extractMemoryErrorReason(err);
+    state.readonlyRecoveryAttempts += 1;
+    state.readonlyRecoveryLastError = reason;
+    log.warn(`memory sync readonly handle detected; reopening sqlite connection`, { reason });
+    try {
+      state.db.close();
+    } catch {}
+    state.db = state.openDatabase();
+    state.vectorReady = null;
+    state.vector.available = null;
+    state.vector.loadError = undefined;
+    state.ensureSchema();
+    const meta = state.readMeta();
+    state.vector.dims = meta?.vectorDims;
+    try {
+      await state.runSync(params);
+      state.readonlyRecoverySuccesses += 1;
+    } catch (retryErr) {
+      state.readonlyRecoveryFailures += 1;
+      throw retryErr;
+    }
+  }
+}
+
 export async function closeAllMemoryIndexManagers(): Promise<void> {
-  await closeManagedCacheEntries({
-    cache: INDEX_CACHE,
-    pending: INDEX_CACHE_PENDING,
-    onCloseError: (err) => {
+  const pending = Array.from(INDEX_CACHE_PENDING.values());
+  if (pending.length > 0) {
+    await Promise.allSettled(pending);
+  }
+  const managers = Array.from(INDEX_CACHE.values());
+  INDEX_CACHE.clear();
+  for (const manager of managers) {
+    try {
+      await manager.close();
+    } catch (err) {
       log.warn(`failed to close memory index manager: ${String(err)}`);
-    },
-  });
+    }
+  }
 }
 
 export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements MemorySearchManager {
@@ -146,7 +262,12 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
     return await createEmbeddingProvider({
       config: params.cfg,
       agentDir: resolveAgentDir(params.cfg, params.agentId),
-      ...resolveMemoryPrimaryProviderRequest({ settings: params.settings }),
+      provider: params.settings.provider,
+      remote: params.settings.remote,
+      model: params.settings.model,
+      outputDimensionality: params.settings.outputDimensionality,
+      fallback: params.settings.fallback,
+      local: params.settings.local,
     });
   }
 
@@ -164,21 +285,48 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
     const purpose = params.purpose === "status" ? "status" : "default";
     const key = `${agentId}:${workspaceDir}:${JSON.stringify(settings)}:${purpose}`;
     const statusOnly = params.purpose === "status";
-    return await getOrCreateManagedCacheEntry({
-      cache: INDEX_CACHE,
-      pending: INDEX_CACHE_PENDING,
-      key,
-      bypassCache: statusOnly,
-      create: async () =>
-        new MemoryIndexManager({
-          cacheKey: key,
-          cfg,
-          agentId,
-          workspaceDir,
-          settings,
-          purpose: params.purpose,
-        }),
-    });
+    if (statusOnly) {
+      return new MemoryIndexManager({
+        cacheKey: key,
+        cfg,
+        agentId,
+        workspaceDir,
+        settings,
+        purpose: params.purpose,
+      });
+    }
+    const existing = INDEX_CACHE.get(key);
+    if (existing) {
+      return existing;
+    }
+    const pending = INDEX_CACHE_PENDING.get(key);
+    if (pending) {
+      return pending;
+    }
+    const createPromise = (async () => {
+      const refreshed = INDEX_CACHE.get(key);
+      if (refreshed) {
+        return refreshed;
+      }
+      const manager = new MemoryIndexManager({
+        cacheKey: key,
+        cfg,
+        agentId,
+        workspaceDir,
+        settings,
+        purpose: params.purpose,
+      });
+      INDEX_CACHE.set(key, manager);
+      return manager;
+    })();
+    INDEX_CACHE_PENDING.set(key, createPromise);
+    try {
+      return await createPromise;
+    } finally {
+      if (INDEX_CACHE_PENDING.get(key) === createPromise) {
+        INDEX_CACHE_PENDING.delete(key);
+      }
+    }
   }
 
   private constructor(params: {
@@ -225,21 +373,16 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
       this.ensureSessionListener();
       this.ensureIntervalSync();
     }
-    this.dirty = resolveInitialMemoryDirty({
-      hasMemorySource: this.sources.has("memory"),
-      statusOnly,
-      hasIndexedMeta: Boolean(meta),
-    });
+    this.dirty = this.sources.has("memory") && (statusOnly ? !meta : true);
     this.batch = this.resolveBatchConfig();
   }
 
   private applyProviderResult(providerResult: EmbeddingProviderResult): void {
-    const providerState = resolveMemoryProviderState(providerResult);
-    this.provider = providerState.provider;
-    this.fallbackFrom = providerState.fallbackFrom;
-    this.fallbackReason = providerState.fallbackReason;
-    this.providerUnavailableReason = providerState.providerUnavailableReason;
-    this.providerRuntime = providerState.providerRuntime;
+    this.provider = providerResult.provider;
+    this.fallbackFrom = providerResult.fallbackFrom;
+    this.fallbackReason = providerResult.fallbackReason;
+    this.providerUnavailableReason = providerResult.providerUnavailableReason;
+    this.providerRuntime = providerResult.runtime;
     this.providerInitialized = true;
   }
 
@@ -292,27 +435,21 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
       sessionKey?: string;
     },
   ): Promise<MemorySearchResult[]> {
-    const preflight = resolveMemorySearchPreflight({
-      query,
-      hasIndexedContent: this.hasIndexedContent(),
-    });
-    if (!preflight.shouldSearch) {
+    const cleaned = query.trim();
+    if (!cleaned) {
       return [];
     }
-    const cleaned = preflight.normalizedQuery;
     void this.warmSession(opts?.sessionKey);
-    startAsyncSearchSync({
-      enabled: this.settings.sync.onSearch,
-      dirty: this.dirty,
-      sessionsDirty: this.sessionsDirty,
-      sync: async (params) => await this.sync(params),
-      onError: (err) => {
+    if (this.settings.sync.onSearch && (this.dirty || this.sessionsDirty)) {
+      void this.sync({ reason: "search" }).catch((err) => {
         log.warn(`memory sync failed (search): ${String(err)}`);
-      },
-    });
-    if (preflight.shouldInitializeProvider) {
-      await this.ensureProviderInitialized();
+      });
     }
+    const hasIndexedContent = this.hasIndexedContent();
+    if (!hasIndexedContent) {
+      return [];
+    }
+    await this.ensureProviderInitialized();
     const minScore = opts?.minScore ?? this.settings.query.minScore;
     const maxResults = opts?.maxResults ?? this.settings.query.maxResults;
     const hybrid = this.settings.query.hybrid;
@@ -546,19 +683,33 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
   }
 
   private enqueueTargetedSessionSync(sessionFiles?: string[]): Promise<void> {
-    return enqueueMemoryTargetedSessionSync(
-      {
-        isClosed: () => this.closed,
-        getSyncing: () => this.syncing,
-        getQueuedSessionFiles: () => this.queuedSessionFiles,
-        getQueuedSessionSync: () => this.queuedSessionSync,
-        setQueuedSessionSync: (value) => {
-          this.queuedSessionSync = value;
-        },
-        sync: async (params) => await this.sync(params),
-      },
-      sessionFiles,
-    );
+    for (const sessionFile of sessionFiles ?? []) {
+      const trimmed = sessionFile.trim();
+      if (trimmed) {
+        this.queuedSessionFiles.add(trimmed);
+      }
+    }
+    if (this.queuedSessionFiles.size === 0) {
+      return this.syncing ?? Promise.resolve();
+    }
+    if (!this.queuedSessionSync) {
+      this.queuedSessionSync = (async () => {
+        try {
+          await this.syncing?.catch(() => undefined);
+          while (!this.closed && this.queuedSessionFiles.size > 0) {
+            const queuedSessionFiles = Array.from(this.queuedSessionFiles);
+            this.queuedSessionFiles.clear();
+            await this.sync({
+              reason: "queued-session-files",
+              sessionFiles: queuedSessionFiles,
+            });
+          }
+        } finally {
+          this.queuedSessionSync = null;
+        }
+      })();
+    }
+    return this.queuedSessionSync;
   }
 
   private isReadonlyDbError(err: unknown): boolean {
@@ -575,71 +726,47 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
     sessionFiles?: string[];
     progress?: (update: MemorySyncProgressUpdate) => void;
   }): Promise<void> {
-    const getClosed = () => this.closed;
-    const getDb = () => this.db;
-    const setDb = (value: DatabaseSync) => {
-      this.db = value;
-    };
-    const getVectorReady = () => this.vectorReady;
-    const setVectorReady = (value: Promise<boolean> | null) => {
-      this.vectorReady = value;
-    };
-    const getReadonlyRecoveryAttempts = () => this.readonlyRecoveryAttempts;
-    const setReadonlyRecoveryAttempts = (value: number) => {
-      this.readonlyRecoveryAttempts = value;
-    };
-    const getReadonlyRecoverySuccesses = () => this.readonlyRecoverySuccesses;
-    const setReadonlyRecoverySuccesses = (value: number) => {
-      this.readonlyRecoverySuccesses = value;
-    };
-    const getReadonlyRecoveryFailures = () => this.readonlyRecoveryFailures;
-    const setReadonlyRecoveryFailures = (value: number) => {
-      this.readonlyRecoveryFailures = value;
-    };
-    const getReadonlyRecoveryLastError = () => this.readonlyRecoveryLastError;
-    const setReadonlyRecoveryLastError = (value: string | undefined) => {
-      this.readonlyRecoveryLastError = value;
-    };
+    const thisManager = this;
     const state: MemoryReadonlyRecoveryState = {
       get closed() {
-        return getClosed();
+        return thisManager.closed;
       },
       get db() {
-        return getDb();
+        return thisManager.db;
       },
       set db(value) {
-        setDb(value);
+        thisManager.db = value;
       },
       get vectorReady() {
-        return getVectorReady();
+        return thisManager.vectorReady;
       },
       set vectorReady(value) {
-        setVectorReady(value);
+        thisManager.vectorReady = value;
       },
       vector: this.vector,
       get readonlyRecoveryAttempts() {
-        return getReadonlyRecoveryAttempts();
+        return thisManager.readonlyRecoveryAttempts;
       },
       set readonlyRecoveryAttempts(value) {
-        setReadonlyRecoveryAttempts(value);
+        thisManager.readonlyRecoveryAttempts = value;
       },
       get readonlyRecoverySuccesses() {
-        return getReadonlyRecoverySuccesses();
+        return thisManager.readonlyRecoverySuccesses;
       },
       set readonlyRecoverySuccesses(value) {
-        setReadonlyRecoverySuccesses(value);
+        thisManager.readonlyRecoverySuccesses = value;
       },
       get readonlyRecoveryFailures() {
-        return getReadonlyRecoveryFailures();
+        return thisManager.readonlyRecoveryFailures;
       },
       set readonlyRecoveryFailures(value) {
-        setReadonlyRecoveryFailures(value);
+        thisManager.readonlyRecoveryFailures = value;
       },
       get readonlyRecoveryLastError() {
-        return getReadonlyRecoveryLastError();
+        return thisManager.readonlyRecoveryLastError;
       },
       set readonlyRecoveryLastError(value) {
-        setReadonlyRecoveryLastError(value);
+        thisManager.readonlyRecoveryLastError = value;
       },
       runSync: (nextParams) => this.runSync(nextParams),
       openDatabase: () => this.openDatabase(),
@@ -665,28 +792,50 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
 
   status(): MemoryProviderStatus {
     const sourceFilter = this.buildSourceFilter();
-    const aggregateState = collectMemoryStatusAggregate({
-      db: {
-        prepare: (sql) => ({
-          all: (...args) =>
-            this.db.prepare(sql).all(...args) as Array<{
-              kind: "files" | "chunks";
-              source: MemorySource;
-              c: number;
-            }>,
-        }),
-      },
-      sources: this.sources,
-      sourceFilterSql: sourceFilter.sql,
-      sourceFilterParams: sourceFilter.params,
-    });
+    const aggregateRows = this.db
+      .prepare(
+        `SELECT 'files' AS kind, source, COUNT(*) as c FROM files WHERE 1=1${sourceFilter.sql} GROUP BY source\n` +
+          `UNION ALL\n` +
+          `SELECT 'chunks' AS kind, source, COUNT(*) as c FROM chunks WHERE 1=1${sourceFilter.sql} GROUP BY source`,
+      )
+      .all(...sourceFilter.params, ...sourceFilter.params) as Array<{
+      kind: "files" | "chunks";
+      source: MemorySource;
+      c: number;
+    }>;
+    const aggregateState = (() => {
+      const sources = Array.from(this.sources);
+      const bySource = new Map<MemorySource, { files: number; chunks: number }>();
+      for (const source of sources) {
+        bySource.set(source, { files: 0, chunks: 0 });
+      }
+      let files = 0;
+      let chunks = 0;
+      for (const row of aggregateRows) {
+        const count = row.c ?? 0;
+        const entry = bySource.get(row.source) ?? { files: 0, chunks: 0 };
+        if (row.kind === "files") {
+          entry.files = count;
+          files += count;
+        } else {
+          entry.chunks = count;
+          chunks += count;
+        }
+        bySource.set(row.source, entry);
+      }
+      return {
+        files,
+        chunks,
+        sourceCounts: sources.map((source) => Object.assign({ source }, bySource.get(source)!)),
+      };
+    })();
 
-    const providerInfo = resolveStatusProviderInfo({
-      provider: this.provider,
-      providerInitialized: this.providerInitialized,
-      requestedProvider: this.requestedProvider,
-      configuredModel: this.settings.model || undefined,
-    });
+    const searchMode = this.provider || !this.providerInitialized ? "hybrid" : "fts-only";
+    const providerInfo = this.provider
+      ? { provider: this.provider.id, model: this.provider.model }
+      : this.providerInitialized
+        ? { provider: "none", model: undefined }
+        : { provider: this.requestedProvider, model: this.settings.model || undefined };
 
     return {
       backend: "builtin",
@@ -731,7 +880,7 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
       batch: {
         enabled: this.batch.enabled,
         failures: this.batchFailureCount,
-        limit: MEMORY_BATCH_FAILURE_LIMIT,
+        limit: BATCH_FAILURE_LIMIT,
         wait: this.batch.wait,
         concurrency: this.batch.concurrency,
         pollIntervalMs: this.batch.pollIntervalMs,
@@ -740,7 +889,7 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
         lastProvider: this.batchFailureLastProvider,
       },
       custom: {
-        searchMode: providerInfo.searchMode,
+        searchMode,
         providerUnavailableReason: this.providerUnavailableReason,
         readonlyRecovery: {
           attempts: this.readonlyRecoveryAttempts,
@@ -777,7 +926,7 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
       await this.embedBatchWithRetry(["ping"]);
       return { ok: true };
     } catch (err) {
-      const message = formatErrorMessage(err);
+      const message = err instanceof Error ? err.message : String(err);
       return { ok: false, error: message };
     }
   }
@@ -809,7 +958,16 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
       this.sessionUnsubscribe();
       this.sessionUnsubscribe = null;
     }
-    await awaitPendingManagerWork({ pendingSync, pendingProviderInit });
+    if (pendingSync) {
+      try {
+        await pendingSync;
+      } catch {}
+    }
+    if (pendingProviderInit) {
+      try {
+        await pendingProviderInit;
+      } catch {}
+    }
     this.db.close();
     INDEX_CACHE.delete(this.cacheKey);
   }

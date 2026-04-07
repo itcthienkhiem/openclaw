@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { OpenClawConfig } from "../config/config.js";
-import { createSuiteTempRootTracker } from "../test-helpers/temp-dir.js";
 import { withEnvAsync } from "../test-utils/env.js";
 import {
   discoverAllSessions,
@@ -13,22 +13,11 @@ import {
 } from "./session-cost-usage.js";
 
 describe("session cost usage", () => {
-  const suiteRootTracker = createSuiteTempRootTracker({ prefix: "openclaw-session-cost-" });
   const withStateDir = async <T>(stateDir: string, fn: () => Promise<T>): Promise<T> =>
     await withEnvAsync({ OPENCLAW_STATE_DIR: stateDir }, fn);
-  const makeSessionCostRoot = async (prefix: string): Promise<string> =>
-    await suiteRootTracker.make(prefix);
-
-  beforeAll(async () => {
-    await suiteRootTracker.setup();
-  });
-
-  afterAll(async () => {
-    await suiteRootTracker.cleanup();
-  });
 
   it("aggregates daily totals with log cost and pricing fallback", async () => {
-    const root = await makeSessionCostRoot("cost");
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-cost-"));
     const sessionsDir = path.join(root, "agents", "main", "sessions");
     await fs.mkdir(sessionsDir, { recursive: true });
     const sessionFile = path.join(sessionsDir, "sess-1.jsonl");
@@ -122,7 +111,7 @@ describe("session cost usage", () => {
   });
 
   it("summarizes a single session file", async () => {
-    const root = await makeSessionCostRoot("cost-session");
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-cost-session-"));
     const sessionFile = path.join(root, "session.jsonl");
     const now = new Date();
 
@@ -155,7 +144,7 @@ describe("session cost usage", () => {
   });
 
   it("captures message counts, tool usage, and model usage", async () => {
-    const root = await makeSessionCostRoot("cost-session-meta");
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-cost-session-meta-"));
     const sessionFile = path.join(root, "session.jsonl");
     const start = new Date("2026-02-01T10:00:00.000Z");
     const end = new Date("2026-02-01T10:05:00.000Z");
@@ -223,7 +212,7 @@ describe("session cost usage", () => {
   });
 
   it("does not exclude sessions with mtime after endMs during discovery", async () => {
-    const root = await makeSessionCostRoot("discover");
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-discover-"));
     const sessionsDir = path.join(root, "agents", "main", "sessions");
     await fs.mkdir(sessionsDir, { recursive: true });
     const sessionFile = path.join(sessionsDir, "sess-late.jsonl");
@@ -243,7 +232,7 @@ describe("session cost usage", () => {
   });
 
   it("counts reset and deleted transcripts in global usage summary, but excludes bak archives", async () => {
-    const root = await makeSessionCostRoot("usage-archives");
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-usage-archives-"));
     const sessionsDir = path.join(root, "agents", "main", "sessions");
     await fs.mkdir(sessionsDir, { recursive: true });
 
@@ -308,7 +297,7 @@ describe("session cost usage", () => {
   });
 
   it("discovers reset and deleted transcripts as usage sessions", async () => {
-    const root = await makeSessionCostRoot("discover-archives");
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-discover-archives-"));
     const sessionsDir = path.join(root, "agents", "main", "sessions");
     await fs.mkdir(sessionsDir, { recursive: true });
 
@@ -343,7 +332,7 @@ describe("session cost usage", () => {
   });
 
   it("deduplicates discovered sessions by sessionId and keeps the newest archive", async () => {
-    const root = await makeSessionCostRoot("discover-dedupe");
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-discover-dedupe-"));
     const sessionsDir = path.join(root, "agents", "main", "sessions");
     await fs.mkdir(sessionsDir, { recursive: true });
 
@@ -387,7 +376,7 @@ describe("session cost usage", () => {
   });
 
   it("prefers the active transcript over archives during discovery dedupe", async () => {
-    const root = await makeSessionCostRoot("discover-active-preferred");
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-discover-active-preferred-"));
     const sessionsDir = path.join(root, "agents", "main", "sessions");
     await fs.mkdir(sessionsDir, { recursive: true });
 
@@ -428,7 +417,7 @@ describe("session cost usage", () => {
   });
 
   it("falls back to archived reset transcripts for per-session detail queries", async () => {
-    const root = await makeSessionCostRoot("session-archive-fallback");
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-session-archive-fallback-"));
     const sessionsDir = path.join(root, "agents", "main", "sessions");
     await fs.mkdir(sessionsDir, { recursive: true });
 
@@ -460,7 +449,7 @@ describe("session cost usage", () => {
   });
 
   it("uses the candidate session directory for archived fallback lookups", async () => {
-    const root = await makeSessionCostRoot("session-custom-archive");
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-session-custom-archive-"));
     const customSessionsDir = path.join(root, "custom-store", "sessions");
     await fs.mkdir(customSessionsDir, { recursive: true });
 
@@ -499,7 +488,7 @@ describe("session cost usage", () => {
   });
 
   it("picks the newest archive by timestamp when reset and deleted archives coexist", async () => {
-    const root = await makeSessionCostRoot("session-archive-order");
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-session-archive-order-"));
     const sessionsDir = path.join(root, "agents", "main", "sessions");
     await fs.mkdir(sessionsDir, { recursive: true });
 
@@ -541,7 +530,7 @@ describe("session cost usage", () => {
   });
 
   it("resolves non-main absolute sessionFile using explicit agentId for cost summary", async () => {
-    const root = await makeSessionCostRoot("cost-agent");
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-cost-agent-"));
     const workerSessionsDir = path.join(root, "agents", "worker1", "sessions");
     await fs.mkdir(workerSessionsDir, { recursive: true });
     const workerSessionFile = path.join(workerSessionsDir, "sess-worker-1.jsonl");
@@ -583,7 +572,7 @@ describe("session cost usage", () => {
   });
 
   it("resolves non-main absolute sessionFile using explicit agentId for timeseries", async () => {
-    const root = await makeSessionCostRoot("timeseries-agent");
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-timeseries-agent-"));
     const workerSessionsDir = path.join(root, "agents", "worker2", "sessions");
     await fs.mkdir(workerSessionsDir, { recursive: true });
     const workerSessionFile = path.join(workerSessionsDir, "sess-worker-2.jsonl");
@@ -621,7 +610,7 @@ describe("session cost usage", () => {
   });
 
   it("resolves non-main absolute sessionFile using explicit agentId for logs", async () => {
-    const root = await makeSessionCostRoot("logs-agent");
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-logs-agent-"));
     const workerSessionsDir = path.join(root, "agents", "worker3", "sessions");
     await fs.mkdir(workerSessionsDir, { recursive: true });
     const workerSessionFile = path.join(workerSessionsDir, "sess-worker-3.jsonl");
@@ -658,7 +647,7 @@ describe("session cost usage", () => {
   });
 
   it("strips inbound and untrusted metadata blocks from session usage logs", async () => {
-    const root = await makeSessionCostRoot("logs-sanitize");
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-logs-sanitize-"));
     const sessionsDir = path.join(root, "agents", "main", "sessions");
     await fs.mkdir(sessionsDir, { recursive: true });
     const sessionFile = path.join(sessionsDir, "sess-sanitize.jsonl");
@@ -700,7 +689,7 @@ example
   });
 
   it("preserves totals and cumulative values when downsampling timeseries", async () => {
-    const root = await makeSessionCostRoot("timeseries-downsample");
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-timeseries-downsample-"));
     const sessionsDir = path.join(root, "agents", "main", "sessions");
     await fs.mkdir(sessionsDir, { recursive: true });
     const sessionFile = path.join(sessionsDir, "sess-downsample.jsonl");

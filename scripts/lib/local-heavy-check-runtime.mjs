@@ -3,15 +3,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const GIB = 1024 ** 3;
 const DEFAULT_LOCAL_GO_GC = "30";
 const DEFAULT_LOCAL_GO_MEMORY_LIMIT = "3GiB";
 const DEFAULT_LOCK_TIMEOUT_MS = 10 * 60 * 1000;
 const DEFAULT_LOCK_POLL_MS = 500;
 const DEFAULT_LOCK_PROGRESS_MS = 15 * 1000;
 const DEFAULT_STALE_LOCK_MS = 30 * 1000;
-const DEFAULT_FAST_LOCAL_CHECK_MIN_MEMORY_BYTES = 48 * GIB;
-const DEFAULT_FAST_LOCAL_CHECK_MIN_CPUS = 12;
 const SLEEP_BUFFER = new Int32Array(new SharedArrayBuffer(4));
 
 export function isLocalCheckEnabled(env) {
@@ -23,7 +20,7 @@ export function hasFlag(args, name) {
   return args.some((arg) => arg === name || arg.startsWith(`${name}=`));
 }
 
-export function applyLocalTsgoPolicy(args, env, hostResources) {
+export function applyLocalTsgoPolicy(args, env) {
   const nextEnv = { ...env };
   const nextArgs = [...args];
 
@@ -31,16 +28,14 @@ export function applyLocalTsgoPolicy(args, env, hostResources) {
     return { env: nextEnv, args: nextArgs };
   }
 
-  if (shouldThrottleLocalHeavyChecks(nextEnv, hostResources)) {
-    insertBeforeSeparator(nextArgs, "--singleThreaded");
-    insertBeforeSeparator(nextArgs, "--checkers", "1");
+  insertBeforeSeparator(nextArgs, "--singleThreaded");
+  insertBeforeSeparator(nextArgs, "--checkers", "1");
 
-    if (!nextEnv.GOGC) {
-      nextEnv.GOGC = DEFAULT_LOCAL_GO_GC;
-    }
-    if (!nextEnv.GOMEMLIMIT) {
-      nextEnv.GOMEMLIMIT = DEFAULT_LOCAL_GO_MEMORY_LIMIT;
-    }
+  if (!nextEnv.GOGC) {
+    nextEnv.GOGC = DEFAULT_LOCAL_GO_GC;
+  }
+  if (!nextEnv.GOMEMLIMIT) {
+    nextEnv.GOMEMLIMIT = DEFAULT_LOCAL_GO_MEMORY_LIMIT;
   }
   if (nextEnv.OPENCLAW_TSGO_PPROF_DIR && !hasFlag(nextArgs, "--pprofDir")) {
     insertBeforeSeparator(nextArgs, "--pprofDir", nextEnv.OPENCLAW_TSGO_PPROF_DIR);
@@ -49,44 +44,18 @@ export function applyLocalTsgoPolicy(args, env, hostResources) {
   return { env: nextEnv, args: nextArgs };
 }
 
-export function applyLocalOxlintPolicy(args, env, hostResources) {
+export function applyLocalOxlintPolicy(args, env) {
   const nextEnv = { ...env };
   const nextArgs = [...args];
 
   insertBeforeSeparator(nextArgs, "--type-aware");
   insertBeforeSeparator(nextArgs, "--tsconfig", "tsconfig.oxlint.json");
-  if (
-    !hasFlag(nextArgs, "--report-unused-disable-directives") &&
-    !hasFlag(nextArgs, "--report-unused-disable-directives-severity")
-  ) {
-    insertBeforeSeparator(nextArgs, "--report-unused-disable-directives-severity", "error");
-  }
 
-  if (shouldThrottleLocalHeavyChecks(nextEnv, hostResources)) {
+  if (isLocalCheckEnabled(nextEnv)) {
     insertBeforeSeparator(nextArgs, "--threads=1");
   }
 
   return { env: nextEnv, args: nextArgs };
-}
-
-export function shouldThrottleLocalHeavyChecks(env, hostResources) {
-  if (!isLocalCheckEnabled(env)) {
-    return false;
-  }
-
-  const mode = readLocalCheckMode(env);
-  if (mode === "throttled") {
-    return true;
-  }
-  if (mode === "full") {
-    return false;
-  }
-
-  const resolvedHostResources = resolveHostResources(hostResources);
-  return (
-    resolvedHostResources.totalMemoryBytes < DEFAULT_FAST_LOCAL_CHECK_MIN_MEMORY_BYTES ||
-    resolvedHostResources.logicalCpuCount < DEFAULT_FAST_LOCAL_CHECK_MIN_CPUS
-  );
 }
 
 export function acquireLocalHeavyCheckLockSync(params) {
@@ -203,29 +172,6 @@ function insertBeforeSeparator(args, ...items) {
   const separatorIndex = args.indexOf("--");
   const insertIndex = separatorIndex === -1 ? args.length : separatorIndex;
   args.splice(insertIndex, 0, ...items);
-}
-
-function readLocalCheckMode(env) {
-  const raw = env.OPENCLAW_LOCAL_CHECK_MODE?.trim().toLowerCase();
-  if (raw === "throttled" || raw === "low-memory") {
-    return "throttled";
-  }
-  if (raw === "full" || raw === "fast") {
-    return "full";
-  }
-  return "auto";
-}
-
-function resolveHostResources(hostResources) {
-  if (hostResources) {
-    return hostResources;
-  }
-
-  return {
-    totalMemoryBytes: os.totalmem(),
-    logicalCpuCount:
-      typeof os.availableParallelism === "function" ? os.availableParallelism() : os.cpus().length,
-  };
 }
 
 function readPositiveInt(rawValue, fallback) {

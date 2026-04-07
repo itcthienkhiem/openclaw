@@ -50,39 +50,4 @@ describe("deepseek provider plugin", () => {
       catalog.provider.models?.find((model) => model.id === "deepseek-reasoner")?.reasoning,
     ).toBe(true);
   });
-
-  it("publishes configured DeepSeek models through plugin-owned catalog augmentation", async () => {
-    const provider = await registerSingleProviderPlugin(deepseekPlugin);
-
-    expect(
-      provider.augmentModelCatalog?.({
-        config: {
-          models: {
-            providers: {
-              deepseek: {
-                models: [
-                  {
-                    id: "deepseek-chat",
-                    name: "DeepSeek Chat",
-                    input: ["text"],
-                    reasoning: false,
-                    contextWindow: 65536,
-                  },
-                ],
-              },
-            },
-          },
-        },
-      } as never),
-    ).toEqual([
-      {
-        provider: "deepseek",
-        id: "deepseek-chat",
-        name: "DeepSeek Chat",
-        input: ["text"],
-        reasoning: false,
-        contextWindow: 65536,
-      },
-    ]);
-  });
 });

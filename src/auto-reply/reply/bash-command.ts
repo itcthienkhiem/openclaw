@@ -5,7 +5,6 @@ import { resolveSandboxRuntimeStatus } from "../../agents/sandbox.js";
 import { isCommandFlagEnabled } from "../../config/commands.js";
 import type { OpenClawConfig } from "../../config/config.js";
 import { logVerbose } from "../../globals.js";
-import { formatErrorMessage } from "../../infra/errors.js";
 import { clampInt } from "../../utils.js";
 import type { MsgContext } from "../templating.js";
 import type { ReplyPayload } from "../types.js";
@@ -390,7 +389,7 @@ export async function handleBashChatCommand(params: {
     };
   } catch (err) {
     activeJob = null;
-    const message = formatErrorMessage(err);
+    const message = err instanceof Error ? err.message : String(err);
     return {
       text: [`⚠️ bash failed: ${commandText}`, formatOutputBlock(message)].join("\n"),
     };

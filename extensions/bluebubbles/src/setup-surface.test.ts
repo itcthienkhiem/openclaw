@@ -36,9 +36,6 @@ async function createBlueBubblesConfigureAdapter() {
       docsPath: "/channels/bluebubbles",
       blurb: "iMessage via BlueBubbles",
     },
-    capabilities: {
-      chatTypes: ["direct", "group"],
-    },
     config: {
       listAccountIds: () => [DEFAULT_ACCOUNT_ID],
       defaultAccountId: () => DEFAULT_ACCOUNT_ID,
@@ -216,13 +213,8 @@ describe("bluebubbles setup surface", () => {
     });
 
     const next = blueBubblesSetupWizard.dmPolicy?.setPolicy(cfg, "open");
-    const workAccount = next?.channels?.bluebubbles?.accounts?.work as
-      | {
-          dmPolicy?: string;
-        }
-      | undefined;
     expect(next?.channels?.bluebubbles?.dmPolicy).toBe("disabled");
-    expect(workAccount?.dmPolicy).toBe("open");
+    expect(next?.channels?.bluebubbles?.accounts?.work?.dmPolicy).toBe("open");
   });
 
   it("uses configured defaultAccount when accountId is omitted in account resolution", async () => {
@@ -302,15 +294,12 @@ describe("bluebubbles setup surface", () => {
       "work",
     );
 
-    const workAccount = next?.channels?.bluebubbles?.accounts?.work as
-      | {
-          dmPolicy?: string;
-          allowFrom?: string[];
-        }
-      | undefined;
     expect(next?.channels?.bluebubbles?.dmPolicy).toBeUndefined();
-    expect(workAccount?.dmPolicy).toBe("open");
-    expect(workAccount?.allowFrom).toEqual(["user@example.com", "*"]);
+    expect(next?.channels?.bluebubbles?.accounts?.work?.dmPolicy).toBe("open");
+    expect(next?.channels?.bluebubbles?.accounts?.work?.allowFrom).toEqual([
+      "user@example.com",
+      "*",
+    ]);
   });
 });
 
@@ -450,6 +439,7 @@ describe("bluebubbles group policy", () => {
           },
         },
       },
+      // oxlint-disable-next-line typescript/no-explicit-any
     } as any;
 
     expect(resolveBlueBubblesGroupRequireMention({ cfg, groupId: "chat:primary" })).toBe(false);

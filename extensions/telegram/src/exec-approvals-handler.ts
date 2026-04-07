@@ -76,7 +76,9 @@ export class TelegramExecApprovalHandler {
     this.runtime = createChannelNativeApprovalRuntime<
       PendingMessage,
       { chatId: string; messageThreadId?: number },
-      TelegramPendingDelivery
+      TelegramPendingDelivery,
+      ApprovalRequest,
+      ApprovalResolved
     >({
       label: "telegram/exec-approvals",
       clientDisplayName: `Telegram Exec Approvals (${this.opts.accountId})`,

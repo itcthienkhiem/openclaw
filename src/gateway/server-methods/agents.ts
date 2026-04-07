@@ -37,7 +37,6 @@ import { assertNoPathAliasEscape } from "../../infra/path-alias-guards.js";
 import { isNotFoundPathError } from "../../infra/path-guards.js";
 import { movePathToTrash } from "../../plugin-sdk/browser-maintenance.js";
 import { DEFAULT_AGENT_ID, normalizeAgentId } from "../../routing/session-key.js";
-import { normalizeOptionalString } from "../../shared/string-coerce.js";
 import { resolveUserPath } from "../../utils.js";
 import {
   ErrorCodes,
@@ -397,7 +396,7 @@ function sanitizeIdentityLine(value: string): string {
 }
 
 function resolveOptionalStringParam(value: unknown): string | undefined {
-  return normalizeOptionalString(value);
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function respondInvalidMethodParams(

@@ -6,7 +6,7 @@ const state = vi.hoisted(() => ({
   requestEmbeddedRunModelSwitchMock: vi.fn(),
   consumeEmbeddedRunModelSwitchMock: vi.fn(),
   resolveDefaultModelForAgentMock: vi.fn(),
-  resolvePersistedSelectedModelRefMock: vi.fn(),
+  resolvePersistedModelRefMock: vi.fn(),
   loadSessionStoreMock: vi.fn(),
   resolveStorePathMock: vi.fn(),
   updateSessionStoreMock: vi.fn(),
@@ -29,8 +29,7 @@ vi.mock("./pi-embedded-runner/runs.js", () => ({
 vi.mock("./model-selection.js", () => ({
   resolveDefaultModelForAgent: (...args: unknown[]) =>
     state.resolveDefaultModelForAgentMock(...args),
-  resolvePersistedSelectedModelRef: (...args: unknown[]) =>
-    state.resolvePersistedSelectedModelRefMock(...args),
+  resolvePersistedModelRef: (...args: unknown[]) => state.resolvePersistedModelRefMock(...args),
 }));
 
 vi.mock("../config/sessions/store.js", () => ({
@@ -64,7 +63,7 @@ describe("live model switch", () => {
     state.resolveDefaultModelForAgentMock
       .mockReset()
       .mockReturnValue({ provider: "anthropic", model: "claude-opus-4-6" });
-    state.resolvePersistedSelectedModelRefMock
+    state.resolvePersistedModelRefMock
       .mockReset()
       .mockImplementation(
         (params: {
@@ -75,21 +74,6 @@ describe("live model switch", () => {
           overrideModel?: string;
         }) => {
           const defaultProvider = params.defaultProvider.trim();
-          const overrideProvider = params.overrideProvider?.trim();
-          const overrideModel = params.overrideModel?.trim();
-          if (overrideModel) {
-            if (overrideProvider) {
-              return { provider: overrideProvider, model: overrideModel };
-            }
-            const slash = overrideModel.indexOf("/");
-            if (slash <= 0 || slash === overrideModel.length - 1) {
-              return { provider: defaultProvider, model: overrideModel };
-            }
-            return {
-              provider: overrideModel.slice(0, slash),
-              model: overrideModel.slice(slash + 1),
-            };
-          }
           const runtimeProvider = params.runtimeProvider?.trim();
           const runtimeModel = params.runtimeModel?.trim();
           if (runtimeModel) {
@@ -105,7 +89,22 @@ describe("live model switch", () => {
               model: runtimeModel.slice(slash + 1),
             };
           }
-          return null;
+          const overrideProvider = params.overrideProvider?.trim();
+          const overrideModel = params.overrideModel?.trim();
+          if (!overrideModel) {
+            return null;
+          }
+          if (overrideProvider) {
+            return { provider: overrideProvider, model: overrideModel };
+          }
+          const slash = overrideModel.indexOf("/");
+          if (slash <= 0 || slash === overrideModel.length - 1) {
+            return { provider: defaultProvider, model: overrideModel };
+          }
+          return {
+            provider: overrideModel.slice(0, slash),
+            model: overrideModel.slice(slash + 1),
+          };
         },
       );
     state.loadSessionStoreMock.mockReset().mockReturnValue({});

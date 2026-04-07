@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { FeishuConfigSchema } from "./config-schema.js";
-import type { ResolvedFeishuAccount } from "./types.js";
+import type { FeishuConfig, ResolvedFeishuAccount } from "./types.js";
 
 type CreateFeishuClient = typeof import("./client.js").createFeishuClient;
 type CreateFeishuWSClient = typeof import("./client.js").createFeishuWSClient;
@@ -17,9 +17,9 @@ const wsClientCtorMock = vi.hoisted(() =>
     return { connected: true };
   }),
 );
-const proxyAgentCtorMock = vi.hoisted(() =>
-  vi.fn(function proxyAgentCtor() {
-    return { proxied: true };
+const httpsProxyAgentCtorMock = vi.hoisted(() =>
+  vi.fn(function httpsProxyAgentCtor(proxyUrl: string) {
+    return { proxyUrl };
   }),
 );
 const mockBaseHttpInstance = vi.hoisted(() => ({
@@ -139,8 +139,8 @@ beforeAll(async () => {
     EventDispatcher: vi.fn(),
     defaultHttpInstance: mockBaseHttpInstance,
   }));
-  vi.doMock("proxy-agent", () => ({
-    ProxyAgent: proxyAgentCtorMock,
+  vi.doMock("https-proxy-agent", () => ({
+    HttpsProxyAgent: httpsProxyAgentCtorMock,
   }));
 
   ({
@@ -177,6 +177,7 @@ beforeEach(() => {
       EventDispatcher: vi.fn() as never,
       defaultHttpInstance: mockBaseHttpInstance as never,
     },
+    HttpsProxyAgent: httpsProxyAgentCtorMock as never,
   });
 });
 
@@ -350,41 +351,68 @@ describe("createFeishuClient HTTP timeout", () => {
 });
 
 describe("createFeishuWSClient proxy handling", () => {
-  it("does not set a ws proxy agent when proxy env is absent", async () => {
-    await createFeishuWSClient(baseAccount);
+  it("does not set a ws proxy agent when proxy env is absent", () => {
+    createFeishuWSClient(baseAccount);
 
-    expect(proxyAgentCtorMock).not.toHaveBeenCalled();
+    expect(httpsProxyAgentCtorMock).not.toHaveBeenCalled();
     const options = firstWsClientOptions();
     expect(options.agent).toBeUndefined();
   });
 
-  it("creates a ws proxy agent when lowercase https_proxy is set", async () => {
+  it("uses proxy env precedence: https_proxy first, then HTTPS_PROXY, then http_proxy/HTTP_PROXY", () => {
+    // NOTE: On Windows, environment variables are case-insensitive, so it's not
+    // possible to set both https_proxy and HTTPS_PROXY to different values.
+    // Keep this test cross-platform by asserting precedence via mutually-exclusive
+    // setups.
+    process.env.https_proxy = "http://lower-https:8001";
+    process.env.http_proxy = "http://lower-http:8003";
+    process.env.HTTP_PROXY = "http://upper-http:8004";
+
+    createFeishuWSClient(baseAccount);
+
+    // On Windows env keys are case-insensitive, so setting HTTPS_PROXY may
+    // overwrite https_proxy. We assert https proxies still win over http.
+    const expectedProxy = process.env.https_proxy || process.env.HTTPS_PROXY;
+    expect(expectedProxy).toBeTruthy();
+    expect(httpsProxyAgentCtorMock).toHaveBeenCalledTimes(1);
+    expect(httpsProxyAgentCtorMock).toHaveBeenCalledWith(expectedProxy);
+    const options = firstWsClientOptions();
+    expect(options.agent).toEqual({ proxyUrl: expectedProxy });
+  });
+
+  it("accepts lowercase https_proxy when it is the configured HTTPS proxy var", () => {
     process.env.https_proxy = "http://lower-https:8001";
 
-    await createFeishuWSClient(baseAccount);
+    createFeishuWSClient(baseAccount);
 
-    expect(proxyAgentCtorMock).toHaveBeenCalledTimes(1);
+    const expectedHttpsProxy = process.env.https_proxy || process.env.HTTPS_PROXY;
+    expect(httpsProxyAgentCtorMock).toHaveBeenCalledTimes(1);
+    expect(expectedHttpsProxy).toBeTruthy();
+    expect(httpsProxyAgentCtorMock).toHaveBeenCalledWith(expectedHttpsProxy);
     const options = firstWsClientOptions();
-    expect(options.agent).toEqual({ proxied: true });
+    expect(options.agent).toEqual({ proxyUrl: expectedHttpsProxy });
   });
 
-  it("creates a ws proxy agent when uppercase HTTPS_PROXY is set", async () => {
+  it("uses HTTPS_PROXY when https_proxy is unset", () => {
     process.env.HTTPS_PROXY = "http://upper-https:8002";
+    process.env.http_proxy = "http://lower-http:8003";
 
-    await createFeishuWSClient(baseAccount);
+    createFeishuWSClient(baseAccount);
 
-    expect(proxyAgentCtorMock).toHaveBeenCalledTimes(1);
+    expect(httpsProxyAgentCtorMock).toHaveBeenCalledTimes(1);
+    expect(httpsProxyAgentCtorMock).toHaveBeenCalledWith("http://upper-https:8002");
     const options = firstWsClientOptions();
-    expect(options.agent).toEqual({ proxied: true });
+    expect(options.agent).toEqual({ proxyUrl: "http://upper-https:8002" });
   });
 
-  it("falls back to HTTP_PROXY for ws proxy agent creation", async () => {
+  it("passes HTTP_PROXY to ws client when https vars are unset", () => {
     process.env.HTTP_PROXY = "http://upper-http:8999";
 
-    await createFeishuWSClient(baseAccount);
+    createFeishuWSClient(baseAccount);
 
-    expect(proxyAgentCtorMock).toHaveBeenCalledTimes(1);
+    expect(httpsProxyAgentCtorMock).toHaveBeenCalledTimes(1);
+    expect(httpsProxyAgentCtorMock).toHaveBeenCalledWith("http://upper-http:8999");
     const options = firstWsClientOptions();
-    expect(options.agent).toEqual({ proxied: true });
+    expect(options.agent).toEqual({ proxyUrl: "http://upper-http:8999" });
   });
 });

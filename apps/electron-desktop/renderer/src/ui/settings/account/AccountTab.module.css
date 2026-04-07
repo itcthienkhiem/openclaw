@@ -1,0 +1,652 @@
+/* ── AccountTab ── */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: fadeIn ease 0.2s;
+}
+
+.upgradePaywallContent {
+  width: 360px;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* ── Balance card ── */
+
+.balanceCard {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-md, 12px);
+  padding: 20px;
+}
+
+.balanceHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.balanceTitle,
+.loadingTitle {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text, #fff);
+}
+
+.loadingCard {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-md, 12px);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.loadingSubtitle {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 18px;
+  margin: 0;
+}
+
+.manageLink {
+  appearance: none;
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  transition: color 140ms ease;
+}
+
+.manageLink:hover {
+  color: var(--text, #fff);
+}
+
+.manageLink:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.balanceHero {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.balanceRow {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.balanceAmount {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--text, #fff);
+  line-height: 1;
+}
+
+.balanceAmount--expired {
+  color: var(--error, #ef4444);
+}
+
+.expiredCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-xl, 16px);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.18);
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+
+.expiredBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.expiredTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text, #fff);
+}
+
+.expiredSubtitle {
+  font-size: 13px;
+  color: var(--muted2, rgba(230, 237, 243, 0.65));
+}
+
+.expiredAction {
+  appearance: none;
+  border: none;
+  border-radius: var(--radius-full, 999px);
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  background: var(--lime, #aeff00);
+  color: var(--surface-primary, #121212);
+  transition: opacity 150ms ease;
+}
+
+.expiredAction:hover {
+  opacity: 0.85;
+}
+
+.expiredAction:active {
+  opacity: 0.7;
+}
+
+.balanceLabel {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.balancePollingHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.balancePollingSpinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-top-color: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  animation: balanceSpin 0.7s linear infinite;
+}
+
+@keyframes balanceSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.statsRow {
+  display: flex;
+  gap: 10px;
+}
+
+.statBox {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-md, 10px);
+  padding: 14px;
+
+  background:
+    linear-gradient(#323232, #323232) padding-box,
+    linear-gradient(
+        150deg,
+        rgba(255, 255, 255, 0.24) 0%,
+        rgba(255, 255, 255, 0) 50%,
+        rgba(255, 255, 255, 0.24) 100%
+      )
+      border-box;
+  border: 1px solid transparent;
+}
+
+.statLabel {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.statValue {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text, #fff);
+}
+
+/* ── Auto-refill card ── */
+
+.refillCard {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-md, 12px);
+  padding: 16px 20px;
+}
+
+.refillRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.refillInfo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.refillLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text, #fff);
+}
+
+.refillHint {
+  display: block;
+  margin-top: 8px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* ── Toggle switch ── */
+
+.toggle {
+  position: relative;
+  display: inline-flex;
+  cursor: pointer;
+}
+
+.toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggleTrack {
+  display: block;
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.15);
+  position: relative;
+  transition: background 200ms ease;
+}
+
+.toggleTrack::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 200ms ease;
+}
+
+.toggle input:checked + .toggleTrack {
+  background: #3b82f6;
+}
+
+.toggle input:checked + .toggleTrack::after {
+  transform: translateX(20px);
+}
+
+/* ── One-Time Top-Up ── */
+
+.topUpSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.topUpTitle {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text, #fff);
+}
+
+.topUpRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topUpInputWrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md, 10px);
+  padding: 10px 14px;
+  transition: border-color 140ms ease;
+}
+
+.topUpInputWrap:focus-within {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.topUpCurrency {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 500;
+}
+
+.topUpInput {
+  flex: 1;
+  border: none;
+  background: none;
+  color: var(--text, #fff);
+  font-size: 15px;
+  font-weight: 500;
+  outline: none;
+  min-width: 0;
+  -moz-appearance: textfield;
+}
+
+.topUpInput::-webkit-inner-spin-button,
+.topUpInput::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.topUpButton {
+  appearance: none;
+  border: none;
+  border-radius: var(--radius-full, 999px);
+  background: #ffffff;
+  color: var(--surface-secondary, #292929);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 8px 18px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 150ms ease;
+  width: 105px;
+}
+
+.topUpButton:hover {
+  opacity: 0.85;
+}
+
+.topUpButton:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* ── Account footer (email + logout) ── */
+
+.accountFooter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.accountAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  flex-shrink: 0;
+}
+
+.accountEmail {
+  flex: 1;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logoutBtn {
+  appearance: none;
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color 140ms ease,
+    background 140ms ease;
+  flex-shrink: 0;
+}
+
+.logoutBtn:hover {
+  color: var(--text, #fff);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.logoutConfirmDescription {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.logoutConfirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.logoutConfirmCancel,
+.logoutConfirmAccept {
+  appearance: none;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #fff;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    opacity 120ms ease;
+}
+
+.logoutConfirmCancel:hover,
+.logoutConfirmAccept:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.logoutConfirmAccept {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.logoutConfirmAccept:hover {
+  background: rgba(239, 68, 68, 0.32);
+  border-color: rgba(239, 68, 68, 0.64);
+}
+
+.logoutConfirmCancel:disabled,
+.logoutConfirmAccept:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ── Sign-up card (paid, not authenticated) ── */
+
+.signUpCard {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: var(--radius-lg, 14px);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.signUpIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.signUpIcon img {
+  object-fit: contain;
+}
+
+.signUpBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.signUpTitle {
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 20px;
+  margin: 0;
+  color: var(--text, #fff);
+}
+
+.signUpHint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 16px;
+  margin: 0;
+}
+
+.googleBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  align-self: center;
+  padding: 9px 20px;
+  border: none;
+  border-radius: var(--radius-full, 999px);
+  background: var(--text, #fff);
+  color: var(--surface-primary, #121212);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 140ms ease;
+  width: 200px;
+}
+
+.googleBtn:hover {
+  opacity: 0.9;
+}
+
+.googleBtn img {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* ── Subscribe promo card (paid, no subscription yet) ── */
+
+.promoCard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border-radius: var(--radius-lg, 14px);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(174, 255, 0, 0.15);
+}
+
+.promoHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.promoIconWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.promoIconWrap img {
+  object-fit: contain;
+}
+
+.promoTitle {
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 20px;
+  margin: 0;
+  color: var(--text, #fff);
+}
+
+.promoPrice {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 500;
+}
+
+.promoFeatures {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 18px;
+}
+
+.promoFeatures li::before {
+  content: "✓ ";
+  color: var(--lime, #aeff00);
+  font-weight: 600;
+}
+
+/* ── Self-managed fallback ── */
+
+.selfManagedHint {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 18px;
+  margin: 8px 0 12px;
+}

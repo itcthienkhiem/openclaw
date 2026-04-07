@@ -1,5 +1,4 @@
 import { Type } from "@sinclair/typebox";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import {
   definePluginEntry,
   type GatewayRequestHandlerOptions,
@@ -192,7 +191,7 @@ export default definePluginEntry({
     };
 
     const sendError = (respond: (ok: boolean, payload?: unknown) => void, err: unknown) => {
-      respond(false, { error: formatErrorMessage(err) });
+      respond(false, { error: err instanceof Error ? err.message : String(err) });
     };
 
     const resolveCallMessageRequest = async (params: GatewayRequestHandlerOptions["params"]) => {
@@ -507,7 +506,7 @@ export default definePluginEntry({
           return json({ callId: result.callId, initiated: true });
         } catch (err) {
           return json({
-            error: formatErrorMessage(err),
+            error: err instanceof Error ? err.message : String(err),
           });
         }
       },
@@ -533,7 +532,11 @@ export default definePluginEntry({
         try {
           await ensureRuntime();
         } catch (err) {
-          api.logger.error(`[voice-call] Failed to start runtime: ${formatErrorMessage(err)}`);
+          api.logger.error(
+            `[voice-call] Failed to start runtime: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
         }
       },
       stop: async () => {

@@ -14,7 +14,6 @@ import {
   withTempHome,
 } from "./reply.directive.directive-behavior.e2e-harness.js";
 import { runEmbeddedPiAgentMock } from "./reply.directive.directive-behavior.e2e-mocks.js";
-import { withFullRuntimeReplyConfig } from "./reply/get-reply-fast-path.js";
 
 let getReplyFromConfig: typeof import("./reply.js").getReplyFromConfig;
 
@@ -71,7 +70,7 @@ function makeWorkElevatedAllowlistConfig(home: string) {
       channels: { whatsapp: { allowFrom: ["+1222", "+1333"] } },
     },
   );
-  return withFullRuntimeReplyConfig({
+  return {
     ...base,
     agents: {
       ...base.agents,
@@ -86,7 +85,7 @@ function makeWorkElevatedAllowlistConfig(home: string) {
         },
       ],
     },
-  });
+  };
 }
 
 function makeAllowlistedElevatedConfig(

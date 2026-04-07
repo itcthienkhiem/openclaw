@@ -1,0 +1,509 @@
+name: Electron Desktop
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish to GitHub Releases"
+        required: false
+        default: false
+        type: boolean
+
+# Only allow one release build at a time to avoid race conditions on GitHub Releases.
+concurrency:
+  group: electron-desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-macos:
+    runs-on: macos-14
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    env:
+      # Provide a GitHub token to all steps so fetch-*-runtime scripts
+      # can authenticate and avoid GitHub API rate limits (60 req/h → 5000 req/h).
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Checkout submodules (retry)
+        run: |
+          set -euo pipefail
+          git submodule sync --recursive
+          for attempt in 1 2 3 4 5; do
+            if git -c protocol.version=2 submodule update --init --force --depth=1 --recursive; then
+              exit 0
+            fi
+            echo "Submodule update failed (attempt $attempt/5). Retrying…"
+            sleep $((attempt * 10))
+          done
+          exit 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          check-latest: true
+
+      - name: Setup pnpm (corepack retry)
+        run: |
+          set -euo pipefail
+          corepack enable
+          for attempt in 1 2 3; do
+            if corepack prepare pnpm@10.23.0 --activate; then
+              pnpm -v
+              exit 0
+            fi
+            echo "corepack prepare failed (attempt $attempt/3). Retrying..."
+            sleep $((attempt * 10))
+          done
+          exit 1
+
+      - name: Runtime versions
+        run: |
+          node -v
+          npm -v
+          pnpm -v
+
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install electron-desktop dependencies
+        working-directory: apps/electron-desktop
+        run: npm ci
+
+      - name: Build main + renderer
+        working-directory: apps/electron-desktop
+        run: npm run build:all
+        env:
+          VITE_BACKEND_URL: ${{ secrets.VITE_BACKEND_URL }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+
+      - name: Prepare OpenClaw bundle
+        working-directory: apps/electron-desktop
+        run: npm run prepare:openclaw:ci
+
+      - name: Prepare Node runtime
+        working-directory: apps/electron-desktop
+        run: npm run prepare:node
+
+      - name: Prepare jq runtime
+        working-directory: apps/electron-desktop
+        run: npm run prepare:jq:all
+
+      - name: Prepare gh runtime
+        working-directory: apps/electron-desktop
+        run: npm run prepare:gh:all
+
+      - name: Prepare GOG runtime
+        working-directory: apps/electron-desktop
+        run: npm run prepare:gog:all
+
+      - name: Prepare memo runtime
+        working-directory: apps/electron-desktop
+        run: npm run prepare:memo:all
+
+      - name: Prepare remindctl runtime
+        working-directory: apps/electron-desktop
+        run: npm run prepare:remindctl:all
+
+      - name: Prepare obsidian-cli runtime
+        working-directory: apps/electron-desktop
+        run: npm run prepare:obsidian-cli:all
+
+      - name: Prepare whisper-cli runtime
+        working-directory: apps/electron-desktop
+        run: npm run prepare:whisper-cli:all
+
+      # Determine if we should publish to GitHub Releases.
+      - name: Determine publish mode
+        id: publish-mode
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ inputs.publish }}" == "true" ]]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "tag=v$(node -p "require('./apps/electron-desktop/package.json').version")" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Write the App Store Connect API key to a temp file for notarytool.
+      # The NOTARYTOOL_KEY secret contains the .p8 key content; notarytool expects a file path.
+      - name: Write notary API key to file
+        if: env.NOTARYTOOL_KEY_CONTENT != ''
+        run: |
+          KEY_PATH="$RUNNER_TEMP/notary-key.p8"
+          echo "$NOTARYTOOL_KEY_CONTENT" > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          echo "NOTARYTOOL_KEY=$KEY_PATH" >> "$GITHUB_ENV"
+        env:
+          NOTARYTOOL_KEY_CONTENT: ${{ secrets.NOTARYTOOL_KEY }}
+
+      # Raise open file limit — electron-builder code signing opens every file in the
+      # .app bundle (including bundled node_modules) and the default macOS limit (256)
+      # is too low. Both launchctl and ulimit are needed on macOS runners.
+      - name: Raise file descriptor limit
+        run: |
+          echo "Before: soft=$(ulimit -Sn) hard=$(ulimit -Hn)"
+          sudo launchctl limit maxfiles 524288 524288
+          ulimit -n 524288
+          echo "After: soft=$(ulimit -Sn) hard=$(ulimit -Hn)"
+
+      # Build with --publish never. Uploads are handled separately via gh CLI
+      # to avoid electron-builder HTTP timeouts during long notarization waits.
+      - name: Build with electron-builder
+        working-directory: apps/electron-desktop
+        run: |
+          ulimit -n 524288
+          npx electron-builder --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.MACOS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MACOS_CSC_KEY_PASSWORD }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.MACOS_CSC_LINK != '' && 'true' || 'false' }}
+          NOTARIZE: ${{ secrets.NOTARYTOOL_KEY != '' && secrets.MACOS_CSC_LINK != '' && '1' || '' }}
+          NOTARYTOOL_KEY_ID: ${{ secrets.NOTARYTOOL_KEY_ID }}
+          NOTARYTOOL_ISSUER: ${{ secrets.NOTARYTOOL_ISSUER }}
+
+      # Generate latest-mac.yml for electron-updater (normally created by --publish always).
+      - name: Generate latest-mac.yml
+        working-directory: apps/electron-desktop/release
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('../package.json').version")
+          ZIP=$(ls -1 *-mac.zip | head -1)
+          SHA512=$(shasum -a 512 "$ZIP" | awk '{print $1}' | xxd -r -p | base64)
+          SIZE=$(stat -f%z "$ZIP")
+          RELEASE_DATE=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
+          cat > latest-mac.yml <<EOF
+          version: ${VERSION}
+          files:
+            - url: ${ZIP}
+              sha512: ${SHA512}
+              size: ${SIZE}
+          path: ${ZIP}
+          sha512: ${SHA512}
+          releaseDate: '${RELEASE_DATE}'
+          EOF
+          # Remove leading whitespace from heredoc indentation.
+          sed -i '' 's/^          //' latest-mac.yml
+          echo "Generated latest-mac.yml:"
+          cat latest-mac.yml
+
+      # Create draft GitHub Release and upload all artifacts via gh CLI.
+      # gh CLI handles large files reliably without the timeout issues of electron-builder.
+      - name: Publish to GitHub Releases
+        if: steps.publish-mode.outputs.publish == 'true'
+        working-directory: apps/electron-desktop/release
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.publish-mode.outputs.tag }}"
+
+          # Create draft release (or skip if it already exists).
+          gh release create "$TAG" --draft --title "$TAG" --generate-notes 2>/dev/null || true
+
+          # Upload all artifacts (zip, dmg, blockmap, latest-mac.yml).
+          for f in *.zip *.dmg *.blockmap latest-mac.yml; do
+            if [[ -f "$f" ]]; then
+              echo "Uploading: $f"
+              gh release upload "$TAG" "$f" --clobber
+            fi
+          done
+
+          echo "Draft release created: $TAG"
+          echo "Go to GitHub Releases to review and publish."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload artifacts for manual dispatch builds (when not publishing to Releases).
+      - name: Upload build artifacts
+        if: steps.publish-mode.outputs.publish == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-desktop-macos-${{ runner.arch }}
+          path: |
+            apps/electron-desktop/release/*.zip
+            apps/electron-desktop/release/*.dmg
+            apps/electron-desktop/release/*.blockmap
+            apps/electron-desktop/release/latest-mac.yml
+          if-no-files-found: error
+          retention-days: 14
+
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TARGET_PLATFORM: win32
+      TARGET_ARCH: x64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Checkout submodules (retry)
+        run: |
+          set -euo pipefail
+          git submodule sync --recursive
+          for attempt in 1 2 3 4 5; do
+            if git -c protocol.version=2 submodule update --init --force --depth=1 --recursive; then
+              exit 0
+            fi
+            echo "Submodule update failed (attempt $attempt/5). Retrying…"
+            sleep $((attempt * 10))
+          done
+          exit 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          check-latest: true
+
+      - name: Setup pnpm (corepack retry)
+        run: |
+          set -euo pipefail
+          corepack enable
+          for attempt in 1 2 3; do
+            if corepack prepare pnpm@10.23.0 --activate; then
+              pnpm -v
+              exit 0
+            fi
+            echo "corepack prepare failed (attempt $attempt/3). Retrying..."
+            sleep $((attempt * 10))
+          done
+          exit 1
+
+      - name: Runtime versions
+        run: |
+          node -v
+          npm -v
+          pnpm -v
+
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install electron-desktop dependencies
+        working-directory: apps/electron-desktop
+        run: npm ci
+
+      - name: Build main + renderer
+        working-directory: apps/electron-desktop
+        run: npm run build:all
+        env:
+          VITE_BACKEND_URL: ${{ secrets.VITE_BACKEND_URL }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+
+      - name: Prepare OpenClaw bundle
+        working-directory: apps/electron-desktop
+        run: npm run prepare:openclaw:ci
+
+      - name: Prepare Node runtime
+        working-directory: apps/electron-desktop
+        run: npm run prepare:node
+
+      - name: Prepare jq runtime
+        working-directory: apps/electron-desktop
+        run: npm run prepare:jq:all
+
+      - name: Prepare gh runtime
+        working-directory: apps/electron-desktop
+        run: npm run prepare:gh:all
+
+      - name: Prepare GOG runtime
+        working-directory: apps/electron-desktop
+        run: npm run prepare:gog:all
+
+      # memo and remindctl are macOS-only — skipped for Windows.
+
+      - name: Prepare obsidian-cli runtime
+        working-directory: apps/electron-desktop
+        run: npm run prepare:obsidian-cli:all
+
+      - name: Prepare whisper-cli runtime
+        working-directory: apps/electron-desktop
+        run: npm run prepare:whisper-cli:all
+
+      - name: Determine publish mode
+        id: publish-mode
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ inputs.publish }}" == "true" ]]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "tag=v$(node -p "require('./apps/electron-desktop/package.json').version")" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup DigiCert KeyLocker (Windows)
+        shell: pwsh
+        env:
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+          SM_CLIENT_CERT_FILE_B64: ${{ secrets.SM_CLIENT_CERT_FILE_B64 }}
+        run: |
+          $headers = @{
+            "x-api-key" = $env:SM_API_KEY
+          }
+          $smctlUrl = "https://one.digicert.com/signingmanager/api-ui/v1/releases/smtools-windows-x64.msi/download"
+          Invoke-WebRequest -Uri $smctlUrl -Headers $headers -OutFile smtools.msi
+          Start-Process msiexec.exe -ArgumentList "/i", "smtools.msi", "/quiet", "/norestart" -Wait
+
+          $smctlPath = "C:\Program Files\DigiCert\DigiCert One Signing Manager Tools"
+          echo "$smctlPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+          $certBytes = [Convert]::FromBase64String($env:SM_CLIENT_CERT_FILE_B64)
+          $certPath = "$env:RUNNER_TEMP\digicert_client_cert.p12"
+          [IO.File]::WriteAllBytes($certPath, $certBytes)
+          echo "SM_CLIENT_CERT_FILE=$certPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Verify DigiCert KeyLocker Setup (Windows)
+        shell: pwsh
+        env:
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+          SM_HOST: https://clientauth.one.digicert.com
+        run: smctl healthcheck
+
+      - name: Sync certificates to Windows Store (Windows)
+        shell: pwsh
+        env:
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+          SM_HOST: https://clientauth.one.digicert.com
+        run: smctl windows certsync
+
+      - name: Setup Windows SDK signtool (Windows)
+        shell: pwsh
+        run: |
+          $signtoolPath = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -like "*\x64\*" } |
+            Sort-Object { [version]($_.FullName -replace '.*\\(\d+\.\d+\.\d+\.\d+)\\.*', '$1') } -Descending |
+            Select-Object -First 1
+
+          if ($signtoolPath) {
+            $signtoolDir = $signtoolPath.DirectoryName
+            Write-Host "Found signtool at: $signtoolDir"
+            echo "$signtoolDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          } else {
+            Write-Error "signtool.exe not found in Windows SDK"
+            exit 1
+          }
+
+      - name: Build with electron-builder (Windows)
+        working-directory: apps/electron-desktop
+        run: npx electron-builder --win --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sign Windows binaries with DigiCert KeyLocker
+        shell: pwsh
+        env:
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+          SM_CODE_SIGNING_CERT_SHA1_HASH: ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH }}
+          SM_HOST: https://clientauth.one.digicert.com
+        run: |
+          $releasePath = "apps\electron-desktop\release"
+          $unpacked    = "$releasePath\win-unpacked"
+
+          # Targeted collection: Electron core + bundled tools only.
+          # Native addons (openclaw node_modules), whisper-cli (already signed),
+          # and app.asar.unpacked (pre-signed earlier) are skipped.
+          $files = @()
+          $files += Get-ChildItem -Path $releasePath -File -Filter "*.exe" -ErrorAction SilentlyContinue
+          $files += Get-ChildItem -Path $unpacked -File -Filter "*.exe" -ErrorAction SilentlyContinue
+          $files += Get-ChildItem -Path $unpacked -File -Filter "*.dll" -ErrorAction SilentlyContinue
+          if (Test-Path "$unpacked\resources\elevate.exe") {
+            $files += Get-Item "$unpacked\resources\elevate.exe"
+          }
+          # Bundled tool exes: gh, gog, jq, node, obsidian-cli
+          $files += Get-ChildItem -Path "$unpacked\resources\*\win32-x64\*.exe" -File -ErrorAction SilentlyContinue
+          # node-pty spawned exes (winpty-agent.exe, OpenConsole.exe) - unsigned triggers Defender
+          $files += Get-ChildItem -Path "$unpacked\resources\app.asar.unpacked" -Recurse -File -Filter "*.exe" -ErrorAction SilentlyContinue
+
+          $files = $files | Sort-Object FullName -Unique
+          if (-not $files) {
+            Write-Error "No binaries found for signing under $releasePath"
+            exit 1
+          }
+
+          Write-Host "Signing $($files.Count) binaries (Electron core + bundled tools)"
+          foreach ($file in $files) {
+            Write-Host "Signing release binary: $($file.FullName)"
+            signtool sign /sha1 $env:SM_CODE_SIGNING_CERT_SHA1_HASH /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "$($file.FullName)"
+            signtool verify /pa "$($file.FullName)"
+          }
+
+      - name: Generate latest.yml
+        working-directory: apps/electron-desktop/release
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('../package.json').version")
+          EXE=$(ls -1 *.exe | head -1)
+          SHA512=$(sha512sum "$EXE" | awk '{print $1}' | xxd -r -p | base64)
+          SIZE=$(stat -c%s "$EXE")
+          RELEASE_DATE=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
+          cat > latest.yml <<EOF
+          version: ${VERSION}
+          files:
+            - url: ${EXE}
+              sha512: ${SHA512}
+              size: ${SIZE}
+          path: ${EXE}
+          sha512: ${SHA512}
+          releaseDate: '${RELEASE_DATE}'
+          EOF
+          sed -i 's/^          //' latest.yml
+          echo "Generated latest.yml:"
+          cat latest.yml
+
+      - name: Publish to GitHub Releases
+        if: steps.publish-mode.outputs.publish == 'true'
+        working-directory: apps/electron-desktop/release
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.publish-mode.outputs.tag }}"
+
+          gh release create "$TAG" --draft --title "$TAG" --generate-notes 2>/dev/null || true
+
+          for f in *.exe *.blockmap latest.yml; do
+            if [[ -f "$f" ]]; then
+              echo "Uploading: $f"
+              gh release upload "$TAG" "$f" --clobber
+            fi
+          done
+
+          echo "Windows artifacts uploaded to draft release: $TAG"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload build artifacts
+        if: steps.publish-mode.outputs.publish == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-desktop-windows-x64
+          path: |
+            apps/electron-desktop/release/*.exe
+            apps/electron-desktop/release/*.blockmap
+            apps/electron-desktop/release/latest.yml
+          if-no-files-found: error
+          retention-days: 14

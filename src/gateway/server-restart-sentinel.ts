@@ -3,7 +3,6 @@ import { getChannelPlugin, normalizeChannelId } from "../channels/plugins/index.
 import type { CliDeps } from "../cli/deps.js";
 import { resolveMainSessionKeyFromConfig } from "../config/sessions.js";
 import { parseSessionThreadInfo } from "../config/sessions/thread-info.js";
-import { formatErrorMessage } from "../infra/errors.js";
 import { requestHeartbeatNow } from "../infra/heartbeat-wake.js";
 import { deliverOutboundPayloads } from "../infra/outbound/deliver.js";
 import { ackDelivery, enqueueDelivery, failDelivery } from "../infra/outbound/delivery-queue.js";
@@ -106,9 +105,11 @@ async function deliverRestartSentinelNotice(params: {
       });
       if (!retrying) {
         if (queueId) {
-          await failDelivery(queueId, formatErrorMessage(err)).catch(() => {
-            // Best-effort queue bookkeeping.
-          });
+          await failDelivery(queueId, err instanceof Error ? err.message : String(err)).catch(
+            () => {
+              // Best-effort queue bookkeeping.
+            },
+          );
         }
         return;
       }

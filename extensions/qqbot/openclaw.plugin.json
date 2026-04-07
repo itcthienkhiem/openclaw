@@ -1,9 +1,6 @@
 {
   "id": "qqbot",
   "channels": ["qqbot"],
-  "channelEnvVars": {
-    "qqbot": ["QQBOT_APP_ID", "QQBOT_CLIENT_SECRET"]
-  },
   "skills": ["./skills"],
   "configSchema": {
     "type": "object",

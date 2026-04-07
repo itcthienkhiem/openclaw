@@ -1,7 +1,32 @@
 export type DiscordPreviewStreamMode = "off" | "partial" | "block";
 
-function parsePreviewStreamingMode(value: unknown): DiscordPreviewStreamMode | undefined {
-  return value === "off" || value === "partial" || value === "block" ? value : undefined;
+function normalizeStreamingMode(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  return normalized || null;
+}
+
+function parseStreamingMode(value: unknown): "off" | "partial" | "block" | "progress" | null {
+  const normalized = normalizeStreamingMode(value);
+  if (
+    normalized === "off" ||
+    normalized === "partial" ||
+    normalized === "block" ||
+    normalized === "progress"
+  ) {
+    return normalized;
+  }
+  return null;
+}
+
+function parseDiscordPreviewStreamMode(value: unknown): DiscordPreviewStreamMode | null {
+  const parsed = parseStreamingMode(value);
+  if (!parsed) {
+    return null;
+  }
+  return parsed === "progress" ? "partial" : parsed;
 }
 
 export function resolveDiscordPreviewStreamMode(
@@ -10,18 +35,12 @@ export function resolveDiscordPreviewStreamMode(
     streaming?: unknown;
   } = {},
 ): DiscordPreviewStreamMode {
-  const parsedStreaming =
-    params.streaming && typeof params.streaming === "object" && !Array.isArray(params.streaming)
-      ? parsePreviewStreamingMode(
-          (params.streaming as Record<string, unknown>).mode ??
-            (params.streaming as Record<string, unknown>).streaming,
-        )
-      : parsePreviewStreamingMode(params.streaming);
+  const parsedStreaming = parseDiscordPreviewStreamMode(params.streaming);
   if (parsedStreaming) {
     return parsedStreaming;
   }
 
-  const legacy = parsePreviewStreamingMode(params.streamMode);
+  const legacy = parseDiscordPreviewStreamMode(params.streamMode);
   if (legacy) {
     return legacy;
   }

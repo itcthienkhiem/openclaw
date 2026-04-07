@@ -1,7 +1,7 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { withTempDir } from "./test-helpers/temp-dir.js";
 import {
   ensureDir,
   resolveConfigDir,
@@ -12,9 +12,21 @@ import {
   sleep,
 } from "./utils.js";
 
+async function withTempDir<T>(
+  prefix: string,
+  run: (dir: string) => T | Promise<T>,
+): Promise<Awaited<T>> {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  try {
+    return await run(dir);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 describe("ensureDir", () => {
   it("creates nested directory", async () => {
-    await withTempDir({ prefix: "openclaw-test-" }, async (tmp) => {
+    await withTempDir("openclaw-test-", async (tmp) => {
       const target = path.join(tmp, "nested", "dir");
       await ensureDir(target);
       expect(fs.existsSync(target)).toBe(true);
@@ -34,12 +46,15 @@ describe("sleep", () => {
 
 describe("resolveConfigDir", () => {
   it("prefers ~/.openclaw when legacy dir is missing", async () => {
-    await withTempDir({ prefix: "openclaw-config-dir-" }, async (root) => {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "openclaw-config-dir-"));
+    try {
       const newDir = path.join(root, ".openclaw");
       await fs.promises.mkdir(newDir, { recursive: true });
       const resolved = resolveConfigDir({} as NodeJS.ProcessEnv, () => root);
       expect(resolved).toBe(newDir);
-    });
+    } finally {
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
   });
 
   it("expands OPENCLAW_STATE_DIR using the provided env", () => {

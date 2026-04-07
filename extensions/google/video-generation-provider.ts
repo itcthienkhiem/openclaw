@@ -25,23 +25,6 @@ function resolveConfiguredGoogleVideoBaseUrl(req: VideoGenerationRequest): strin
   return configured ? normalizeGoogleApiBaseUrl(configured) : undefined;
 }
 
-function parseVideoSize(size: string | undefined): { width: number; height: number } | undefined {
-  const trimmed = size?.trim();
-  if (!trimmed) {
-    return undefined;
-  }
-  const match = /^(\d+)x(\d+)$/u.exec(trimmed);
-  if (!match) {
-    return undefined;
-  }
-  const width = Number.parseInt(match[1] ?? "", 10);
-  const height = Number.parseInt(match[2] ?? "", 10);
-  if (!Number.isFinite(width) || !Number.isFinite(height)) {
-    return undefined;
-  }
-  return { width, height };
-}
-
 function resolveAspectRatio(params: {
   aspectRatio?: string;
   size?: string;
@@ -50,11 +33,20 @@ function resolveAspectRatio(params: {
   if (direct === "16:9" || direct === "9:16") {
     return direct;
   }
-  const parsedSize = parseVideoSize(params.size);
-  if (!parsedSize) {
+  const size = params.size?.trim();
+  if (!size) {
     return undefined;
   }
-  return parsedSize.width >= parsedSize.height ? "16:9" : "9:16";
+  const match = /^(\d+)x(\d+)$/u.exec(size);
+  if (!match) {
+    return undefined;
+  }
+  const width = Number.parseInt(match[1] ?? "", 10);
+  const height = Number.parseInt(match[2] ?? "", 10);
+  if (!Number.isFinite(width) || !Number.isFinite(height)) {
+    return undefined;
+  }
+  return width >= height ? "16:9" : "9:16";
 }
 
 function resolveResolution(params: {
@@ -67,11 +59,17 @@ function resolveResolution(params: {
   if (params.resolution === "1080P") {
     return "1080p";
   }
-  const parsedSize = parseVideoSize(params.size);
-  if (!parsedSize) {
+  const size = params.size?.trim();
+  if (!size) {
     return undefined;
   }
-  const maxEdge = Math.max(parsedSize.width, parsedSize.height);
+  const match = /^(\d+)x(\d+)$/u.exec(size);
+  if (!match) {
+    return undefined;
+  }
+  const width = Number.parseInt(match[1] ?? "", 10);
+  const height = Number.parseInt(match[2] ?? "", 10);
+  const maxEdge = Math.max(width, height);
   return maxEdge >= 1920 ? "1080p" : maxEdge >= 1280 ? "720p" : undefined;
 }
 
@@ -160,43 +158,15 @@ export function buildGoogleVideoGenerationProvider(): VideoGenerationProvider {
         agentDir,
       }),
     capabilities: {
-      generate: {
-        maxVideos: 1,
-        maxDurationSeconds: GOOGLE_VIDEO_MAX_DURATION_SECONDS,
-        supportedDurationSeconds: GOOGLE_VIDEO_ALLOWED_DURATION_SECONDS,
-        aspectRatios: ["16:9", "9:16"],
-        resolutions: ["720P", "1080P"],
-        supportsAspectRatio: true,
-        supportsResolution: true,
-        supportsSize: true,
-        supportsAudio: true,
-      },
-      imageToVideo: {
-        enabled: true,
-        maxVideos: 1,
-        maxInputImages: 1,
-        maxDurationSeconds: GOOGLE_VIDEO_MAX_DURATION_SECONDS,
-        supportedDurationSeconds: GOOGLE_VIDEO_ALLOWED_DURATION_SECONDS,
-        aspectRatios: ["16:9", "9:16"],
-        resolutions: ["720P", "1080P"],
-        supportsAspectRatio: true,
-        supportsResolution: true,
-        supportsSize: true,
-        supportsAudio: true,
-      },
-      videoToVideo: {
-        enabled: true,
-        maxVideos: 1,
-        maxInputVideos: 1,
-        maxDurationSeconds: GOOGLE_VIDEO_MAX_DURATION_SECONDS,
-        supportedDurationSeconds: GOOGLE_VIDEO_ALLOWED_DURATION_SECONDS,
-        aspectRatios: ["16:9", "9:16"],
-        resolutions: ["720P", "1080P"],
-        supportsAspectRatio: true,
-        supportsResolution: true,
-        supportsSize: true,
-        supportsAudio: true,
-      },
+      maxVideos: 1,
+      maxInputImages: 1,
+      maxInputVideos: 1,
+      maxDurationSeconds: GOOGLE_VIDEO_MAX_DURATION_SECONDS,
+      supportedDurationSeconds: GOOGLE_VIDEO_ALLOWED_DURATION_SECONDS,
+      supportsAspectRatio: true,
+      supportsResolution: true,
+      supportsSize: true,
+      supportsAudio: true,
     },
     async generateVideo(req) {
       if ((req.inputImages?.length ?? 0) > 1) {

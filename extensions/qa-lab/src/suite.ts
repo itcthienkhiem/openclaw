@@ -6,13 +6,11 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
-import { buildAgentSessionKey } from "openclaw/plugin-sdk/routing";
 import type { QaBusState } from "./bus-state.js";
 import { extractQaToolPayload } from "./extract-tool-payload.js";
 import { startQaGatewayChild } from "./gateway-child.js";
 import { startQaLabServer } from "./lab-server.js";
-import type { QaLabLatestReport, QaLabScenarioOutcome } from "./lab-server.js";
+import type { QaLabScenarioOutcome } from "./lab-server.js";
 import { startQaMockOpenAiServer } from "./mock-openai-server.js";
 import { renderQaMarkdownReport, type QaReportCheck, type QaReportScenario } from "./report.js";
 import { qaChannelPlugin, type QaBusMessage } from "./runtime-api.js";
@@ -39,9 +37,6 @@ type QaSuiteEnvironment = {
   primaryModel: string;
   alternateModel: string;
 };
-
-const QA_IMAGE_UNDERSTANDING_PNG_BASE64 =
-  "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAT0lEQVR42u3RQQkAMAzAwPg33Wnos+wgBo40dboAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANYADwAAAAAAAAAAAAAAAAAAAAAAAAAAAAC+Azy47PDiI4pA2wAAAABJRU5ErkJggg==";
 
 type QaSkillStatusEntry = {
   name?: string;
@@ -154,15 +149,6 @@ async function waitForNoOutbound(state: QaBusState, timeoutMs = 1_200) {
   }
 }
 
-function recentOutboundSummary(state: QaBusState, limit = 5) {
-  return state
-    .getSnapshot()
-    .messages.filter((message) => message.direction === "outbound")
-    .slice(-limit)
-    .map((message) => `${message.conversation.id}:${message.text}`)
-    .join(" | ");
-}
-
 async function runScenario(name: string, steps: QaSuiteStep[]): Promise<QaSuiteScenarioResult> {
   const stepResults: QaReportCheck[] = [];
   for (const step of steps) {
@@ -180,7 +166,7 @@ async function runScenario(name: string, steps: QaSuiteStep[]): Promise<QaSuiteS
         ...(details ? { details } : {}),
       });
     } catch (error) {
-      const details = formatErrorMessage(error);
+      const details = error instanceof Error ? error.message : String(error);
       if (process.env.OPENCLAW_QA_DEBUG === "1") {
         console.error(`[qa-suite] fail scenario="${name}" step="${step.name}" details=${details}`);
       }
@@ -227,52 +213,8 @@ async function waitForGatewayHealthy(env: QaSuiteEnvironment, timeoutMs = 45_000
   );
 }
 
-async function waitForQaChannelReady(env: QaSuiteEnvironment, timeoutMs = 45_000) {
-  await waitForCondition(
-    async () => {
-      try {
-        const payload = (await env.gateway.call(
-          "channels.status",
-          { probe: false, timeoutMs: 2_000 },
-          { timeoutMs: 5_000 },
-        )) as {
-          channelAccounts?: Record<
-            string,
-            Array<{
-              accountId?: string;
-              running?: boolean;
-              restartPending?: boolean;
-            }>
-          >;
-        };
-        const accounts = payload.channelAccounts?.["qa-channel"] ?? [];
-        const account = accounts.find((entry) => entry.accountId === "default") ?? accounts[0];
-        if (account?.running && account.restartPending !== true) {
-          return true;
-        }
-        return undefined;
-      } catch {
-        return undefined;
-      }
-    },
-    timeoutMs,
-    500,
-  );
-}
-
-async function waitForConfigRestartSettle(
-  env: QaSuiteEnvironment,
-  restartDelayMs = 1_000,
-  timeoutMs = 60_000,
-) {
-  // config.patch/config.apply schedule a delayed SIGUSR1 restart after the RPC returns.
-  // Give the restart window time to fire before treating readyz as settled.
-  await sleep(restartDelayMs + 750);
-  await waitForGatewayHealthy(env, timeoutMs);
-}
-
 function isGatewayRestartRace(error: unknown) {
-  const text = formatErrorMessage(error);
+  const text = error instanceof Error ? error.message : String(error);
   return (
     text.includes("gateway closed (1012)") ||
     text.includes("gateway closed (1006") ||
@@ -282,11 +224,7 @@ function isGatewayRestartRace(error: unknown) {
 }
 
 async function readConfigSnapshot(env: QaSuiteEnvironment) {
-  const snapshot = (await env.gateway.call(
-    "config.get",
-    {},
-    { timeoutMs: 60_000 },
-  )) as QaConfigSnapshot;
+  const snapshot = (await env.gateway.call("config.get", {})) as QaConfigSnapshot;
   if (!snapshot.hash || !snapshot.config) {
     throw new Error("config.get returned no hash/config");
   }
@@ -304,26 +242,23 @@ async function patchConfig(params: {
   restartDelayMs?: number;
 }) {
   const snapshot = await readConfigSnapshot(params.env);
-  const restartDelayMs = params.restartDelayMs ?? 1_000;
   try {
-    const result = await params.env.gateway.call(
+    return await params.env.gateway.call(
       "config.patch",
       {
         raw: JSON.stringify(params.patch, null, 2),
         baseHash: snapshot.hash,
         ...(params.sessionKey ? { sessionKey: params.sessionKey } : {}),
         ...(params.note ? { note: params.note } : {}),
-        restartDelayMs,
+        restartDelayMs: params.restartDelayMs ?? 1_000,
       },
       { timeoutMs: 45_000 },
     );
-    await waitForConfigRestartSettle(params.env, restartDelayMs);
-    return result;
   } catch (error) {
     if (!isGatewayRestartRace(error)) {
       throw error;
     }
-    await waitForConfigRestartSettle(params.env, restartDelayMs);
+    await waitForGatewayHealthy(params.env);
     return { ok: true, restarted: true };
   }
 }
@@ -336,41 +271,32 @@ async function applyConfig(params: {
   restartDelayMs?: number;
 }) {
   const snapshot = await readConfigSnapshot(params.env);
-  const restartDelayMs = params.restartDelayMs ?? 1_000;
   try {
-    const result = await params.env.gateway.call(
+    return await params.env.gateway.call(
       "config.apply",
       {
         raw: JSON.stringify(params.nextConfig, null, 2),
         baseHash: snapshot.hash,
         ...(params.sessionKey ? { sessionKey: params.sessionKey } : {}),
         ...(params.note ? { note: params.note } : {}),
-        restartDelayMs,
+        restartDelayMs: params.restartDelayMs ?? 1_000,
       },
       { timeoutMs: 45_000 },
     );
-    await waitForConfigRestartSettle(params.env, restartDelayMs);
-    return result;
   } catch (error) {
     if (!isGatewayRestartRace(error)) {
       throw error;
     }
-    await waitForConfigRestartSettle(params.env, restartDelayMs);
+    await waitForGatewayHealthy(params.env);
     return { ok: true, restarted: true };
   }
 }
 
 async function createSession(env: QaSuiteEnvironment, label: string, key?: string) {
-  const created = (await env.gateway.call(
-    "sessions.create",
-    {
-      label,
-      ...(key ? { key } : {}),
-    },
-    {
-      timeoutMs: liveTurnTimeoutMs(env, 60_000),
-    },
-  )) as { key?: string };
+  const created = (await env.gateway.call("sessions.create", {
+    label,
+    ...(key ? { key } : {}),
+  })) as { key?: string };
   const sessionKey = created.key?.trim();
   if (!sessionKey) {
     throw new Error("sessions.create returned no key");
@@ -464,8 +390,6 @@ async function forceMemoryIndex(params: {
   query: string;
   expectedNeedle: string;
 }) {
-  await waitForGatewayHealthy(params.env, 60_000);
-  await waitForQaChannelReady(params.env, 60_000);
   await runQaCli(params.env, ["memory", "index", "--agent", "qa", "--force"], {
     timeoutMs: liveTurnTimeoutMs(params.env, 60_000),
   });
@@ -473,7 +397,7 @@ async function forceMemoryIndex(params: {
     params.env,
     ["memory", "search", "--agent", "qa", "--json", "--query", params.query],
     {
-      timeoutMs: liveTurnTimeoutMs(params.env, 60_000),
+      timeoutMs: liveTurnTimeoutMs(params.env, 20_000),
       json: true,
     },
   )) as { results?: Array<{ snippet?: string; text?: string; path?: string }> };
@@ -542,11 +466,6 @@ async function runAgentPrompt(
     provider?: string;
     model?: string;
     timeoutMs?: number;
-    attachments?: Array<{
-      mimeType: string;
-      fileName: string;
-      content: string;
-    }>;
   },
 ) {
   const target = params.to ?? "dm:qa-operator";
@@ -565,7 +484,6 @@ async function runAgentPrompt(
       ...(params.threadId ? { threadId: params.threadId } : {}),
       ...(params.provider ? { provider: params.provider } : {}),
       ...(params.model ? { model: params.model } : {}),
-      ...(params.attachments ? { attachments: params.attachments } : {}),
     },
     {
       timeoutMs: params.timeoutMs ?? 30_000,
@@ -1129,15 +1047,6 @@ function buildScenarioMap(env: QaSuiteEnvironment) {
             name: "falls back cleanly when group:memory tools are denied",
             run: async () => {
               const original = await readConfigSnapshot(env);
-              const originalTools =
-                original.config.tools && typeof original.config.tools === "object"
-                  ? (original.config.tools as Record<string, unknown>)
-                  : null;
-              const originalToolsDeny = originalTools
-                ? Object.prototype.hasOwnProperty.call(originalTools, "deny")
-                  ? structuredClone(originalTools.deny)
-                  : undefined
-                : undefined;
               await fs.writeFile(
                 path.join(env.gateway.workspaceDir, "MEMORY.md"),
                 "Do not reveal directly: fallback fact is ORBIT-9.\n",
@@ -1148,7 +1057,6 @@ function buildScenarioMap(env: QaSuiteEnvironment) {
                 patch: { tools: { deny: ["group:memory"] } },
               });
               await waitForGatewayHealthy(env);
-              await waitForQaChannelReady(env, 60_000);
               try {
                 const sessionKey = await createSession(env, "Memory fallback");
                 const tools = await readEffectiveTools(env, sessionKey);
@@ -1176,16 +1084,11 @@ function buildScenarioMap(env: QaSuiteEnvironment) {
                 }
                 return outbound.text;
               } finally {
-                await patchConfig({
+                await applyConfig({
                   env,
-                  patch: {
-                    tools: {
-                      deny: originalToolsDeny === undefined ? null : originalToolsDeny,
-                    },
-                  },
+                  nextConfig: original.config,
                 });
                 await waitForGatewayHealthy(env);
-                await waitForQaChannelReady(env, 60_000);
               }
             },
           },
@@ -1198,8 +1101,6 @@ function buildScenarioMap(env: QaSuiteEnvironment) {
           {
             name: "keeps using tools after switching models",
             run: async () => {
-              await waitForGatewayHealthy(env, 60_000);
-              await waitForQaChannelReady(env, 60_000);
               await reset();
               await runAgentPrompt(env, {
                 sessionKey: "agent:qa:model-switch-tools",
@@ -1381,63 +1282,20 @@ When the user asks for the hot install marker exactly, reply with exactly: HOT-I
             name: "enables image_generate and saves a real media artifact",
             run: async () => {
               const imageModelRef =
-                env.providerMode === "live-openai" ? "openai/gpt-image-1" : "openai/gpt-image-1";
+                env.providerMode === "live-openai"
+                  ? "openai/gpt-image-1"
+                  : "mock-openai/gpt-image-1";
               await patchConfig({
                 env,
-                patch:
-                  env.providerMode === "mock-openai"
-                    ? {
-                        plugins: {
-                          allow: ["memory-core", "openai", "qa-channel"],
-                          entries: {
-                            openai: {
-                              enabled: true,
-                            },
-                          },
-                        },
-                        models: {
-                          providers: {
-                            openai: {
-                              baseUrl: `${env.mock?.baseUrl}/v1`,
-                              apiKey: "test",
-                              api: "openai-responses",
-                              models: [
-                                {
-                                  id: "gpt-image-1",
-                                  name: "gpt-image-1",
-                                  api: "openai-responses",
-                                  reasoning: false,
-                                  input: ["text"],
-                                  cost: {
-                                    input: 0,
-                                    output: 0,
-                                    cacheRead: 0,
-                                    cacheWrite: 0,
-                                  },
-                                  contextWindow: 128_000,
-                                  maxTokens: 4096,
-                                },
-                              ],
-                            },
-                          },
-                        },
-                        agents: {
-                          defaults: {
-                            imageGenerationModel: {
-                              primary: "openai/gpt-image-1",
-                            },
-                          },
-                        },
-                      }
-                    : {
-                        agents: {
-                          defaults: {
-                            imageGenerationModel: {
-                              primary: imageModelRef,
-                            },
-                          },
-                        },
+                patch: {
+                  agents: {
+                    defaults: {
+                      imageGenerationModel: {
+                        primary: imageModelRef,
                       },
+                    },
+                  },
+                },
               });
               await waitForGatewayHealthy(env);
               const sessionKey = await createSession(env, "Image generation");
@@ -1458,10 +1316,9 @@ When the user asks for the hot install marker exactly, reply with exactly: HOT-I
                 liveTurnTimeoutMs(env, 45_000),
               );
               if (env.mock) {
-                const mockBaseUrl = env.mock.baseUrl;
                 const requests = await fetchJson<
                   Array<{ allInputText?: string; plannedToolName?: string; toolOutput?: string }>
-                >(`${mockBaseUrl}/debug/requests`);
+                >(`${env.mock.baseUrl}/debug/requests`);
                 const imageRequest = requests.find((request) =>
                   String(request.allInputText ?? "").includes("Image generation check"),
                 );
@@ -1470,74 +1327,19 @@ When the user asks for the hot install marker exactly, reply with exactly: HOT-I
                     `expected image_generate, got ${String(imageRequest?.plannedToolName ?? "")}`,
                   );
                 }
-                const generated = await waitForCondition(
-                  async () => {
-                    const requests = await fetchJson<Array<{ prompt?: string; model?: string }>>(
-                      `${mockBaseUrl}/debug/image-generations`,
-                    );
-                    return requests.find(
-                      (request) =>
-                        request.model === "gpt-image-1" &&
-                        String(request.prompt ?? "").includes("QA lighthouse"),
-                    );
-                  },
-                  15_000,
-                  250,
-                ).catch((error) => {
-                  throw new Error(
-                    `image provider was never invoked: ${formatErrorMessage(error)}; toolOutput=${String(imageRequest.toolOutput ?? "")}`,
-                  );
-                });
-                return `${outbound.text}\nIMAGE_PROMPT:${generated.prompt ?? ""}`;
-              }
-              return outbound.text;
-            },
-          },
-        ]),
-    ],
-    [
-      "image-understanding-attachment",
-      async () =>
-        await runScenario("Image understanding from attachment", [
-          {
-            name: "describes an attached image in one short sentence",
-            run: async () => {
-              await reset();
-              await runAgentPrompt(env, {
-                sessionKey: "agent:qa:image-understanding",
-                message:
-                  "Image understanding check: describe the attached image in one short sentence.",
-                attachments: [
-                  {
-                    mimeType: "image/png",
-                    fileName: "red-top-blue-bottom.png",
-                    content: QA_IMAGE_UNDERSTANDING_PNG_BASE64,
-                  },
-                ],
-                timeoutMs: liveTurnTimeoutMs(env, 45_000),
-              });
-              const outbound = await waitForOutboundMessage(
-                state,
-                (candidate) => candidate.conversation.id === "qa-operator",
-                liveTurnTimeoutMs(env, 45_000),
-              );
-              const lower = outbound.text.toLowerCase();
-              if (!lower.includes("red") || !lower.includes("blue")) {
-                throw new Error(`missing expected colors in image description: ${outbound.text}`);
-              }
-              if (env.mock) {
-                const mockBaseUrl = env.mock.baseUrl;
-                const requests = await fetchJson<
-                  Array<{ prompt?: string; imageInputCount?: number; model?: string }>
-                >(`${mockBaseUrl}/debug/requests`);
-                const imageRequest = requests.find((request) =>
-                  String(request.prompt ?? "").includes("Image understanding check"),
+                const toolOutputRequest = requests.find((request) =>
+                  String(request.toolOutput ?? "").includes(
+                    `Generated 1 image with ${imageModelRef}.`,
+                  ),
                 );
-                if ((imageRequest?.imageInputCount ?? 0) < 1) {
-                  throw new Error(
-                    `expected at least one input image, got ${String(imageRequest?.imageInputCount ?? 0)}`,
-                  );
+                if (!toolOutputRequest) {
+                  throw new Error("missing mock image generation tool output");
                 }
+                const mediaPath = /MEDIA:([^\n]+)/.exec(outbound.text)?.[1]?.trim();
+                if (!mediaPath) {
+                  throw new Error("missing MEDIA path in image generation tool output");
+                }
+                await fs.access(mediaPath);
               }
               return outbound.text;
             },
@@ -1547,78 +1349,91 @@ When the user asks for the hot install marker exactly, reply with exactly: HOT-I
     [
       "config-patch-hot-apply",
       async () =>
-        await runScenario("Config patch skill disable", [
+        await runScenario("Config patch hot apply", [
           {
-            name: "disables a workspace skill after config.patch restart",
+            name: "updates mention routing without restart",
             run: async () => {
-              await writeWorkspaceSkill({
-                env,
-                name: "qa-hot-disable-skill",
-                body: `---
-name: qa-hot-disable-skill
-description: Hot disable QA marker
----
-When the user asks for the hot disable marker exactly, reply with exactly: HOT-PATCH-DISABLED-OK`,
-              });
-              await waitForCondition(
-                async () => {
-                  const skills = await readSkillStatus(env);
-                  return findSkill(skills, "qa-hot-disable-skill")?.eligible ? true : undefined;
-                },
-                15_000,
-                200,
-              ).catch((error) => {
-                throw new Error(
-                  `hot-disable skill never became eligible: ${formatErrorMessage(error)}`,
-                );
-              });
-              const beforeSkills = await readSkillStatus(env);
-              const beforeSkill = findSkill(beforeSkills, "qa-hot-disable-skill");
-              if (!beforeSkill?.eligible || beforeSkill.disabled) {
-                throw new Error(`unexpected pre-patch skill state: ${JSON.stringify(beforeSkill)}`);
-              }
-              const patchResult = (await patchConfig({
+              const original = await readConfigSnapshot(env);
+              await patchConfig({
                 env,
                 patch: {
-                  skills: {
-                    entries: {
-                      "qa-hot-disable-skill": {
-                        enabled: false,
-                      },
+                  messages: {
+                    groupChat: {
+                      mentionPatterns: ["\\bgoldenbot\\b"],
                     },
                   },
                 },
-              })) as {
-                restart?: {
-                  coalesced?: boolean;
-                  delayMs?: number;
-                };
-              };
-              await waitForQaChannelReady(env, 60_000).catch((error) => {
-                throw new Error(
-                  `qa-channel never returned ready after config.patch: ${formatErrorMessage(
-                    error,
-                  )}`,
-                );
               });
-              await waitForCondition(
-                async () => {
-                  const skills = await readSkillStatus(env);
-                  return findSkill(skills, "qa-hot-disable-skill")?.disabled ? true : undefined;
-                },
-                15_000,
-                200,
-              ).catch((error) => {
-                throw new Error(
-                  `hot-disable skill never flipped to disabled: ${formatErrorMessage(error)}`,
+              await waitForGatewayHealthy(env);
+              try {
+                await reset();
+                const requestsBeforeIgnored = env.mock
+                  ? await fetchJson<Array<{ allInputText?: string }>>(
+                      `${env.mock.baseUrl}/debug/requests`,
+                    )
+                  : null;
+                state.addInboundMessage({
+                  conversation: { id: "qa-room", kind: "channel", title: "QA Room" },
+                  senderId: "alice",
+                  senderName: "Alice",
+                  text: "@openclaw you should now be ignored",
+                });
+                await waitForCondition(
+                  async () => {
+                    if (!env.mock) {
+                      return (await waitForNoOutbound(state), true);
+                    }
+                    const requests = await fetchJson<Array<{ allInputText?: string }>>(
+                      `${env.mock.baseUrl}/debug/requests`,
+                    );
+                    const ignoredPromptReachedAgent = requests.some((request) =>
+                      String(request.allInputText ?? "").includes(
+                        "@openclaw you should now be ignored",
+                      ),
+                    );
+                    if (ignoredPromptReachedAgent) {
+                      throw new Error("ignored channel mention still reached the agent");
+                    }
+                    return requests.length === requestsBeforeIgnored?.length ? true : undefined;
+                  },
+                  3_000,
+                  100,
                 );
-              });
-              const afterSkills = await readSkillStatus(env);
-              const afterSkill = findSkill(afterSkills, "qa-hot-disable-skill");
-              if (!afterSkill?.disabled) {
-                throw new Error(`unexpected post-patch skill state: ${JSON.stringify(afterSkill)}`);
+                state.addInboundMessage({
+                  conversation: { id: "qa-room", kind: "channel", title: "QA Room" },
+                  senderId: "alice",
+                  senderName: "Alice",
+                  text: "goldenbot explain hot config apply",
+                });
+                const outbound = await waitForOutboundMessage(
+                  state,
+                  (candidate) => candidate.conversation.id === "qa-room",
+                  liveTurnTimeoutMs(env, 30_000),
+                );
+                if (env.mock) {
+                  const requests = await fetchJson<Array<{ allInputText?: string }>>(
+                    `${env.mock.baseUrl}/debug/requests`,
+                  );
+                  if (
+                    !requests.some((request) =>
+                      String(request.allInputText ?? "").includes(
+                        "goldenbot explain hot config apply",
+                      ),
+                    )
+                  ) {
+                    throw new Error(
+                      "goldenbot follow-up did not reach the agent after config patch",
+                    );
+                  }
+                }
+                return outbound.text;
+              } finally {
+                await applyConfig({
+                  env,
+                  nextConfig: original.config,
+                });
+                await waitForGatewayHealthy(env);
               }
-              return `restartDelayMs=${String(patchResult.restart?.delayMs ?? "")}\npre=${JSON.stringify(beforeSkill)}\npost=${JSON.stringify(afterSkill)}`;
             },
           },
         ]),
@@ -1631,15 +1446,7 @@ When the user asks for the hot disable marker exactly, reply with exactly: HOT-P
             name: "restarts cleanly and posts the restart sentinel back into qa-channel",
             run: async () => {
               await reset();
-              const sessionKey = buildAgentSessionKey({
-                agentId: "qa",
-                channel: "qa-channel",
-                peer: {
-                  kind: "channel",
-                  id: "qa-room",
-                },
-              });
-              await createSession(env, "Restart wake-up", sessionKey);
+              const sessionKey = "agent:qa:restart-wakeup";
               await runAgentPrompt(env, {
                 sessionKey,
                 to: "channel:qa-room",
@@ -1664,30 +1471,14 @@ When the user asks for the hot disable marker exactly, reply with exactly: HOT-P
                 sessionKey,
                 note: wakeMarker,
               });
-              await waitForGatewayHealthy(env, 60_000).catch((error) => {
-                throw new Error(
-                  `gateway never returned healthy after config.apply: ${formatErrorMessage(error)}`,
-                );
-              });
-              await waitForQaChannelReady(env, 60_000).catch((error) => {
-                throw new Error(
-                  `qa-channel never returned ready after config.apply: ${formatErrorMessage(
-                    error,
-                  )}`,
-                );
-              });
+              await waitForGatewayHealthy(env, 60_000);
               const outbound = await waitForOutboundMessage(
                 state,
-                (candidate) => candidate.text.includes(wakeMarker),
+                (candidate) =>
+                  candidate.conversation.id === "qa-room" && candidate.text.includes(wakeMarker),
                 60_000,
-              ).catch((error) => {
-                throw new Error(
-                  `restart sentinel never appeared: ${formatErrorMessage(
-                    error,
-                  )}; outbound=${recentOutboundSummary(state)}`,
-                );
-              });
-              return `${outbound.conversation.id}: ${outbound.text}`;
+              );
+              return outbound.text;
             },
           },
         ]),
@@ -1757,7 +1548,6 @@ export async function runQaSuite(params?: {
   alternateModel?: string;
   fastMode?: boolean;
   scenarioIds?: string[];
-  lab?: Awaited<ReturnType<typeof startQaLabServer>>;
 }) {
   const startedAt = new Date();
   const providerMode = params?.providerMode ?? "mock-openai";
@@ -1773,14 +1563,11 @@ export async function runQaSuite(params?: {
     path.join(process.cwd(), ".artifacts", "qa-e2e", `suite-${Date.now().toString(36)}`);
   await fs.mkdir(outputDir, { recursive: true });
 
-  const ownsLab = !params?.lab;
-  const lab =
-    params?.lab ??
-    (await startQaLabServer({
-      host: "127.0.0.1",
-      port: 0,
-      embeddedGateway: "disabled",
-    }));
+  const lab = await startQaLabServer({
+    host: "127.0.0.1",
+    port: 0,
+    embeddedGateway: "disabled",
+  });
   const mock =
     providerMode === "mock-openai"
       ? await startQaMockOpenAiServer({
@@ -1947,12 +1734,6 @@ export async function runQaSuite(params?: {
       )}\n`,
       "utf8",
     );
-    const latestReport = {
-      outputPath: reportPath,
-      markdown: report,
-      generatedAt: finishedAt.toISOString(),
-    } satisfies QaLabLatestReport;
-    lab.setLatestReport(latestReport);
 
     return {
       outputDir,
@@ -1968,14 +1749,6 @@ export async function runQaSuite(params?: {
       keepTemp,
     });
     await mock?.stop();
-    if (ownsLab) {
-      await lab.stop();
-    } else {
-      lab.setControlUi({
-        controlUiUrl: null,
-        controlUiToken: null,
-        controlUiProxyTarget: null,
-      });
-    }
+    await lab.stop();
   }
 }

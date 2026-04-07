@@ -1,5 +1,4 @@
 import type { OpenClawConfig } from "../config/config.js";
-import { formatErrorMessage } from "../infra/errors.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import {
   groupPluginDiscoveryProvidersByOrder,
@@ -7,7 +6,6 @@ import {
   resolvePluginDiscoveryProviders,
   runProviderCatalog,
 } from "../plugins/provider-discovery.js";
-import { resolveOwningPluginIdsForProvider } from "../plugins/providers.js";
 import { ensureAuthProfileStore } from "./auth-profiles/store.js";
 import {
   isNonSecretApiKeyMarker,
@@ -66,12 +64,7 @@ function resolveLiveProviderCatalogTimeoutMs(env: NodeJS.ProcessEnv): number | n
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 15_000;
 }
 
-function resolveProviderDiscoveryFilter(params: {
-  config?: OpenClawConfig;
-  workspaceDir?: string;
-  env: NodeJS.ProcessEnv;
-}): string[] | undefined {
-  const { config, workspaceDir, env } = params;
+function resolveProviderDiscoveryFilter(env: NodeJS.ProcessEnv): string[] | undefined {
   const testRaw = env.OPENCLAW_TEST_ONLY_PROVIDER_PLUGIN_IDS?.trim();
   if (testRaw) {
     const ids = testRaw
@@ -85,48 +78,15 @@ function resolveProviderDiscoveryFilter(params: {
   if (!live) {
     return undefined;
   }
-  const rawValues = [
-    env.OPENCLAW_LIVE_PROVIDERS?.trim(),
-    env.OPENCLAW_LIVE_GATEWAY_PROVIDERS?.trim(),
-  ].filter((value): value is string => Boolean(value && value !== "all"));
-  if (rawValues.length === 0) {
+  const raw = env.OPENCLAW_LIVE_PROVIDERS?.trim();
+  if (!raw || raw === "all") {
     return undefined;
   }
-  const ids = rawValues
-    .flatMap((value) => value.split(","))
+  const ids = raw
+    .split(",")
     .map((value) => value.trim())
     .filter(Boolean);
-  if (ids.length === 0) {
-    return undefined;
-  }
-  const pluginIds = new Set<string>();
-  for (const id of ids) {
-    const owners =
-      resolveOwningPluginIdsForProvider({
-        provider: id,
-        config,
-        workspaceDir,
-        env,
-      }) ?? [];
-    if (owners.length > 0) {
-      for (const owner of owners) {
-        pluginIds.add(owner);
-      }
-      continue;
-    }
-    pluginIds.add(id);
-  }
-  return pluginIds.size > 0
-    ? [...pluginIds].toSorted((left, right) => left.localeCompare(right))
-    : undefined;
-}
-
-export function resolveProviderDiscoveryFilterForTest(params: {
-  config?: OpenClawConfig;
-  workspaceDir?: string;
-  env: NodeJS.ProcessEnv;
-}): string[] | undefined {
-  return resolveProviderDiscoveryFilter(params);
+  return ids.length > 0 ? [...new Set(ids)] : undefined;
 }
 
 function mergeImplicitProviderSet(
@@ -323,7 +283,7 @@ async function runProviderCatalogWithTimeout(
       }),
     ]);
   } catch (error) {
-    const message = formatErrorMessage(error);
+    const message = error instanceof Error ? error.message : String(error);
     if (message.includes("provider catalog timed out after")) {
       log.warn(`${message}; skipping provider discovery`);
       return undefined;
@@ -355,11 +315,7 @@ export async function resolveImplicitProviders(
     config: params.config,
     workspaceDir: params.workspaceDir,
     env,
-    onlyPluginIds: resolveProviderDiscoveryFilter({
-      config: params.config,
-      workspaceDir: params.workspaceDir,
-      env,
-    }),
+    onlyPluginIds: resolveProviderDiscoveryFilter(env),
   });
 
   for (const order of PLUGIN_DISCOVERY_ORDERS) {

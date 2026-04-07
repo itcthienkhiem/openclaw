@@ -1,0 +1,113 @@
+.UiSkillsTabHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.UiSkillsTabHeader :global(.UiSettingsTabTitle) {
+  margin-bottom: 0;
+}
+
+.UiSkillsEmptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+}
+
+.UiSkillsEmptyStateText {
+  font-size: 14px;
+  color: var(--muted2);
+}
+
+.UiAddCustomSkillLink {
+  appearance: none;
+  background: none;
+  border: none;
+  color: var(--lime);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+.UiAddCustomSkillLink:hover {
+  opacity: 0.8;
+}
+
+/* Custom skill icon (emoji-based) */
+.UiSkillIcon--custom {
+  font-size: 20px;
+  background: var(--surface-overlay-subtle);
+  width: 26px;
+  height: 26px;
+  line-height: 1;
+}
+
+/* Custom skill top-right: align badge + menu */
+:global(.UiSkillCard) .UiSkillTopRight--custom {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: 1;
+}
+
+/* Installed badge for custom skills */
+.UiSkillStatus--custom {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(34, 197, 94, 0.85);
+  background: rgba(34, 197, 94, 0.1);
+  border-radius: var(--radius-full);
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+/* Three-dot menu for custom skill cards */
+.UiCustomSkillMenuWrap {
+  position: relative;
+}
+
+/* ── Source toggle (ClawHub | Installed) ──────────────── */
+
+.UiSkillsModeToggleWrap {
+  margin-bottom: 16px;
+}
+
+.UiSkillsModeToggle {
+  display: flex;
+  gap: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 3px;
+}
+
+.UiSkillsModeOption {
+  flex: 1;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+  white-space: nowrap;
+}
+
+.UiSkillsModeOption:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.UiSkillsModeOption--active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}

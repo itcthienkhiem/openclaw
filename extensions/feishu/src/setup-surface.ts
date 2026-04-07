@@ -14,14 +14,23 @@ import {
 } from "openclaw/plugin-sdk/setup";
 import {
   inspectFeishuCredentials,
+  listFeishuAccountIds,
   resolveDefaultFeishuAccountId,
   resolveFeishuAccount,
 } from "./accounts.js";
-import { normalizeString } from "./comment-shared.js";
 import { probeFeishu } from "./probe.js";
+import { feishuSetupAdapter } from "./setup-core.js";
 import type { FeishuAccountConfig, FeishuConfig } from "./types.js";
 
 const channel = "feishu" as const;
+
+function normalizeString(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
 
 type ScopedFeishuConfig = Partial<FeishuConfig> & Partial<FeishuAccountConfig>;
 
@@ -30,7 +39,7 @@ function getScopedFeishuConfig(cfg: OpenClawConfig, accountId: string): ScopedFe
   if (accountId === DEFAULT_ACCOUNT_ID) {
     return feishuCfg ?? {};
   }
-  return feishuCfg?.accounts?.[accountId] ?? {};
+  return (feishuCfg?.accounts?.[accountId] as FeishuAccountConfig | undefined) ?? {};
 }
 
 function patchFeishuConfig(
@@ -48,7 +57,7 @@ function patchFeishuConfig(
     });
   }
   const nextAccountPatch = {
-    ...(feishuCfg?.accounts?.[accountId] as Record<string, unknown> | undefined),
+    ...((feishuCfg?.accounts?.[accountId] as Record<string, unknown> | undefined) ?? {}),
     enabled: true,
     ...patch,
   };
@@ -58,7 +67,7 @@ function patchFeishuConfig(
     enabled: true,
     patch: {
       accounts: {
-        ...feishuCfg?.accounts,
+        ...(feishuCfg?.accounts ?? {}),
         [accountId]: nextAccountPatch,
       },
     },

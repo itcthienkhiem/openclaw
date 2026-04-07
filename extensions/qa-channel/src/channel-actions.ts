@@ -1,6 +1,5 @@
 import { Type } from "@sinclair/typebox";
 import { jsonResult, readStringParam } from "openclaw/plugin-sdk/core";
-import { extractToolSend } from "openclaw/plugin-sdk/tool-send";
 import { resolveQaChannelAccount } from "./accounts.js";
 import {
   createQaBusThread,
@@ -61,7 +60,8 @@ export const qaChannelMessageActions: ChannelMessageActionAdapter = {
   extractToolSend: ({ args }: { args: Record<string, unknown> }) => {
     const action = typeof args.action === "string" ? args.action.trim() : "";
     if (action === "sendMessage") {
-      return extractToolSend(args, "sendMessage");
+      const to = typeof args.to === "string" ? args.to : undefined;
+      return to ? { to } : null;
     }
     if (action === "threadReply") {
       const channelId = typeof args.channelId === "string" ? args.channelId.trim() : "";

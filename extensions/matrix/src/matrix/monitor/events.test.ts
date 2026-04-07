@@ -495,11 +495,7 @@ describe("registerMatrixMonitorEvents verification routing", () => {
   });
 
   it("posts SAS emoji/decimal details when verification summaries expose them", async () => {
-    const {
-      sendMessage,
-      roomEventListener,
-      listVerifications: _listVerifications,
-    } = createHarness({
+    const { sendMessage, roomEventListener, listVerifications } = createHarness({
       joinedMembersByRoom: {
         "!dm:example.org": ["@alice:example.org", "@bot:example.org"],
       },
@@ -897,7 +893,7 @@ describe("registerMatrixMonitorEvents verification routing", () => {
 
       await vi.advanceTimersByTimeAsync(500);
       verifications[0] = {
-        ...verifications[0],
+        ...verifications[0]!,
         sas: {
           decimal: [1234, 5678, 9012],
           emoji: [

@@ -18,12 +18,8 @@ export default defineBundledChannelEntry({
   description: "Mattermost channel plugin",
   importMetaUrl: import.meta.url,
   plugin: {
-    specifier: "./channel-plugin-api.js",
+    specifier: "./api.js",
     exportName: "mattermostPlugin",
-  },
-  secrets: {
-    specifier: "./src/secret-contract.js",
-    exportName: "channelSecrets",
   },
   runtime: {
     specifier: "./runtime-api.js",

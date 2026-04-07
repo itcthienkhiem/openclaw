@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectZaiEndpoint } from "../plugins/provider-zai-endpoint.js";
+import { detectZaiEndpoint } from "./zai-endpoint-detect.js";
 
 type FetchResponse = { status: number; body?: unknown };
 

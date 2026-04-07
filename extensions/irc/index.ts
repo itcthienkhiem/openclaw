@@ -9,10 +9,6 @@ export default defineBundledChannelEntry({
     specifier: "./channel-plugin-api.js",
     exportName: "ircPlugin",
   },
-  secrets: {
-    specifier: "./src/secret-contract.js",
-    exportName: "channelSecrets",
-  },
   runtime: {
     specifier: "./runtime-api.js",
     exportName: "setIrcRuntime",

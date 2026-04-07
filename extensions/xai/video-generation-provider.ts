@@ -10,6 +10,7 @@ import type {
   GeneratedVideoAsset,
   VideoGenerationProvider,
   VideoGenerationRequest,
+  VideoGenerationSourceAsset,
 } from "openclaw/plugin-sdk/video-generation";
 
 const DEFAULT_XAI_VIDEO_BASE_URL = "https://api.x.ai/v1";
@@ -39,12 +40,6 @@ type XaiVideoStatusResponse = {
   } | null;
 };
 
-type VideoGenerationSourceInput = {
-  url?: string;
-  buffer?: Buffer;
-  mimeType?: string;
-};
-
 function resolveXaiVideoBaseUrl(req: VideoGenerationRequest): string {
   return req.cfg?.models?.providers?.xai?.baseUrl?.trim() || DEFAULT_XAI_VIDEO_BASE_URL;
 }
@@ -53,7 +48,7 @@ function toDataUrl(buffer: Buffer, mimeType: string): string {
   return `data:${mimeType};base64,${buffer.toString("base64")}`;
 }
 
-function resolveImageUrl(input: VideoGenerationSourceInput | undefined): string | undefined {
+function resolveImageUrl(input: VideoGenerationSourceAsset | undefined): string | undefined {
   if (!input) {
     return undefined;
   }
@@ -66,7 +61,7 @@ function resolveImageUrl(input: VideoGenerationSourceInput | undefined): string 
   return toDataUrl(input.buffer, input.mimeType?.trim() || "image/png");
 }
 
-function resolveInputVideoUrl(input: VideoGenerationSourceInput | undefined): string | undefined {
+function resolveInputVideoUrl(input: VideoGenerationSourceAsset | undefined): string | undefined {
   if (!input) {
     return undefined;
   }
@@ -259,32 +254,12 @@ export function buildXaiVideoGenerationProvider(): VideoGenerationProvider {
         agentDir,
       }),
     capabilities: {
-      generate: {
-        maxVideos: 1,
-        maxDurationSeconds: 15,
-        aspectRatios: [...XAI_VIDEO_ASPECT_RATIOS],
-        resolutions: ["480P", "720P"],
-        supportsAspectRatio: true,
-        supportsResolution: true,
-      },
-      imageToVideo: {
-        enabled: true,
-        maxVideos: 1,
-        maxInputImages: 1,
-        maxDurationSeconds: 15,
-        aspectRatios: [...XAI_VIDEO_ASPECT_RATIOS],
-        resolutions: ["480P", "720P"],
-        supportsAspectRatio: true,
-        supportsResolution: true,
-      },
-      videoToVideo: {
-        enabled: true,
-        maxVideos: 1,
-        maxInputVideos: 1,
-        maxDurationSeconds: 15,
-        supportsAspectRatio: true,
-        supportsResolution: true,
-      },
+      maxVideos: 1,
+      maxInputImages: 1,
+      maxInputVideos: 1,
+      maxDurationSeconds: 15,
+      supportsAspectRatio: true,
+      supportsResolution: true,
     },
     async generateVideo(req) {
       const auth = await resolveApiKeyForProvider({

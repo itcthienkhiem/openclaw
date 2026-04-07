@@ -7,6 +7,7 @@ import {
   createOpenGroupPolicyRestrictSendersWarningCollector,
   projectAccountWarningCollector,
 } from "openclaw/plugin-sdk/channel-policy";
+import { createAttachedChannelResultAdapter } from "openclaw/plugin-sdk/channel-send-result";
 import {
   buildProbeChannelStatusSummary,
   PAIRING_APPROVED_MESSAGE,
@@ -17,15 +18,20 @@ import {
   createComputedAccountStatusAdapter,
   createDefaultChannelRuntimeState,
 } from "openclaw/plugin-sdk/status-helpers";
-import { type ResolvedBlueBubblesAccount } from "./accounts.js";
+import {
+  listBlueBubblesAccountIds,
+  type ResolvedBlueBubblesAccount,
+  resolveBlueBubblesAccount,
+  resolveDefaultBlueBubblesAccountId,
+} from "./accounts.js";
 import { bluebubblesMessageActions } from "./actions.js";
 import {
   bluebubblesCapabilities,
   bluebubblesConfigAdapter,
   bluebubblesConfigSchema,
+  bluebubblesMeta as meta,
   bluebubblesReload,
   describeBlueBubblesAccount,
-  bluebubblesMeta as meta,
 } from "./channel-shared.js";
 import type { BlueBubblesProbe } from "./channel.runtime.js";
 import { createBlueBubblesConversationBindingManager } from "./conversation-bindings.js";

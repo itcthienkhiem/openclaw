@@ -10,16 +10,11 @@ import {
 import { VerificationMethod } from "matrix-js-sdk/lib/types.js";
 import { KeyedAsyncQueue } from "openclaw/plugin-sdk/core";
 import type { PinnedDispatcherPolicy } from "openclaw/plugin-sdk/infra-runtime";
-import { normalizeNullableString } from "openclaw/plugin-sdk/text-runtime";
 import type { SsrFPolicy } from "../runtime-api.js";
 import { resolveMatrixRoomKeyBackupReadinessError } from "./backup-health.js";
 import { FileBackedMatrixSyncStore } from "./client/file-sync-store.js";
 import { createMatrixJsSdkClientLogger } from "./client/logging.js";
-import {
-  formatMatrixErrorMessage,
-  formatMatrixErrorReason,
-  isMatrixNotFoundError,
-} from "./errors.js";
+import { isMatrixNotFoundError } from "./errors.js";
 import type {
   MatrixCryptoBootstrapOptions,
   MatrixCryptoBootstrapResult,
@@ -178,14 +173,17 @@ async function loadMatrixCryptoRuntime(): Promise<MatrixCryptoRuntime> {
   return await matrixCryptoRuntimePromise;
 }
 
-const normalizeOptionalString = normalizeNullableString;
+function normalizeOptionalString(value: string | null | undefined): string | null {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
 
 function isUnsupportedAuthenticatedMediaEndpointError(err: unknown): boolean {
   const statusCode = (err as { statusCode?: number })?.statusCode;
   if (statusCode === 404 || statusCode === 405 || statusCode === 501) {
     return true;
   }
-  const message = formatMatrixErrorReason(err);
+  const message = (err instanceof Error ? err.message : String(err)).toLowerCase();
   return (
     message.includes("m_unrecognized") ||
     message.includes("unrecognized request") ||
@@ -901,7 +899,7 @@ export class MatrixClient {
           try {
             await crypto.loadSessionBackupPrivateKeyFromSecretStorage(); // pragma: allowlist secret
           } catch (err) {
-            keyLoadError = formatMatrixErrorMessage(err);
+            keyLoadError = err instanceof Error ? err.message : String(err);
           }
         } else {
           keyLoadError =
@@ -1006,7 +1004,7 @@ export class MatrixClient {
         keyId: await this.resolveDefaultSecretStorageKeyId(crypto),
       });
     } catch (err) {
-      return await fail(formatMatrixErrorMessage(err));
+      return await fail(err instanceof Error ? err.message : String(err));
     }
 
     try {
@@ -1051,7 +1049,7 @@ export class MatrixClient {
       };
     } catch (err) {
       this.recoveryKeyStore.discardStagedRecoveryKey();
-      return await fail(formatMatrixErrorMessage(err));
+      return await fail(err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -1125,7 +1123,7 @@ export class MatrixClient {
       };
     } catch (err) {
       this.recoveryKeyStore.discardStagedRecoveryKey();
-      return await fail(formatMatrixErrorMessage(err));
+      return await fail(err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -1223,7 +1221,7 @@ export class MatrixClient {
         backup,
       };
     } catch (err) {
-      return await fail(formatMatrixErrorMessage(err));
+      return await fail(err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -1314,7 +1312,7 @@ export class MatrixClient {
       await this.ensureRoomKeyBackupEnabled(crypto);
     } catch (err) {
       this.recoveryKeyStore.discardStagedRecoveryKey();
-      bootstrapError = formatMatrixErrorMessage(err);
+      bootstrapError = err instanceof Error ? err.message : String(err);
     }
 
     const verification = await this.getOwnDeviceVerificationStatus();

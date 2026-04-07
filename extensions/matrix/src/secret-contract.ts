@@ -8,7 +8,7 @@ import {
   type ResolverContext,
   type SecretDefaults,
   type SecretTargetRegistryEntry,
-} from "openclaw/plugin-sdk/channel-secret-runtime";
+} from "openclaw/plugin-sdk/security-runtime";
 import { getMatrixScopedEnvVarNames } from "./env-vars.js";
 
 export const secretTargetRegistryEntries = [
@@ -167,8 +167,3 @@ export function collectRuntimeConfigAssignments(params: {
     });
   }
 }
-
-export const channelSecrets = {
-  secretTargetRegistryEntries,
-  collectRuntimeConfigAssignments,
-};

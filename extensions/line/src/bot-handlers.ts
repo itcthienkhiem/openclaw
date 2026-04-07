@@ -1,4 +1,12 @@
-import type { webhook } from "@line/bot-sdk";
+import type {
+  FollowEvent,
+  JoinEvent,
+  LeaveEvent,
+  MessageEvent,
+  PostbackEvent,
+  UnfollowEvent,
+  WebhookEvent,
+} from "@line/bot-sdk";
 import {
   buildMentionRegexes,
   matchesMentionPatterns,
@@ -44,14 +52,6 @@ import { downloadLineMedia } from "./download.js";
 import { resolveLineGroupConfigEntry } from "./group-keys.js";
 import { pushMessageLine, replyMessageLine } from "./send.js";
 import type { LineGroupConfig, ResolvedLineAccount } from "./types.js";
-
-type FollowEvent = webhook.FollowEvent;
-type JoinEvent = webhook.JoinEvent;
-type LeaveEvent = webhook.LeaveEvent;
-type MessageEvent = webhook.MessageEvent;
-type PostbackEvent = webhook.PostbackEvent;
-type UnfollowEvent = webhook.UnfollowEvent;
-type WebhookEvent = webhook.Event;
 
 interface MediaRef {
   path: string;
@@ -488,8 +488,7 @@ async function handleMessageEvent(event: MessageEvent, context: LineHandlerConte
     const groupConfig = resolveLineGroupConfig({ config: account.config, groupId, roomId });
     const requireMention = groupConfig?.requireMention !== false;
     const rawText = message.type === "text" ? message.text : "";
-    const sourceInfo = getLineSourceInfo(event.source);
-    const peerId = groupId ?? roomId ?? sourceInfo.userId ?? "unknown";
+    const peerId = groupId ?? roomId ?? event.source.userId ?? "unknown";
     const { agentId } = resolveAgentRoute({
       cfg,
       channel: "line",
@@ -514,7 +513,10 @@ async function handleMessageEvent(event: MessageEvent, context: LineHandlerConte
     if (mentionGate.shouldSkip) {
       logVerbose(`line: skipping group message (requireMention, not mentioned)`);
       const historyKey = groupId ?? roomId;
-      const senderId = sourceInfo.userId ?? "unknown";
+      const senderId =
+        event.source.type === "group" || event.source.type === "room"
+          ? (event.source.userId ?? "unknown")
+          : "unknown";
       if (historyKey && context.groupHistories) {
         recordPendingHistoryEntryIfEnabled({
           historyMap: context.groupHistories,
@@ -580,7 +582,7 @@ async function handleMessageEvent(event: MessageEvent, context: LineHandlerConte
 }
 
 async function handleFollowEvent(event: FollowEvent, _context: LineHandlerContext): Promise<void> {
-  const { userId } = getLineSourceInfo(event.source);
+  const userId = event.source.type === "user" ? event.source.userId : undefined;
   logVerbose(`line: user ${userId ?? "unknown"} followed`);
 }
 
@@ -588,17 +590,19 @@ async function handleUnfollowEvent(
   event: UnfollowEvent,
   _context: LineHandlerContext,
 ): Promise<void> {
-  const { userId } = getLineSourceInfo(event.source);
+  const userId = event.source.type === "user" ? event.source.userId : undefined;
   logVerbose(`line: user ${userId ?? "unknown"} unfollowed`);
 }
 
 async function handleJoinEvent(event: JoinEvent, _context: LineHandlerContext): Promise<void> {
-  const { groupId, roomId } = getLineSourceInfo(event.source);
+  const groupId = event.source.type === "group" ? event.source.groupId : undefined;
+  const roomId = event.source.type === "room" ? event.source.roomId : undefined;
   logVerbose(`line: bot joined ${groupId ? `group ${groupId}` : `room ${roomId}`}`);
 }
 
 async function handleLeaveEvent(event: LeaveEvent, _context: LineHandlerContext): Promise<void> {
-  const { groupId, roomId } = getLineSourceInfo(event.source);
+  const groupId = event.source.type === "group" ? event.source.groupId : undefined;
+  const roomId = event.source.type === "room" ? event.source.roomId : undefined;
   logVerbose(`line: bot left ${groupId ? `group ${groupId}` : `room ${roomId}`}`);
 }
 

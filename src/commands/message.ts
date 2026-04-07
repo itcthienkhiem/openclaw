@@ -3,12 +3,13 @@ import {
   CHANNEL_MESSAGE_ACTION_NAMES,
   type ChannelMessageActionName,
 } from "../channels/plugins/types.js";
-import { resolveCommandConfigWithSecrets } from "../cli/command-config-resolution.js";
+import { resolveCommandSecretRefsViaGateway } from "../cli/command-secret-gateway.js";
 import { getScopedChannelsCommandSecretTargets } from "../cli/command-secret-targets.js";
 import { resolveMessageSecretScope } from "../cli/message-secret-scope.js";
 import { createOutboundSendDeps, type CliDeps } from "../cli/outbound-send-deps.js";
 import { withProgress } from "../cli/progress.js";
 import { loadConfig } from "../config/config.js";
+import { applyPluginAutoEnable } from "../config/plugin-auto-enable.js";
 import type { OutboundSendDeps } from "../infra/outbound/deliver.js";
 import { runMessageAction } from "../infra/outbound/message-action-runner.js";
 import { type RuntimeEnv, writeRuntimeJson } from "../runtime.js";
@@ -32,14 +33,19 @@ export async function messageCommand(
     channel: scope.channel,
     accountId: scope.accountId,
   });
-  const { effectiveConfig: cfg } = await resolveCommandConfigWithSecrets({
+  const { resolvedConfig, diagnostics } = await resolveCommandSecretRefsViaGateway({
     config: loadedRaw,
     commandName: "message",
     targetIds: scopedTargets.targetIds,
     ...(scopedTargets.allowedPaths ? { allowedPaths: scopedTargets.allowedPaths } : {}),
-    runtime,
-    autoEnable: true,
   });
+  const cfg = applyPluginAutoEnable({
+    config: resolvedConfig,
+    env: process.env,
+  }).config;
+  for (const entry of diagnostics) {
+    runtime.log(`[secrets] ${entry}`);
+  }
   const rawAction = typeof opts.action === "string" ? opts.action.trim() : "";
   const actionInput = rawAction || "send";
   const actionMatch = (CHANNEL_MESSAGE_ACTION_NAMES as readonly string[]).find(

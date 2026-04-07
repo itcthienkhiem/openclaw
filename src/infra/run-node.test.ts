@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 import fsSync from "node:fs";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { resolveBuildRequirement, runNodeMain } from "../../scripts/run-node.mjs";
@@ -9,7 +10,6 @@ import {
   bundledPluginFile,
   bundledPluginRoot,
 } from "../../test/helpers/bundled-plugin-paths.js";
-import { withTempDir } from "../test-helpers/temp-dir.js";
 
 const ROOT_SRC = "src/index.ts";
 const ROOT_TSCONFIG = "tsconfig.json";
@@ -34,6 +34,15 @@ const BASE_PROJECT_FILES = {
   [DIST_ENTRY]: "console.log('built');\n",
   [BUILD_STAMP]: '{"head":"abc123"}\n',
 } as const;
+
+async function withTempDir<T>(run: (dir: string) => Promise<T>): Promise<T> {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-run-node-"));
+  try {
+    return await run(dir);
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+}
 
 function createExitedProcess(code: number | null, signal: string | null = null) {
   return {
@@ -198,7 +207,7 @@ describe("run-node script", () => {
   it.runIf(process.platform !== "win32")(
     "preserves control-ui assets by building with tsdown --no-clean",
     async () => {
-      await withTempDir({ prefix: "openclaw-run-node-" }, async (tmp) => {
+      await withTempDir(async (tmp) => {
         const argsPath = resolvePath(tmp, ".build-args.txt");
         const indexPath = resolvePath(tmp, "dist/control-ui/index.html");
 
@@ -247,7 +256,7 @@ describe("run-node script", () => {
   );
 
   it("copies bundled plugin metadata after rebuilding from a clean dist", async () => {
-    await withTempDir({ prefix: "openclaw-run-node-" }, async (tmp) => {
+    await withTempDir(async (tmp) => {
       await writeRuntimePostBuildScaffold(tmp);
       await writeProjectFiles(tmp, {
         [EXTENSION_MANIFEST]: '{"id":"demo","configSchema":{"type":"object"}}\n',
@@ -296,7 +305,7 @@ describe("run-node script", () => {
   });
 
   it("skips rebuilding when dist is current and the source tree is clean", async () => {
-    await withTempDir({ prefix: "openclaw-run-node-" }, async (tmp) => {
+    await withTempDir(async (tmp) => {
       await setupTrackedProject(tmp, {
         files: {
           [ROOT_SRC]: "export const value = 1;\n",
@@ -317,7 +326,7 @@ describe("run-node script", () => {
   });
 
   it("skips runtime postbuild restaging in watch mode when dist is already current", async () => {
-    await withTempDir({ prefix: "openclaw-run-node-" }, async (tmp) => {
+    await withTempDir(async (tmp) => {
       await setupTrackedProject(tmp, {
         files: {
           [ROOT_SRC]: "export const value = 1;\n",
@@ -346,7 +355,7 @@ describe("run-node script", () => {
   });
 
   it("returns the build exit code when the compiler step fails", async () => {
-    await withTempDir({ prefix: "openclaw-run-node-" }, async (tmp) => {
+    await withTempDir(async (tmp) => {
       const spawn = (cmd: string, args: string[] = []) => {
         if (cmd === process.execPath && args[0] === "scripts/tsdown-build.mjs") {
           return createExitedProcess(23);
@@ -372,7 +381,7 @@ describe("run-node script", () => {
   });
 
   it("forwards wrapper SIGTERM to the active openclaw child and returns 143", async () => {
-    await withTempDir({ prefix: "openclaw-run-node-" }, async (tmp) => {
+    await withTempDir(async (tmp) => {
       await setupTrackedProject(tmp, {
         files: {
           [ROOT_SRC]: "export const value = 1;\n",
@@ -435,7 +444,7 @@ describe("run-node script", () => {
   });
 
   it("rebuilds when extension sources are newer than the build stamp", async () => {
-    await withTempDir({ prefix: "openclaw-run-node-" }, async (tmp) => {
+    await withTempDir(async (tmp) => {
       await setupTrackedProject(tmp, {
         files: {
           [EXTENSION_SRC]: "export const extensionValue = 1;\n",
@@ -453,7 +462,7 @@ describe("run-node script", () => {
   });
 
   it("rebuilds when git HEAD changes even if source mtimes do not exceed the old build stamp", async () => {
-    await withTempDir({ prefix: "openclaw-run-node-" }, async (tmp) => {
+    await withTempDir(async (tmp) => {
       await setupTrackedProject(tmp, {
         files: {
           [ROOT_SRC]: "export const value = 1;\n",
@@ -474,7 +483,7 @@ describe("run-node script", () => {
   });
 
   it("skips rebuilding when extension package metadata is newer than the build stamp", async () => {
-    await withTempDir({ prefix: "openclaw-run-node-" }, async (tmp) => {
+    await withTempDir(async (tmp) => {
       await setupTrackedProject(tmp, {
         files: {
           [EXTENSION_MANIFEST]: '{"id":"demo","configSchema":{"type":"object"}}\n',
@@ -499,7 +508,7 @@ describe("run-node script", () => {
   });
 
   it("skips rebuilding for dirty non-source files under extensions", async () => {
-    await withTempDir({ prefix: "openclaw-run-node-" }, async (tmp) => {
+    await withTempDir(async (tmp) => {
       await setupTrackedProject(tmp, {
         files: {
           [ROOT_SRC]: "export const value = 1;\n",
@@ -529,7 +538,7 @@ describe("run-node script", () => {
   });
 
   it("skips rebuilding for dirty extension manifests that only affect runtime reload", async () => {
-    await withTempDir({ prefix: "openclaw-run-node-" }, async (tmp) => {
+    await withTempDir(async (tmp) => {
       await setupTrackedProject(tmp, {
         files: {
           [ROOT_SRC]: "export const value = 1;\n",
@@ -562,7 +571,7 @@ describe("run-node script", () => {
   });
 
   it("reports dirty watched source trees as an explicit build reason", async () => {
-    await withTempDir({ prefix: "openclaw-run-node-" }, async (tmp) => {
+    await withTempDir(async (tmp) => {
       await setupTrackedProject(tmp, {
         files: {
           [ROOT_SRC]: "export const value = 1;\n",
@@ -585,7 +594,7 @@ describe("run-node script", () => {
   });
 
   it("reports a clean tree explicitly when dist is current", async () => {
-    await withTempDir({ prefix: "openclaw-run-node-" }, async (tmp) => {
+    await withTempDir(async (tmp) => {
       await setupTrackedProject(tmp, {
         files: {
           [ROOT_SRC]: "export const value = 1;\n",
@@ -609,7 +618,7 @@ describe("run-node script", () => {
   });
 
   it("repairs missing bundled plugin metadata without rerunning tsdown", async () => {
-    await withTempDir({ prefix: "openclaw-run-node-" }, async (tmp) => {
+    await withTempDir(async (tmp) => {
       await setupTrackedProject(tmp, {
         files: {
           [ROOT_SRC]: "export const value = 1;\n",
@@ -640,7 +649,7 @@ describe("run-node script", () => {
   });
 
   it("removes stale bundled plugin metadata when the source manifest is gone", async () => {
-    await withTempDir({ prefix: "openclaw-run-node-" }, async (tmp) => {
+    await withTempDir(async (tmp) => {
       await setupTrackedProject(tmp, {
         files: {
           [ROOT_SRC]: "export const value = 1;\n",
@@ -676,7 +685,7 @@ describe("run-node script", () => {
   });
 
   it("skips rebuilding when only non-source extension files are newer than the build stamp", async () => {
-    await withTempDir({ prefix: "openclaw-run-node-" }, async (tmp) => {
+    await withTempDir(async (tmp) => {
       await setupTrackedProject(tmp, {
         files: {
           [ROOT_SRC]: "export const value = 1;\n",
@@ -697,7 +706,7 @@ describe("run-node script", () => {
   });
 
   it("rebuilds when tsdown config is newer than the build stamp", async () => {
-    await withTempDir({ prefix: "openclaw-run-node-" }, async (tmp) => {
+    await withTempDir(async (tmp) => {
       await setupTrackedProject(tmp, {
         files: {
           [ROOT_SRC]: "export const value = 1;\n",

@@ -13,6 +13,7 @@ import { getMattermostRuntime } from "../runtime.js";
 import {
   createMattermostClient,
   fetchMattermostChannel,
+  normalizeMattermostBaseUrl,
   sendMattermostTyping,
   type MattermostChannel,
 } from "./client.js";
@@ -371,7 +372,7 @@ async function handleSlashCommandAsync(params: {
     teamId,
     kind,
     chatType,
-    channelName: _channelName,
+    channelName,
     channelDisplay,
     roomLabel,
     commandAuthorized,

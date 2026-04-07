@@ -28,13 +28,12 @@ const {
 } = getSignalToolResultTestMocks();
 
 const SIGNAL_BASE_URL = "http://127.0.0.1:8080";
-type MonitorSignalProviderOptions = NonNullable<Parameters<typeof monitorSignalProvider>[0]>;
+type MonitorSignalProviderOptions = Parameters<typeof monitorSignalProvider>[0];
 
 async function runMonitorWithMocks(opts: MonitorSignalProviderOptions) {
   return monitorSignalProvider({
     config: config as OpenClawConfig,
-    waitForTransportReady:
-      waitForTransportReadyMock as MonitorSignalProviderOptions["waitForTransportReady"],
+    waitForTransportReady: waitForTransportReadyMock as any,
     ...opts,
   });
 }

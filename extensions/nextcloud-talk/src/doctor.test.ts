@@ -27,13 +27,7 @@ describe("nextcloud-talk doctor", () => {
     expect(result.config.channels?.["nextcloud-talk"]?.network).toEqual({
       dangerouslyAllowPrivateNetwork: true,
     });
-    expect(
-      (
-        result.config.channels?.["nextcloud-talk"]?.accounts?.work as
-          | { network?: Record<string, unknown> }
-          | undefined
-      )?.network,
-    ).toEqual({
+    expect(result.config.channels?.["nextcloud-talk"]?.accounts?.work?.network).toEqual({
       dangerouslyAllowPrivateNetwork: false,
     });
   });

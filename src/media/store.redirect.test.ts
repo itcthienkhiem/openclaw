@@ -1,15 +1,13 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { PassThrough } from "node:stream";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinnedLookup } from "../infra/net/ssrf.js";
-import { createSuiteTempRootTracker } from "../test-helpers/temp-dir.js";
 import { captureEnv } from "../test-utils/env.js";
 import { saveMediaSource, setMediaStoreNetworkDepsForTest } from "./store.js";
 
-const homeRootTracker = createSuiteTempRootTracker({
-  prefix: "openclaw-home-redirect-",
-});
+const HOME = path.join(os.tmpdir(), "openclaw-home-redirect");
 const mockRequest = vi.fn();
 
 function createMockHttpExchange() {
@@ -94,13 +92,11 @@ async function expectRedirectSaveFailure(expectedMessage: string) {
 
 describe("media store redirects", () => {
   let envSnapshot: ReturnType<typeof captureEnv>;
-  let home = "";
 
   beforeAll(async () => {
     envSnapshot = captureEnv(["OPENCLAW_STATE_DIR"]);
-    await homeRootTracker.setup();
-    home = await homeRootTracker.make("state");
-    process.env.OPENCLAW_STATE_DIR = home;
+    await fs.rm(HOME, { recursive: true, force: true });
+    process.env.OPENCLAW_STATE_DIR = HOME;
   });
 
   beforeEach(() => {
@@ -117,8 +113,7 @@ describe("media store redirects", () => {
   });
 
   afterAll(async () => {
-    await homeRootTracker.cleanup();
-    home = "";
+    await fs.rm(HOME, { recursive: true, force: true });
     envSnapshot.restore();
     setMediaStoreNetworkDepsForTest();
     vi.clearAllMocks();

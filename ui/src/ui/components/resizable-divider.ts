@@ -1,10 +1,11 @@
 import { LitElement, css, nothing } from "lit";
-import { property } from "lit/decorators.js";
+import { customElement, property } from "lit/decorators.js";
 
 /**
  * A draggable divider for resizable split views.
  * Dispatches 'resize' events with { splitRatio: number } detail.
  */
+@customElement("resizable-divider")
 export class ResizableDivider extends LitElement {
   @property({ type: Number }) splitRatio = 0.6;
   @property({ type: Number }) minRatio = 0.4;
@@ -100,10 +101,6 @@ export class ResizableDivider extends LitElement {
     document.removeEventListener("mousemove", this.handleMouseMove);
     document.removeEventListener("mouseup", this.handleMouseUp);
   };
-}
-
-if (!customElements.get("resizable-divider")) {
-  customElements.define("resizable-divider", ResizableDivider);
 }
 
 declare global {

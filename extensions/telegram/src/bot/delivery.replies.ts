@@ -740,7 +740,7 @@ export async function deliverReplies(params: {
         accountId: params.accountId,
         content: contentForSentHook,
         success: false,
-        error: formatErrorMessage(error),
+        error: error instanceof Error ? error.message : String(error),
         isGroup: params.mirrorIsGroup,
         groupId: params.mirrorGroupId,
       });

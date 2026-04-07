@@ -1,6 +1,7 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   ConversationRef,
   SessionBindingAdapter,
@@ -8,10 +9,8 @@ import type {
 } from "../infra/outbound/session-binding-service.js";
 import { createEmptyPluginRegistry } from "./registry-empty.js";
 import type { PluginRegistry } from "./registry.js";
-import { cleanupTrackedTempDirs, makeTrackedTempDir } from "./test-helpers/fs-fixtures.js";
 
-const tempDirs: string[] = [];
-const tempRoot = makeTrackedTempDir("openclaw-plugin-binding", tempDirs);
+const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "openclaw-plugin-binding-"));
 const approvalsPath = path.join(tempRoot, "plugin-binding-approvals.json");
 
 const sessionBindingState = vi.hoisted(() => {
@@ -106,17 +105,12 @@ vi.mock("../infra/home-dir.js", async () => {
   };
 });
 
-vi.mock("./runtime.js", async () => {
-  const actual = await vi.importActual<typeof import("./runtime.js")>("./runtime.js");
-  return {
-    ...actual,
-    getActivePluginRegistry: () => pluginRuntimeState.registry,
-    getActivePluginChannelRegistry: () => pluginRuntimeState.registry,
-    setActivePluginRegistry: (registry: PluginRegistry) => {
-      pluginRuntimeState.registry = registry;
-    },
-  };
-});
+vi.mock("./runtime.js", () => ({
+  getActivePluginRegistry: () => pluginRuntimeState.registry,
+  setActivePluginRegistry: (registry: PluginRegistry) => {
+    pluginRuntimeState.registry = registry;
+  },
+}));
 
 let __testing: typeof import("./conversation-binding.js").__testing;
 let buildPluginBindingApprovalCustomId: typeof import("./conversation-binding.js").buildPluginBindingApprovalCustomId;
@@ -162,10 +156,6 @@ function createAdapter(channel: string, accountId: string): SessionBindingAdapte
     unbind: sessionBindingState.unbind,
   };
 }
-
-afterAll(() => {
-  cleanupTrackedTempDirs(tempDirs);
-});
 
 function createDiscordCodexBindRequest(
   conversationId: string,
@@ -402,17 +392,12 @@ describe("plugin conversation binding approvals", () => {
         },
       };
     });
-    vi.doMock("./runtime.js", async () => {
-      const actual = await vi.importActual<typeof import("./runtime.js")>("./runtime.js");
-      return {
-        ...actual,
-        getActivePluginRegistry: () => pluginRuntimeState.registry,
-        getActivePluginChannelRegistry: () => pluginRuntimeState.registry,
-        setActivePluginRegistry: (registry: PluginRegistry) => {
-          pluginRuntimeState.registry = registry;
-        },
-      };
-    });
+    vi.doMock("./runtime.js", () => ({
+      getActivePluginRegistry: () => pluginRuntimeState.registry,
+      setActivePluginRegistry: (registry: PluginRegistry) => {
+        pluginRuntimeState.registry = registry;
+      },
+    }));
     ({
       __testing,
       buildPluginBindingApprovalCustomId,

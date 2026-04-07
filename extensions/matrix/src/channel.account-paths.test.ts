@@ -49,7 +49,6 @@ describe("matrix account path propagation", () => {
       homeserver: "https://matrix.example.org",
       userId: "@poe:example.org",
       accessToken: "poe-token",
-      deviceId: "POEDEVICE",
     });
   });
 
@@ -67,7 +66,7 @@ describe("matrix account path propagation", () => {
     );
   });
 
-  it("forwards accountId and deviceId to matrix probes", async () => {
+  it("forwards accountId to matrix probes", async () => {
     await matrixPlugin.status!.probeAccount?.({
       cfg: {} as never,
       timeoutMs: 500,
@@ -84,7 +83,6 @@ describe("matrix account path propagation", () => {
       homeserver: "https://matrix.example.org",
       accessToken: "poe-token",
       userId: "@poe:example.org",
-      deviceId: "POEDEVICE",
       timeoutMs: 500,
       accountId: "poe",
     });

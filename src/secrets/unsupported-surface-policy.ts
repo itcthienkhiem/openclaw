@@ -1,7 +1,5 @@
-import { getBootstrapChannelPlugin } from "../channels/plugins/bootstrap-registry.js";
-import { listBundledPluginMetadata } from "../plugins/bundled-plugin-metadata.js";
+import { iterateBootstrapChannelPlugins } from "../channels/plugins/bootstrap-registry.js";
 import { isRecord } from "../utils.js";
-import { loadBundledChannelSecurityContractApi } from "./channel-contract-api.js";
 
 const CORE_UNSUPPORTED_SECRETREF_SURFACE_PATTERNS = [
   "commands.ownerDisplaySecret",
@@ -11,26 +9,10 @@ const CORE_UNSUPPORTED_SECRETREF_SURFACE_PATTERNS = [
   "auth-profiles.oauth.*",
 ] as const;
 
-function listBundledChannelIds(): string[] {
-  return [
-    ...new Set(
-      listBundledPluginMetadata({
-        includeChannelConfigs: false,
-        includeSyntheticChannelConfigs: false,
-      }).flatMap((entry) => entry.manifest.channels ?? []),
-    ),
-  ].toSorted((left, right) => left.localeCompare(right));
-}
-
 function collectChannelUnsupportedSecretRefSurfacePatterns(): string[] {
   const patterns: string[] = [];
-  for (const channelId of listBundledChannelIds()) {
-    const contract = loadBundledChannelSecurityContractApi(channelId);
-    patterns.push(
-      ...(contract?.unsupportedSecretRefSurfacePatterns ??
-        getBootstrapChannelPlugin(channelId)?.secrets?.unsupportedSecretRefSurfacePatterns ??
-        []),
-    );
+  for (const plugin of iterateBootstrapChannelPlugins()) {
+    patterns.push(...(plugin.secrets?.unsupportedSecretRefSurfacePatterns ?? []));
   }
   return patterns;
 }
@@ -94,13 +76,8 @@ export function collectUnsupportedSecretRefConfigCandidates(
   }
 
   if (isRecord(raw.channels)) {
-    for (const channelId of Object.keys(raw.channels)) {
-      const contract = loadBundledChannelSecurityContractApi(channelId);
-      const channelCandidates =
-        contract?.collectUnsupportedSecretRefConfigCandidates?.(raw) ??
-        getBootstrapChannelPlugin(
-          channelId,
-        )?.secrets?.collectUnsupportedSecretRefConfigCandidates?.(raw);
+    for (const plugin of iterateBootstrapChannelPlugins()) {
+      const channelCandidates = plugin.secrets?.collectUnsupportedSecretRefConfigCandidates?.(raw);
       if (!channelCandidates?.length) {
         continue;
       }

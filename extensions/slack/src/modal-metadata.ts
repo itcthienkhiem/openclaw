@@ -1,5 +1,3 @@
-import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
-
 export type SlackModalPrivateMetadata = {
   sessionKey?: string;
   channelId?: string;
@@ -9,6 +7,10 @@ export type SlackModalPrivateMetadata = {
 
 const SLACK_PRIVATE_METADATA_MAX = 3000;
 
+function normalizeString(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
 export function parseSlackModalPrivateMetadata(raw: unknown): SlackModalPrivateMetadata {
   if (typeof raw !== "string" || raw.trim().length === 0) {
     return {};
@@ -16,10 +18,10 @@ export function parseSlackModalPrivateMetadata(raw: unknown): SlackModalPrivateM
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     return {
-      sessionKey: normalizeOptionalString(parsed.sessionKey),
-      channelId: normalizeOptionalString(parsed.channelId),
-      channelType: normalizeOptionalString(parsed.channelType),
-      userId: normalizeOptionalString(parsed.userId),
+      sessionKey: normalizeString(parsed.sessionKey),
+      channelId: normalizeString(parsed.channelId),
+      channelType: normalizeString(parsed.channelType),
+      userId: normalizeString(parsed.userId),
     };
   } catch {
     return {};

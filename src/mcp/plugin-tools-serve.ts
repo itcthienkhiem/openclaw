@@ -13,7 +13,6 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 import type { AnyAgentTool } from "../agents/tools/common.js";
 import type { OpenClawConfig } from "../config/config.js";
 import { loadConfig } from "../config/config.js";
-import { formatErrorMessage } from "../infra/errors.js";
 import { routeLogsToStderr } from "../logging/console.js";
 import { resolvePluginTools } from "../plugins/tools.js";
 import { VERSION } from "../version.js";
@@ -78,7 +77,9 @@ export function createPluginToolsMcpServer(
       };
     } catch (err) {
       return {
-        content: [{ type: "text", text: `Tool error: ${formatErrorMessage(err)}` }],
+        content: [
+          { type: "text", text: `Tool error: ${err instanceof Error ? err.message : String(err)}` },
+        ],
         isError: true,
       };
     }
@@ -123,7 +124,9 @@ export async function servePluginToolsMcp(): Promise<void> {
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   servePluginToolsMcp().catch((err) => {
-    process.stderr.write(`plugin-tools-serve: ${formatErrorMessage(err)}\n`);
+    process.stderr.write(
+      `plugin-tools-serve: ${err instanceof Error ? err.message : String(err)}\n`,
+    );
     process.exit(1);
   });
 }

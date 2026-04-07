@@ -5,7 +5,7 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
+import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
 import { seedQaAgentWorkspace } from "./qa-agent-workspace.js";
 import { buildQaGatewayConfig } from "./qa-gateway-config.js";
 
@@ -243,7 +243,7 @@ export async function startQaGatewayChild(params: {
           JSON.stringify(rpcParams ?? {}),
         ],
       }).catch((error) => {
-        const details = formatErrorMessage(error);
+        const details = error instanceof Error ? error.message : String(error);
         throw new Error(`${details}\nGateway logs:\n${logs()}`);
       });
     },

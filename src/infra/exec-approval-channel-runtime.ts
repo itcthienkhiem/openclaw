@@ -3,7 +3,6 @@ import type { GatewayClient } from "../gateway/client.js";
 import { createOperatorApprovalsGatewayClient } from "../gateway/operator-approvals-client.js";
 import type { EventFrame } from "../gateway/protocol/index.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
-import { formatErrorMessage } from "./errors.js";
 import type { ExecApprovalRequest, ExecApprovalResolved } from "./exec-approvals.js";
 import type { PluginApprovalRequest, PluginApprovalResolved } from "./plugin-approvals.js";
 
@@ -76,7 +75,7 @@ export function createExecApprovalChannelRuntime<
 
   const spawn = (label: string, promise: Promise<void>): void => {
     void promise.catch((err: unknown) => {
-      const message = formatErrorMessage(err);
+      const message = err instanceof Error ? err.message : String(err);
       log.error(`${label}: ${message}`);
     });
   };

@@ -3,7 +3,7 @@ import {
   createPluginRegistryFixture,
   registerTestPlugin,
   registerVirtualTestPlugin,
-} from "../../test/helpers/plugins/contracts-testkit.js";
+} from "./contracts/testkit.js";
 import { clearMemoryEmbeddingProviders } from "./memory-embedding-providers.js";
 import { _resetMemoryPluginState, getMemoryRuntime } from "./memory-state.js";
 import { createPluginRecord } from "./status.test-helpers.js";

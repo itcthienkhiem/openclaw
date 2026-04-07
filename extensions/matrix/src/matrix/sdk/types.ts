@@ -200,7 +200,7 @@ export type MatrixCryptoBootstrapApi = {
   }) => Promise<void>;
   createRecoveryKeyFromPassphrase?: (password?: string) => Promise<MatrixGeneratedSecretStorageKey>;
   getSecretStorageStatus?: () => Promise<MatrixSecretStorageStatus>;
-  requestOwnUserVerification: () => Promise<MatrixVerificationRequestLike | null>;
+  requestOwnUserVerification: () => Promise<unknown | null>;
   findVerificationRequestDMInProgress?: (
     roomId: string,
     userId: string,

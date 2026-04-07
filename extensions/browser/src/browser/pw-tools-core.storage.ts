@@ -1,4 +1,3 @@
-import { readStringValue } from "openclaw/plugin-sdk/text-runtime";
 import { ensurePageState, getPageForTargetId } from "./pw-session.js";
 
 export async function cookiesGetViaPlaywright(opts: {
@@ -64,7 +63,7 @@ export async function storageGetViaPlaywright(opts: {
   const page = await getPageForTargetId(opts);
   ensurePageState(page);
   const kind = opts.kind;
-  const key = readStringValue(opts.key);
+  const key = typeof opts.key === "string" ? opts.key : undefined;
   const values = await page.evaluate(
     ({ kind: kind2, key: key2 }) => {
       const store = kind2 === "session" ? window.sessionStorage : window.localStorage;

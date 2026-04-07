@@ -135,27 +135,14 @@ export function buildBytePlusVideoGenerationProvider(): VideoGenerationProvider 
         agentDir,
       }),
     capabilities: {
-      generate: {
-        maxVideos: 1,
-        maxDurationSeconds: 12,
-        supportsAspectRatio: true,
-        supportsResolution: true,
-        supportsAudio: true,
-        supportsWatermark: true,
-      },
-      imageToVideo: {
-        enabled: true,
-        maxVideos: 1,
-        maxInputImages: 1,
-        maxDurationSeconds: 12,
-        supportsAspectRatio: true,
-        supportsResolution: true,
-        supportsAudio: true,
-        supportsWatermark: true,
-      },
-      videoToVideo: {
-        enabled: false,
-      },
+      maxVideos: 1,
+      maxInputImages: 1,
+      maxInputVideos: 0,
+      maxDurationSeconds: 12,
+      supportsAspectRatio: true,
+      supportsResolution: true,
+      supportsAudio: true,
+      supportsWatermark: true,
     },
     async generateVideo(req) {
       if ((req.inputVideos?.length ?? 0) > 0) {

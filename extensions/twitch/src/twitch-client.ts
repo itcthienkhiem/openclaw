@@ -1,6 +1,5 @@
 import { RefreshingAuthProvider, StaticAuthProvider } from "@twurple/auth";
 import { ChatClient, LogLevel } from "@twurple/chat";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import type { OpenClawConfig } from "../runtime-api.js";
 import { resolveTwitchToken } from "./token.js";
 import type { ChannelLogSink, TwitchAccountConfig, TwitchChatMessage } from "./types.js";
@@ -46,7 +45,7 @@ export class TwitchClientManager {
         })
         .catch((err) => {
           this.logger.error(
-            `Failed to add user to RefreshingAuthProvider: ${formatErrorMessage(err)}`,
+            `Failed to add user to RefreshingAuthProvider: ${err instanceof Error ? err.message : String(err)}`,
           );
         });
 
@@ -251,10 +250,12 @@ export class TwitchClientManager {
 
       return { ok: true, messageId };
     } catch (error) {
-      this.logger.error(`Failed to send message: ${formatErrorMessage(error)}`);
+      this.logger.error(
+        `Failed to send message: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return {
         ok: false,
-        error: formatErrorMessage(error),
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   }

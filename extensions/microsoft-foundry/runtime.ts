@@ -1,5 +1,4 @@
 import type { ProviderPrepareRuntimeAuthContext } from "openclaw/plugin-sdk/core";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import { ensureAuthProfileStore } from "openclaw/plugin-sdk/provider-auth";
 import { getAccessTokenResultAsync } from "./cli.js";
 import {
@@ -96,9 +95,7 @@ export async function prepareFoundryRuntimeAuth(ctx: ProviderPrepareRuntimeAuthC
       ...(baseUrl ? { baseUrl } : {}),
     };
   } catch (err) {
-    const details = formatErrorMessage(err);
-    throw new Error(`Failed to refresh Azure Entra ID token via az CLI: ${details}`, {
-      cause: err,
-    });
+    const details = err instanceof Error ? err.message : String(err);
+    throw new Error(`Failed to refresh Azure Entra ID token via az CLI: ${details}`);
   }
 }

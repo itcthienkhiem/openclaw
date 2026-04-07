@@ -4,7 +4,6 @@ import { isAbsolute, resolve } from "node:path";
 import { basename } from "node:path";
 import type * as Lark from "@larksuiteoapi/node-sdk";
 import { Type } from "@sinclair/typebox";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import type { OpenClawPluginApi } from "../runtime-api.js";
 import { listEnabledFeishuAccounts } from "./accounts.js";
 import { FeishuDocSchema, type FeishuDocParams } from "./doc-schema.js";
@@ -206,7 +205,7 @@ function normalizeConvertedBlockTree(
       const parentId = typeof block?.parent_id === "string" ? block.parent_id : "";
       return !childIds.has(blockId) && (!parentId || !byId.has(parentId));
     })
-    .toSorted(
+    .sort(
       (a, b) =>
         (originalOrder.get(a.block_id ?? "__missing__") ?? 0) -
         (originalOrder.get(b.block_id ?? "__missing__") ?? 0),
@@ -397,7 +396,7 @@ async function chunkedConvertMarkdown(client: Lark.Client, markdown: string) {
 }
 
 /** Insert blocks in batches of MAX_BLOCKS_PER_INSERT to avoid API 400 errors */
-async function _chunkedInsertBlocks(
+async function chunkedInsertBlocks(
   client: Lark.Client,
   docToken: string,
   blocks: FeishuDocxBlock[],
@@ -895,7 +894,7 @@ async function createDoc(
   }
   const shouldGrantToRequester = options?.grantToRequester !== false;
   const requesterOpenId = options?.requesterOpenId?.trim();
-  const requesterPermType = "edit" as const;
+  const requesterPermType: "edit" = "edit";
 
   let requesterPermissionAdded = false;
   let requesterPermissionSkippedReason: string | undefined;
@@ -917,7 +916,7 @@ async function createDoc(
         });
         requesterPermissionAdded = true;
       } catch (err) {
-        requesterPermissionError = formatErrorMessage(err);
+        requesterPermissionError = err instanceof Error ? err.message : String(err);
       }
     }
   }
@@ -1010,9 +1009,7 @@ async function insertDoc(
   const blockInfo = await client.docx.documentBlock.get({
     path: { document_id: docToken, block_id: afterBlockId },
   });
-  if (blockInfo.code !== 0) {
-    throw new Error(blockInfo.msg);
-  }
+  if (blockInfo.code !== 0) throw new Error(blockInfo.msg);
 
   const parentId = blockInfo.data?.block?.parent_id ?? docToken;
 
@@ -1026,9 +1023,7 @@ async function insertDoc(
       path: { document_id: docToken, block_id: parentId },
       params: pageToken ? { page_token: pageToken } : {},
     });
-    if (childrenRes.code !== 0) {
-      throw new Error(childrenRes.msg);
-    }
+    if (childrenRes.code !== 0) throw new Error(childrenRes.msg);
     items.push(...(childrenRes.data?.items ?? []));
     pageToken = childrenRes.data?.page_token ?? undefined;
   } while (pageToken);
@@ -1044,9 +1039,7 @@ async function insertDoc(
 
   logger?.info?.("feishu_doc: Converting markdown...");
   const { blocks, firstLevelBlockIds } = await chunkedConvertMarkdown(client, markdown);
-  if (blocks.length === 0) {
-    throw new Error("Content is empty");
-  }
+  if (blocks.length === 0) throw new Error("Content is empty");
   const { orderedBlocks, rootIds } = normalizeConvertedBlockTree(blocks, firstLevelBlockIds);
 
   logger?.info?.(
@@ -1151,8 +1144,8 @@ async function writeTableCells(
   }
 
   const tableData = tableBlock.table;
-  const rows = tableData?.property?.row_size;
-  const cols = tableData?.property?.column_size;
+  const rows = tableData?.property?.row_size as number | undefined;
+  const cols = tableData?.property?.column_size as number | undefined;
   const cellIds = tableData?.cells ?? [];
 
   if (!rows || !cols || !cellIds.length) {
@@ -1170,9 +1163,7 @@ async function writeTableCells(
 
     for (let c = 0; c < writeCols; c++) {
       const cellId = cellIds[r * cols + c];
-      if (!cellId) {
-        continue;
-      }
+      if (!cellId) continue;
 
       // table cell is a container block: clear existing children, then create text child blocks
       const childrenRes = await client.docx.documentBlockChildren.get({
@@ -1550,7 +1541,7 @@ export function registerFeishuDocTools(api: OpenClawPluginApi) {
                   return json({ error: "Unknown action" });
               }
             } catch (err) {
-              return json({ error: formatErrorMessage(err) });
+              return json({ error: err instanceof Error ? err.message : String(err) });
             }
           },
         };
@@ -1574,7 +1565,7 @@ export function registerFeishuDocTools(api: OpenClawPluginApi) {
             const result = await listAppScopes(getClient(undefined, ctx.agentAccountId));
             return json(result);
           } catch (err) {
-            return json({ error: formatErrorMessage(err) });
+            return json({ error: err instanceof Error ? err.message : String(err) });
           }
         },
       }),

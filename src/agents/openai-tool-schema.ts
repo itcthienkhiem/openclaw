@@ -1,4 +1,3 @@
-import { readStringValue } from "../shared/string-coerce.js";
 import { normalizeToolParameterSchema } from "./pi-tools.schema.js";
 import { resolveProviderRequestCapabilities } from "./provider-attribution.js";
 
@@ -16,7 +15,9 @@ type ToolWithParameters = {
   parameters: unknown;
 };
 
-const optionalString = readStringValue;
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
 
 export function normalizeStrictOpenAIJsonSchema(schema: unknown): unknown {
   return normalizeStrictOpenAIJsonSchemaRecursive(normalizeToolParameterSchema(schema ?? {}));

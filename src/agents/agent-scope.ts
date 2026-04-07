@@ -11,7 +11,6 @@ import {
   parseAgentSessionKey,
   resolveAgentIdFromSessionKey,
 } from "../routing/session-key.js";
-import { readStringValue } from "../shared/string-coerce.js";
 import { resolveUserPath } from "../utils.js";
 import { resolveEffectiveAgentSkillFilter } from "./skills/agent-filter.js";
 import { resolveDefaultAgentWorkspaceDir } from "./workspace.js";
@@ -136,17 +135,16 @@ export function resolveAgentConfig(
   if (!entry) {
     return undefined;
   }
-  const agentDefaults = cfg.agents?.defaults;
   return {
-    name: readStringValue(entry.name),
-    workspace: readStringValue(entry.workspace),
-    agentDir: readStringValue(entry.agentDir),
+    name: typeof entry.name === "string" ? entry.name : undefined,
+    workspace: typeof entry.workspace === "string" ? entry.workspace : undefined,
+    agentDir: typeof entry.agentDir === "string" ? entry.agentDir : undefined,
     model:
       typeof entry.model === "string" || (entry.model && typeof entry.model === "object")
         ? entry.model
         : undefined,
     thinkingDefault: entry.thinkingDefault,
-    verboseDefault: entry.verboseDefault ?? agentDefaults?.verboseDefault,
+    verboseDefault: cfg.agents?.defaults?.verboseDefault,
     reasoningDefault: entry.reasoningDefault,
     fastModeDefault: entry.fastModeDefault,
     skills: Array.isArray(entry.skills) ? entry.skills : undefined,

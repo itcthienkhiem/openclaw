@@ -4,7 +4,6 @@ import { callGateway } from "../../gateway/call.js";
 import { capArrayByJsonBytes } from "../../gateway/session-utils.fs.js";
 import { jsonUtf8Bytes } from "../../infra/json-utf8-bytes.js";
 import { redactSensitiveText } from "../../logging/redact.js";
-import { readStringValue } from "../../shared/string-coerce.js";
 import { truncateUtf16Safe } from "../../utils.js";
 import {
   describeSessionsHistoryTool,
@@ -88,7 +87,7 @@ function sanitizeHistoryContentBlock(block: unknown): {
     redacted ||= res.redacted;
   }
   if (type === "image") {
-    const data = readStringValue(entry.data);
+    const data = typeof entry.data === "string" ? entry.data : undefined;
     const bytes = data ? data.length : undefined;
     if ("data" in entry) {
       delete entry.data;

@@ -3,15 +3,15 @@ import { EventEmitter } from "node:events";
 import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import net from "node:net";
+import os from "node:os";
 import path from "node:path";
 import { setTimeout as nativeSleep } from "node:timers/promises";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveConfigPath, resolveStateDir } from "../config/paths.js";
-import { createSuiteTempRootTracker } from "../test-helpers/temp-dir.js";
 import { acquireGatewayLock, GatewayLockError, type GatewayLockOptions } from "./gateway-lock.js";
 
-const fixtureRootTracker = createSuiteTempRootTracker({ prefix: "openclaw-gateway-lock-" });
 let fixtureRoot = "";
+let fixtureCount = 0;
 const realNow = Date.now.bind(Date);
 
 function resolveTestLockDir() {
@@ -19,7 +19,8 @@ function resolveTestLockDir() {
 }
 
 async function makeEnv() {
-  const dir = await fixtureRootTracker.make("case");
+  const dir = path.join(fixtureRoot, `case-${fixtureCount++}`);
+  await fs.mkdir(dir, { recursive: true });
   const configPath = path.join(dir, "openclaw.json");
   await fs.writeFile(configPath, "{}", "utf8");
   return {
@@ -148,7 +149,7 @@ async function writeRecentLockFile(env: NodeJS.ProcessEnv, startTime = 111) {
 
 describe("gateway lock", () => {
   beforeAll(async () => {
-    fixtureRoot = await fixtureRootTracker.setup();
+    fixtureRoot = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-gateway-lock-"));
   });
 
   beforeEach(() => {
@@ -160,8 +161,7 @@ describe("gateway lock", () => {
   });
 
   afterAll(async () => {
-    await fixtureRootTracker.cleanup();
-    fixtureRoot = "";
+    await fs.rm(fixtureRoot, { recursive: true, force: true });
   });
 
   afterEach(() => {

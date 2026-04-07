@@ -4,13 +4,12 @@ import type { ProviderSystemPromptContribution } from "../agents/system-prompt-c
 import type { OpenClawConfig } from "../config/config.js";
 import type { ModelProviderConfig } from "../config/types.js";
 import { resolveCatalogHookProviderPluginIds } from "./providers.js";
-import { isPluginProvidersLoadInFlight, resolvePluginProviders } from "./providers.runtime.js";
+import { resolvePluginProviders } from "./providers.runtime.js";
 import { resolvePluginCacheInputs } from "./roots.js";
 import { getActivePluginRegistryWorkspaceDirFromState } from "./runtime-state.js";
 import type {
   ProviderAuthDoctorHintContext,
   ProviderAugmentModelCatalogContext,
-  ProviderExternalAuthProfile,
   ProviderBuildMissingAuthMessageContext,
   ProviderBuildUnknownModelHintContext,
   ProviderBuiltInModelSuppressionContext,
@@ -34,8 +33,6 @@ import type {
   ProviderModernModelPolicyContext,
   ProviderPrepareExtraParamsContext,
   ProviderPrepareDynamicModelContext,
-  ProviderResolveExternalAuthProfilesContext,
-  ProviderResolveExternalOAuthProfilesContext,
   ProviderPrepareRuntimeAuthContext,
   ProviderApplyConfigDefaultsContext,
   ProviderResolveConfigApiKeyContext,
@@ -154,19 +151,6 @@ function resolveProviderPluginsForHooks(params: {
   const cached = cacheBucket.get(cacheKey);
   if (cached) {
     return cached;
-  }
-  if (
-    isPluginProvidersLoadInFlight({
-      ...params,
-      workspaceDir,
-      env,
-      activate: false,
-      cache: false,
-      bundledProviderAllowlistCompat: true,
-      bundledProviderVitestCompat: true,
-    })
-  ) {
-    return [];
   }
   const resolved = resolvePluginProviders({
     ...params,
@@ -803,34 +787,6 @@ export function resolveProviderSyntheticAuthWithPlugin(params: {
   context: ProviderResolveSyntheticAuthContext;
 }) {
   return resolveProviderRuntimePlugin(params)?.resolveSyntheticAuth?.(params.context) ?? undefined;
-}
-
-export function resolveExternalAuthProfilesWithPlugins(params: {
-  config?: OpenClawConfig;
-  workspaceDir?: string;
-  env?: NodeJS.ProcessEnv;
-  context: ProviderResolveExternalAuthProfilesContext;
-}): ProviderExternalAuthProfile[] {
-  const matches: ProviderExternalAuthProfile[] = [];
-  for (const plugin of resolveProviderPluginsForHooks(params)) {
-    const profiles =
-      plugin.resolveExternalAuthProfiles?.(params.context) ??
-      plugin.resolveExternalOAuthProfiles?.(params.context);
-    if (!profiles || profiles.length === 0) {
-      continue;
-    }
-    matches.push(...profiles);
-  }
-  return matches;
-}
-
-export function resolveExternalOAuthProfilesWithPlugins(params: {
-  config?: OpenClawConfig;
-  workspaceDir?: string;
-  env?: NodeJS.ProcessEnv;
-  context: ProviderResolveExternalOAuthProfilesContext;
-}): ProviderExternalAuthProfile[] {
-  return resolveExternalAuthProfilesWithPlugins(params);
 }
 
 export function shouldDeferProviderSyntheticProfileAuthWithPlugin(params: {

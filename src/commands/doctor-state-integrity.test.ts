@@ -108,16 +108,15 @@ describe("doctor state integrity oauth dir checks", () => {
     expect(text).not.toContain("CRITICAL: OAuth dir missing");
   });
 
-  it("does not prompt for oauth dir when whatsapp is configured without persisted auth state", async () => {
+  it("prompts for oauth dir when whatsapp is configured", async () => {
     const cfg: OpenClawConfig = {
       channels: {
         whatsapp: {},
       },
     };
     const confirmRuntimeRepair = await runStateIntegrity(cfg);
-    expect(confirmRuntimeRepair).not.toHaveBeenCalledWith(OAUTH_PROMPT_MATCHER);
-    expect(stateIntegrityText()).toContain("OAuth dir not present");
-    expect(stateIntegrityText()).not.toContain("CRITICAL: OAuth dir missing");
+    expect(confirmRuntimeRepair).toHaveBeenCalledWith(OAUTH_PROMPT_MATCHER);
+    expect(stateIntegrityText()).toContain("CRITICAL: OAuth dir missing");
   });
 
   it("prompts for oauth dir when a channel dmPolicy is pairing", async () => {

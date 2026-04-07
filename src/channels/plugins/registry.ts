@@ -3,7 +3,6 @@ import {
   requireActivePluginChannelRegistry,
 } from "../../plugins/runtime.js";
 import { CHAT_CHANNEL_ORDER, type ChatChannelId, normalizeAnyChannelId } from "../registry.js";
-import { getBundledChannelPlugin } from "./bundled.js";
 import type { ChannelId, ChannelPlugin } from "./types.js";
 
 function dedupeChannels(channels: ChannelPlugin[]): ChannelPlugin[] {
@@ -22,14 +21,12 @@ function dedupeChannels(channels: ChannelPlugin[]): ChannelPlugin[] {
 
 type CachedChannelPlugins = {
   registryVersion: number;
-  registryRef: object | null;
   sorted: ChannelPlugin[];
   byId: Map<string, ChannelPlugin>;
 };
 
 const EMPTY_CHANNEL_PLUGIN_CACHE: CachedChannelPlugins = {
   registryVersion: -1,
-  registryRef: null,
   sorted: [],
   byId: new Map(),
 };
@@ -40,7 +37,7 @@ function resolveCachedChannelPlugins(): CachedChannelPlugins {
   const registry = requireActivePluginChannelRegistry();
   const registryVersion = getActivePluginChannelRegistryVersion();
   const cached = cachedChannelPlugins;
-  if (cached.registryVersion === registryVersion && cached.registryRef === registry) {
+  if (cached.registryVersion === registryVersion) {
     return cached;
   }
 
@@ -70,7 +67,6 @@ function resolveCachedChannelPlugins(): CachedChannelPlugins {
 
   const next: CachedChannelPlugins = {
     registryVersion,
-    registryRef: registry,
     sorted,
     byId,
   };
@@ -82,20 +78,12 @@ export function listChannelPlugins(): ChannelPlugin[] {
   return resolveCachedChannelPlugins().sorted.slice();
 }
 
-export function getLoadedChannelPlugin(id: ChannelId): ChannelPlugin | undefined {
-  const resolvedId = String(id).trim();
-  if (!resolvedId) {
-    return undefined;
-  }
-  return resolveCachedChannelPlugins().byId.get(resolvedId);
-}
-
 export function getChannelPlugin(id: ChannelId): ChannelPlugin | undefined {
   const resolvedId = String(id).trim();
   if (!resolvedId) {
     return undefined;
   }
-  return getLoadedChannelPlugin(resolvedId) ?? getBundledChannelPlugin(resolvedId);
+  return resolveCachedChannelPlugins().byId.get(resolvedId);
 }
 
 export function normalizeChannelId(raw?: string | null): ChannelId | null {

@@ -5,7 +5,6 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { formatErrorMessage } from "../src/infra/errors.ts";
 import { BUNDLED_RUNTIME_SIDECAR_PATHS } from "../src/plugins/runtime-sidecar-paths.ts";
 import { parseReleaseVersion, resolveNpmCommandInvocation } from "./openclaw-npm-release-check.ts";
 
@@ -142,7 +141,9 @@ if (entrypoint !== null && import.meta.url === entrypoint) {
   try {
     main();
   } catch (error) {
-    console.error(`openclaw-npm-postpublish-verify: ${formatErrorMessage(error)}`);
+    console.error(
+      `openclaw-npm-postpublish-verify: ${error instanceof Error ? error.message : String(error)}`,
+    );
     process.exitCode = 1;
   }
 }

@@ -42,11 +42,7 @@ function isDiscordExecApprovalClientEnabledForTest(params: {
   const rootConfig = params.cfg.channels?.discord?.execApprovals;
   const accountConfig =
     accountId && accountId !== "default"
-      ? (
-          params.cfg.channels?.discordAccounts?.[accountId] as
-            | { execApprovals?: { enabled?: boolean; approvers?: unknown[] } }
-            | undefined
-        )?.execApprovals
+      ? params.cfg.channels?.discordAccounts?.[accountId]?.execApprovals
       : undefined;
   const config = accountConfig ?? rootConfig;
   return Boolean(config?.enabled && (config.approvers?.length ?? 0) > 0);
@@ -60,11 +56,7 @@ function isTelegramExecApprovalClientEnabledForTest(params: {
   const rootConfig = params.cfg.channels?.telegram?.execApprovals;
   const accountConfig =
     accountId && accountId !== "default"
-      ? (
-          params.cfg.channels?.telegramAccounts?.[accountId] as
-            | { execApprovals?: { enabled?: boolean; approvers?: unknown[] } }
-            | undefined
-        )?.execApprovals
+      ? params.cfg.channels?.telegramAccounts?.[accountId]?.execApprovals
       : undefined;
   const config = accountConfig ?? rootConfig;
   return Boolean(config?.enabled && (config.approvers?.length ?? 0) > 0);

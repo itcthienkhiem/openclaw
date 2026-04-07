@@ -11,7 +11,6 @@ import type {
   SpeechProviderPlugin,
   SpeechVoiceOption,
 } from "openclaw/plugin-sdk/speech";
-import { asBoolean, asFiniteNumber, asObject, trimToUndefined } from "openclaw/plugin-sdk/speech";
 import { resolvePreferredOpenClawTmpDir } from "openclaw/plugin-sdk/temp-path";
 import { edgeTTS, inferEdgeExtension } from "./tts.js";
 
@@ -44,6 +43,24 @@ type MicrosoftVoiceListEntry = {
   };
 };
 
+function trimToUndefined(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function asBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function asObject(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
 function normalizeMicrosoftProviderConfig(
   rawConfig: Record<string, unknown>,
 ): MicrosoftProviderConfig {
@@ -51,7 +68,7 @@ function normalizeMicrosoftProviderConfig(
   const rawEdge = asObject(rawConfig.edge);
   const rawMicrosoft = asObject(rawConfig.microsoft);
   const rawProvider = asObject(providers?.microsoft);
-  const raw = { ...rawEdge, ...rawMicrosoft, ...rawProvider };
+  const raw = { ...(rawEdge ?? {}), ...(rawMicrosoft ?? {}), ...(rawProvider ?? {}) };
   const outputFormat = trimToUndefined(raw.outputFormat);
   return {
     enabled: asBoolean(raw.enabled) ?? true,
@@ -64,7 +81,7 @@ function normalizeMicrosoftProviderConfig(
     volume: trimToUndefined(raw.volume),
     saveSubtitles: asBoolean(raw.saveSubtitles) ?? false,
     proxy: trimToUndefined(raw.proxy),
-    timeoutMs: asFiniteNumber(raw.timeoutMs),
+    timeoutMs: asNumber(raw.timeoutMs),
   };
 }
 
@@ -82,7 +99,7 @@ function readMicrosoftProviderConfig(config: SpeechProviderConfig): MicrosoftPro
     volume: trimToUndefined(config.volume) ?? defaults.volume,
     saveSubtitles: asBoolean(config.saveSubtitles) ?? defaults.saveSubtitles,
     proxy: trimToUndefined(config.proxy) ?? defaults.proxy,
-    timeoutMs: asFiniteNumber(config.timeoutMs) ?? defaults.timeoutMs,
+    timeoutMs: asNumber(config.timeoutMs) ?? defaults.timeoutMs,
   };
 }
 
@@ -190,9 +207,9 @@ export function buildMicrosoftSpeechProvider(): SpeechProviderPlugin {
         ...(trimToUndefined(talkProviderConfig.proxy) == null
           ? {}
           : { proxy: trimToUndefined(talkProviderConfig.proxy) }),
-        ...(asFiniteNumber(talkProviderConfig.timeoutMs) == null
+        ...(asNumber(talkProviderConfig.timeoutMs) == null
           ? {}
-          : { timeoutMs: asFiniteNumber(talkProviderConfig.timeoutMs) }),
+          : { timeoutMs: asNumber(talkProviderConfig.timeoutMs) }),
       };
     },
     resolveTalkOverrides: ({ params }) => ({

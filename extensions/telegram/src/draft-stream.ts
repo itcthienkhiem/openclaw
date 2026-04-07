@@ -1,6 +1,5 @@
 import type { Bot } from "grammy";
 import { createFinalizableDraftLifecycle } from "openclaw/plugin-sdk/channel-lifecycle";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import { buildTelegramThreadParams, type TelegramThreadSpec } from "./bot/helpers.js";
 import { isSafeToRetrySendError, isTelegramClientRejection } from "./network-errors.js";
 import { normalizeTelegramReplyToMessageId } from "./outbound-params.js";
@@ -202,7 +201,7 @@ export function createTelegramDraftStream(params: {
       if (!usedThreadParams || !THREAD_NOT_FOUND_RE.test(String(err))) {
         throw err;
       }
-      const threadlessParams: TelegramSendMessageParams = { ...sendParams };
+      const threadlessParams: TelegramSendMessageParams = { ...(sendParams ?? {}) };
       delete threadlessParams.message_thread_id;
       params.warn?.(sendArgs.fallbackWarnMessage);
       return {
@@ -363,7 +362,9 @@ export function createTelegramDraftStream(params: {
       return sent;
     } catch (err) {
       streamState.stopped = true;
-      params.warn?.(`telegram stream preview failed: ${formatErrorMessage(err)}`);
+      params.warn?.(
+        `telegram stream preview failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
       return false;
     }
   };
@@ -450,7 +451,9 @@ export function createTelegramDraftStream(params: {
         return streamMessageId;
       }
     } catch (err) {
-      params.warn?.(`telegram stream preview materialize failed: ${formatErrorMessage(err)}`);
+      params.warn?.(
+        `telegram stream preview materialize failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
     return undefined;
   };

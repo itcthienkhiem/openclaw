@@ -384,7 +384,6 @@ export async function prepareSlackMessage(params: {
         },
       }));
   const implicitMention = Boolean(
-    !ctx.threadRequireExplicitMention &&
     !isDirectMessage &&
     ctx.botUserId &&
     message.thread_ts &&

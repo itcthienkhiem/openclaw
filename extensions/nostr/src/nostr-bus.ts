@@ -800,11 +800,8 @@ async function sendEncryptedDm(
 
     const startTime = Date.now();
     try {
-      const [publishPromise] = pool.publish([relay], reply);
-      if (!publishPromise) {
-        throw new Error(`Failed to create publish promise for relay ${relay}`);
-      }
-      await publishPromise;
+      // oxlint-disable-next-line typescript/await-thenable typesciript/no-floating-promises
+      await pool.publish([relay], reply);
       const latency = Date.now() - startTime;
 
       // Record success

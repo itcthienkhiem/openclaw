@@ -1,19 +1,22 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import JSZip from "jszip";
 import * as tar from "tar";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { createSuiteTempRootTracker } from "../test-helpers/temp-dir.js";
 import { withRealpathSymlinkRebindRace } from "../test-utils/symlink-rebind-race.js";
 import type { ArchiveSecurityError } from "./archive.js";
 import { extractArchive, resolvePackedRootDir } from "./archive.js";
 
-const fixtureRootTracker = createSuiteTempRootTracker({ prefix: "openclaw-archive-" });
+let fixtureRoot = "";
+let fixtureCount = 0;
 const directorySymlinkType = process.platform === "win32" ? "junction" : undefined;
 const ARCHIVE_EXTRACT_TIMEOUT_MS = 15_000;
 
 async function makeTempDir(prefix = "case") {
-  return await fixtureRootTracker.make(prefix);
+  const dir = path.join(fixtureRoot, `${prefix}-${fixtureCount++}`);
+  await fs.mkdir(dir, { recursive: true });
+  return dir;
 }
 
 async function withArchiveCase(
@@ -72,11 +75,11 @@ async function expectExtractedSizeBudgetExceeded(params: {
 }
 
 beforeAll(async () => {
-  await fixtureRootTracker.setup();
+  fixtureRoot = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-archive-"));
 });
 
 afterAll(async () => {
-  await fixtureRootTracker.cleanup();
+  await fs.rm(fixtureRoot, { recursive: true, force: true });
 });
 
 describe("archive utils", () => {

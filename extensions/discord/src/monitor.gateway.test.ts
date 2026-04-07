@@ -89,7 +89,7 @@ describe("waitForDiscordGatewayStop", () => {
 
     emitGatewayEvent(fatalEvent);
 
-    await expect(promise).rejects.toThrow("discord gateway fatal: Error: boom");
+    await expect(promise).rejects.toThrow("boom");
     expect(disconnect).toHaveBeenCalledTimes(1);
     expect(detachLifecycle).toHaveBeenCalledTimes(1);
   });
@@ -178,7 +178,7 @@ describe("waitForDiscordGatewayStop", () => {
 
     emitGatewayEvent(firstEvent);
 
-    await expect(promise).rejects.toThrow("discord gateway fatal: Error: first failure");
+    await expect(promise).rejects.toThrow("first failure");
     expect(seenEvents.map((event) => event.message)).toEqual([
       firstEvent.message,
       secondEvent.message,

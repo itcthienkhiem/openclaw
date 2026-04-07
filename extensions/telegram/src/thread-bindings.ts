@@ -12,7 +12,6 @@ import {
   type SessionBindingAdapter,
   type SessionBindingRecord,
 } from "openclaw/plugin-sdk/conversation-runtime";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import { writeJsonFileAtomically } from "openclaw/plugin-sdk/json-store";
 import { normalizeAccountId } from "openclaw/plugin-sdk/routing";
 import { logVerbose } from "openclaw/plugin-sdk/runtime-env";
@@ -608,7 +607,7 @@ export function createTelegramThreadBindingManager(
           conversationId = `${result.chatId}:topic:${result.topicId}`;
         } catch (err) {
           logVerbose(
-            `telegram: child thread-binding failed for ${chatId}: ${formatErrorMessage(err)}`,
+            `telegram: child thread-binding failed for ${chatId}: ${err instanceof Error ? err.message : String(err)}`,
           );
           return null;
         }
@@ -857,10 +856,7 @@ export async function resetTelegramThreadBindingsForTests() {
   for (const manager of getThreadBindingsState().managersByAccountId.values()) {
     manager.stop();
   }
-  const pendingPersists = [...getThreadBindingsState().persistQueueByAccountId.values()];
-  if (pendingPersists.length > 0) {
-    await Promise.allSettled(pendingPersists);
-  }
+  await Promise.allSettled(getThreadBindingsState().persistQueueByAccountId.values());
   getThreadBindingsState().persistQueueByAccountId.clear();
   getThreadBindingsState().managersByAccountId.clear();
   getThreadBindingsState().bindingsByAccountConversation.clear();

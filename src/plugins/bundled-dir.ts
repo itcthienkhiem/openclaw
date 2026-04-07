@@ -25,33 +25,12 @@ function isSourceCheckoutRoot(packageRoot: string): boolean {
   );
 }
 
-function hasUsableBundledPluginTree(pluginsDir: string): boolean {
-  if (!fs.existsSync(pluginsDir)) {
-    return false;
-  }
-  try {
-    return fs.readdirSync(pluginsDir, { withFileTypes: true }).some((entry) => {
-      if (!entry.isDirectory()) {
-        return false;
-      }
-      const pluginDir = path.join(pluginsDir, entry.name);
-      return (
-        fs.existsSync(path.join(pluginDir, "package.json")) ||
-        fs.existsSync(path.join(pluginDir, "openclaw.plugin.json"))
-      );
-    });
-  } catch {
-    return false;
-  }
-}
-
 function resolveBundledDirFromPackageRoot(
   packageRoot: string,
   preferSourceCheckout: boolean,
 ): string | undefined {
   const sourceExtensionsDir = path.join(packageRoot, "extensions");
   const builtExtensionsDir = path.join(packageRoot, "dist", "extensions");
-  const sourceCheckout = isSourceCheckoutRoot(packageRoot);
   if (preferSourceCheckout && fs.existsSync(sourceExtensionsDir)) {
     return sourceExtensionsDir;
   }
@@ -59,19 +38,13 @@ function resolveBundledDirFromPackageRoot(
   // dist-runtime/. Prefer that over source extensions only when the paired
   // dist/ tree exists; otherwise wrappers can drift ahead of the last build.
   const runtimeExtensionsDir = path.join(packageRoot, "dist-runtime", "extensions");
-  const hasUsableRuntimeTree = sourceCheckout
-    ? hasUsableBundledPluginTree(runtimeExtensionsDir)
-    : fs.existsSync(runtimeExtensionsDir);
-  const hasUsableBuiltTree = sourceCheckout
-    ? hasUsableBundledPluginTree(builtExtensionsDir)
-    : fs.existsSync(builtExtensionsDir);
-  if (hasUsableRuntimeTree && hasUsableBuiltTree) {
+  if (fs.existsSync(runtimeExtensionsDir) && fs.existsSync(builtExtensionsDir)) {
     return runtimeExtensionsDir;
   }
-  if (hasUsableBuiltTree) {
+  if (fs.existsSync(builtExtensionsDir)) {
     return builtExtensionsDir;
   }
-  if (sourceCheckout && fs.existsSync(sourceExtensionsDir)) {
+  if (isSourceCheckoutRoot(packageRoot) && fs.existsSync(sourceExtensionsDir)) {
     return sourceExtensionsDir;
   }
   return undefined;

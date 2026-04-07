@@ -217,9 +217,7 @@ describe("safeFetch", () => {
     const rebindingResolve = async () => {
       callCount++;
       // First call (initial URL) resolves to public IP
-      if (callCount === 1) {
-        return { address: "13.107.136.10" };
-      }
+      if (callCount === 1) return { address: "13.107.136.10" };
       // Second call (redirect target) resolves to private IP
       return { address: "169.254.169.254" };
     };
@@ -402,7 +400,7 @@ describe("msteams inline image limits", () => {
     const attachments = [
       {
         contentType: "text/html",
-        content: `<img src="${smallPngDataUrl}" />`,
+        content: `<img src=\"${smallPngDataUrl}\" />`,
       },
     ];
     const out = extractInlineImageCandidates(attachments, { maxInlineBytes: 4 });
@@ -413,7 +411,7 @@ describe("msteams inline image limits", () => {
     const attachments = [
       {
         contentType: "text/html",
-        content: `<img src="${smallPngDataUrl}" />`,
+        content: `<img src=\"${smallPngDataUrl}\" />`,
       },
     ];
     const out = extractInlineImageCandidates(attachments, { maxInlineBytes: 10 });
@@ -429,11 +427,11 @@ describe("msteams inline image limits", () => {
     const attachments = [
       {
         contentType: "text/html",
-        content: `<img src="${smallPngDataUrl}" />`,
+        content: `<img src=\"${smallPngDataUrl}\" />`,
       },
       {
         contentType: "text/html",
-        content: `<img src="${smallPngDataUrl}" />`,
+        content: `<img src=\"${smallPngDataUrl}\" />`,
       },
     ];
     const out = extractInlineImageCandidates(attachments, {

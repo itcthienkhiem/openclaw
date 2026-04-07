@@ -23,10 +23,6 @@ function resolveCommandCandidateText(ctx: FinalizedMsgContext): string {
   return resolveFirstContextText(ctx, ["CommandBody", "BodyForCommands", "RawBody", "Body"]).trim();
 }
 
-function isResetCommandCandidate(text: string): boolean {
-  return /^\/(?:new|reset)(?:\s|$)/i.test(text);
-}
-
 export function shouldBypassAcpDispatchForCommand(
   ctx: FinalizedMsgContext,
   cfg: OpenClawConfig,
@@ -43,10 +39,6 @@ export function shouldBypassAcpDispatchForCommand(
   });
   if (!normalized.startsWith("/") && maybeResolveTextAlias(candidate, cfg) != null) {
     return allowTextCommands;
-  }
-
-  if (isResetCommandCandidate(normalized)) {
-    return true;
   }
 
   if (!normalized.startsWith("!")) {

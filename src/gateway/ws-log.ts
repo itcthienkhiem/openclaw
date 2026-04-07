@@ -5,7 +5,6 @@ import { shouldLogSubsystemToConsole } from "../logging/console.js";
 import { getDefaultRedactPatterns, redactSensitiveText } from "../logging/redact.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { parseAgentSessionKey } from "../routing/session-key.js";
-import { readStringValue } from "../shared/string-coerce.js";
 import { DEFAULT_WS_SLOW_MS, getGatewayWsLogStyle } from "./ws-logging.js";
 
 const LOG_VALUE_LIMIT = 240;
@@ -170,10 +169,10 @@ export function summarizeAgentEventForWsLog(payload: unknown): Record<string, un
     return {};
   }
   const rec = payload as Record<string, unknown>;
-  const runId = readStringValue(rec.runId);
-  const stream = readStringValue(rec.stream);
+  const runId = typeof rec.runId === "string" ? rec.runId : undefined;
+  const stream = typeof rec.stream === "string" ? rec.stream : undefined;
   const seq = typeof rec.seq === "number" ? rec.seq : undefined;
-  const sessionKey = readStringValue(rec.sessionKey);
+  const sessionKey = typeof rec.sessionKey === "string" ? rec.sessionKey : undefined;
   const data =
     rec.data && typeof rec.data === "object" ? (rec.data as Record<string, unknown>) : undefined;
 
@@ -202,7 +201,7 @@ export function summarizeAgentEventForWsLog(payload: unknown): Record<string, un
   }
 
   if (stream === "assistant") {
-    const text = readStringValue(data.text);
+    const text = typeof data.text === "string" ? data.text : undefined;
     if (text?.trim()) {
       extra.text = compactPreview(text);
     }
@@ -216,16 +215,16 @@ export function summarizeAgentEventForWsLog(payload: unknown): Record<string, un
   }
 
   if (stream === "tool") {
-    const phase = readStringValue(data.phase);
-    const name = readStringValue(data.name);
+    const phase = typeof data.phase === "string" ? data.phase : undefined;
+    const name = typeof data.name === "string" ? data.name : undefined;
     if (phase || name) {
       extra.tool = `${phase ?? "?"}:${name ?? "?"}`;
     }
-    const toolCallId = readStringValue(data.toolCallId);
+    const toolCallId = typeof data.toolCallId === "string" ? data.toolCallId : undefined;
     if (toolCallId) {
       extra.call = shortId(toolCallId);
     }
-    const meta = readStringValue(data.meta);
+    const meta = typeof data.meta === "string" ? data.meta : undefined;
     if (meta?.trim()) {
       extra.meta = meta;
     }

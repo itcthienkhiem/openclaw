@@ -1,5 +1,4 @@
 import process from "node:process";
-import { restoreTerminalState } from "../terminal/restore.js";
 import {
   collectErrorGraphCandidates,
   extractErrorCode,
@@ -341,11 +340,6 @@ export function isUnhandledRejectionHandled(reason: unknown): boolean {
 }
 
 export function installUnhandledRejectionHandler(): void {
-  const exitWithTerminalRestore = (reason: string) => {
-    restoreTerminalState(reason, { resumeStdinIfPaused: false });
-    process.exit(1);
-  };
-
   process.on("unhandledRejection", (reason, _promise) => {
     if (isUnhandledRejectionHandled(reason)) {
       return;
@@ -360,13 +354,13 @@ export function installUnhandledRejectionHandler(): void {
 
     if (isFatalError(reason)) {
       console.error("[openclaw] FATAL unhandled rejection:", formatUncaughtError(reason));
-      exitWithTerminalRestore("fatal unhandled rejection");
+      process.exit(1);
       return;
     }
 
     if (isConfigError(reason)) {
       console.error("[openclaw] CONFIGURATION ERROR - requires fix:", formatUncaughtError(reason));
-      exitWithTerminalRestore("configuration error");
+      process.exit(1);
       return;
     }
 
@@ -379,6 +373,6 @@ export function installUnhandledRejectionHandler(): void {
     }
 
     console.error("[openclaw] Unhandled promise rejection:", formatUncaughtError(reason));
-    exitWithTerminalRestore("unhandled rejection");
+    process.exit(1);
   });
 }

@@ -13,7 +13,6 @@ import {
 import { resolveStorePath } from "../config/sessions/paths.js";
 import { loadSessionStore, updateSessionStore } from "../config/sessions/store.js";
 import type { SessionEntry } from "../config/sessions/types.js";
-import { formatErrorMessage } from "../infra/errors.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { type RuntimeEnv, defaultRuntime } from "../runtime.js";
 
@@ -132,7 +131,7 @@ async function restoreMainSessionMapping(
     );
     return undefined;
   } catch (err) {
-    return formatErrorMessage(err);
+    return err instanceof Error ? err.message : String(err);
   }
 }
 
@@ -151,7 +150,7 @@ export async function runBootOnce(params: {
   try {
     result = await loadBootFile(params.workspaceDir);
   } catch (err) {
-    const message = formatErrorMessage(err);
+    const message = err instanceof Error ? err.message : String(err);
     log.error(`boot: failed to read ${BOOT_FILENAME}: ${message}`);
     return { status: "failed", reason: message };
   }
@@ -184,7 +183,7 @@ export async function runBootOnce(params: {
       params.deps,
     );
   } catch (err) {
-    agentFailure = formatErrorMessage(err);
+    agentFailure = err instanceof Error ? err.message : String(err);
     log.error(`boot: agent run failed: ${agentFailure}`);
   }
 

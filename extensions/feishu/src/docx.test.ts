@@ -155,7 +155,7 @@ describe("feishu_doc image fetch hardening", () => {
     registerFeishuDocTools(harness.api);
     const tool = harness.resolveTool("feishu_doc", context);
     expect(tool).toBeDefined();
-    return tool;
+    return tool as ToolLike;
   }
 
   async function executeFeishuDocTool(

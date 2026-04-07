@@ -5,7 +5,6 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 import { isWindowsDrivePath } from "../infra/archive-path.js";
-import { formatErrorMessage } from "../infra/errors.js";
 import { writeFileFromPathWithinRoot } from "../infra/fs-safe.js";
 import { assertCanonicalPathWithinBase } from "../infra/install-safe-path.js";
 import { fetchWithSsrFGuard } from "../infra/net/fetch-guard.js";
@@ -152,7 +151,7 @@ export async function installDownloadSpec(params: {
     const targetRelativePath = path.relative(safeRoot, requestedTargetDir);
     targetDir = path.join(canonicalSafeRoot, targetRelativePath);
   } catch (err) {
-    const message = formatErrorMessage(err);
+    const message = err instanceof Error ? err.message : String(err);
     return { ok: false, message, stdout: "", stderr: message, code: null };
   }
 
@@ -182,7 +181,7 @@ export async function installDownloadSpec(params: {
     });
     downloaded = result.bytes;
   } catch (err) {
-    const message = formatErrorMessage(err);
+    const message = err instanceof Error ? err.message : String(err);
     return { ok: false, message, stdout: "", stderr: message, code: null };
   }
 
@@ -215,7 +214,7 @@ export async function installDownloadSpec(params: {
       boundaryLabel: "skill tools directory",
     });
   } catch (err) {
-    const message = formatErrorMessage(err);
+    const message = err instanceof Error ? err.message : String(err);
     return { ok: false, message, stdout: "", stderr: message, code: null };
   }
 

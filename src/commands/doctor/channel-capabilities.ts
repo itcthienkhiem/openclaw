@@ -1,4 +1,3 @@
-import { getBundledChannelPlugin } from "../../channels/plugins/bundled.js";
 import { getChannelPlugin } from "../../channels/plugins/index.js";
 import type { AllowFromMode } from "./shared/allow-from-mode.js";
 
@@ -22,8 +21,7 @@ export function getDoctorChannelCapabilities(channelName?: string): DoctorChanne
   if (!channelName) {
     return DEFAULT_DOCTOR_CHANNEL_CAPABILITIES;
   }
-  const pluginDoctor =
-    getChannelPlugin(channelName)?.doctor ?? getBundledChannelPlugin(channelName)?.doctor;
+  const pluginDoctor = getChannelPlugin(channelName)?.doctor;
   if (pluginDoctor) {
     return {
       dmAllowFromMode:

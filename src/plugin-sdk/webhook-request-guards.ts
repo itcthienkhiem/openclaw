@@ -1,5 +1,4 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { formatErrorMessage } from "../infra/errors.js";
 import {
   installRequestBodyLimitGuard,
   isRequestBodyLimitError,
@@ -269,7 +268,8 @@ export async function readWebhookBodyOrReject(params: {
     return respondWebhookBodyReadError({
       res: params.res,
       code: "INVALID_BODY",
-      invalidMessage: params.invalidBodyMessage ?? formatErrorMessage(error),
+      invalidMessage:
+        params.invalidBodyMessage ?? (error instanceof Error ? error.message : String(error)),
     });
   }
 }

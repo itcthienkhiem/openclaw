@@ -1,6 +1,5 @@
 import { defineSingleProviderPluginEntry } from "openclaw/plugin-sdk/provider-entry";
 import { resolveProviderRequestCapabilities } from "openclaw/plugin-sdk/provider-http";
-import { readStringValue } from "openclaw/plugin-sdk/text-runtime";
 import { applyMistralModelCompat, MISTRAL_MODEL_COMPAT_PATCH } from "./api.js";
 import { mistralMediaUnderstandingProvider } from "./media-understanding-provider.js";
 import { applyMistralConfig, MISTRAL_DEFAULT_MODEL_REF } from "./onboard.js";
@@ -37,9 +36,9 @@ function shouldContributeMistralCompat(params: {
   }
 
   const capabilities = resolveProviderRequestCapabilities({
-    provider: readStringValue(params.model.provider),
+    provider: typeof params.model.provider === "string" ? params.model.provider : undefined,
     api: "openai-completions",
-    baseUrl: readStringValue(params.model.baseUrl),
+    baseUrl: typeof params.model.baseUrl === "string" ? params.model.baseUrl : undefined,
     capability: "llm",
     transport: "stream",
     modelId: params.modelId,

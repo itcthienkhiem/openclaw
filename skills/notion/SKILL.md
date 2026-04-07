@@ -17,23 +17,32 @@ Use the Notion API to create/read/update pages, data sources (databases), and bl
 
 1. Create an integration at https://notion.so/my-integrations
 2. Copy the API key (starts with `ntn_` or `secret_`)
-3. Store it:
-
-```bash
-mkdir -p ~/.config/notion
-echo "ntn_your_key_here" > ~/.config/notion/api_key
-```
-
+3. Configure via OpenClaw desktop app settings, or set the environment variable:
+   ```bash
+   export NOTION_API_KEY="ntn_your_key_here"
+   ```
 4. Share target pages/databases with your integration (click "..." → "Connect to" → your integration name)
+
+The `NOTION_API_KEY` environment variable is set automatically when configured through OpenClaw settings.
+
+## Cross-platform note
+
+Examples below use bash syntax. On **PowerShell (Windows)** apply these changes:
+
+| bash                              | PowerShell                                                             |
+| --------------------------------- | ---------------------------------------------------------------------- |
+| `$NOTION_API_KEY`                 | `$env:NOTION_API_KEY`                                                  |
+| `curl`                            | `curl.exe` (bare `curl` is a PowerShell alias for `Invoke-WebRequest`) |
+| `\` (line continuation)           | `` ` `` (backtick)                                                     |
+| `'{"json"}'` (single-quoted body) | `'{"json"}'` (same — single quotes in PowerShell are literal)          |
 
 ## API Basics
 
 All requests need:
 
 ```bash
-NOTION_KEY=$(cat ~/.config/notion/api_key)
 curl -X GET "https://api.notion.com/v1/..." \
-  -H "Authorization: Bearer $NOTION_KEY" \
+  -H "Authorization: Bearer $NOTION_API_KEY" \
   -H "Notion-Version: 2025-09-03" \
   -H "Content-Type: application/json"
 ```
@@ -46,7 +55,7 @@ curl -X GET "https://api.notion.com/v1/..." \
 
 ```bash
 curl -X POST "https://api.notion.com/v1/search" \
-  -H "Authorization: Bearer $NOTION_KEY" \
+  -H "Authorization: Bearer $NOTION_API_KEY" \
   -H "Notion-Version: 2025-09-03" \
   -H "Content-Type: application/json" \
   -d '{"query": "page title"}'
@@ -56,7 +65,7 @@ curl -X POST "https://api.notion.com/v1/search" \
 
 ```bash
 curl "https://api.notion.com/v1/pages/{page_id}" \
-  -H "Authorization: Bearer $NOTION_KEY" \
+  -H "Authorization: Bearer $NOTION_API_KEY" \
   -H "Notion-Version: 2025-09-03"
 ```
 
@@ -64,7 +73,7 @@ curl "https://api.notion.com/v1/pages/{page_id}" \
 
 ```bash
 curl "https://api.notion.com/v1/blocks/{page_id}/children" \
-  -H "Authorization: Bearer $NOTION_KEY" \
+  -H "Authorization: Bearer $NOTION_API_KEY" \
   -H "Notion-Version: 2025-09-03"
 ```
 
@@ -72,7 +81,7 @@ curl "https://api.notion.com/v1/blocks/{page_id}/children" \
 
 ```bash
 curl -X POST "https://api.notion.com/v1/pages" \
-  -H "Authorization: Bearer $NOTION_KEY" \
+  -H "Authorization: Bearer $NOTION_API_KEY" \
   -H "Notion-Version: 2025-09-03" \
   -H "Content-Type: application/json" \
   -d '{
@@ -88,7 +97,7 @@ curl -X POST "https://api.notion.com/v1/pages" \
 
 ```bash
 curl -X POST "https://api.notion.com/v1/data_sources/{data_source_id}/query" \
-  -H "Authorization: Bearer $NOTION_KEY" \
+  -H "Authorization: Bearer $NOTION_API_KEY" \
   -H "Notion-Version: 2025-09-03" \
   -H "Content-Type: application/json" \
   -d '{
@@ -101,7 +110,7 @@ curl -X POST "https://api.notion.com/v1/data_sources/{data_source_id}/query" \
 
 ```bash
 curl -X POST "https://api.notion.com/v1/data_sources" \
-  -H "Authorization: Bearer $NOTION_KEY" \
+  -H "Authorization: Bearer $NOTION_API_KEY" \
   -H "Notion-Version: 2025-09-03" \
   -H "Content-Type: application/json" \
   -d '{
@@ -119,7 +128,7 @@ curl -X POST "https://api.notion.com/v1/data_sources" \
 
 ```bash
 curl -X PATCH "https://api.notion.com/v1/pages/{page_id}" \
-  -H "Authorization: Bearer $NOTION_KEY" \
+  -H "Authorization: Bearer $NOTION_API_KEY" \
   -H "Notion-Version: 2025-09-03" \
   -H "Content-Type: application/json" \
   -d '{"properties": {"Status": {"select": {"name": "Done"}}}}'
@@ -129,7 +138,7 @@ curl -X PATCH "https://api.notion.com/v1/pages/{page_id}" \
 
 ```bash
 curl -X PATCH "https://api.notion.com/v1/blocks/{page_id}/children" \
-  -H "Authorization: Bearer $NOTION_KEY" \
+  -H "Authorization: Bearer $NOTION_API_KEY" \
   -H "Notion-Version: 2025-09-03" \
   -H "Content-Type: application/json" \
   -d '{

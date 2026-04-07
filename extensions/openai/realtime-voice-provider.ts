@@ -1,18 +1,13 @@
 import type {
   RealtimeVoiceBridge,
   RealtimeVoiceBridgeCreateRequest,
+  RealtimeVoiceCloseReason,
   RealtimeVoiceProviderConfig,
   RealtimeVoiceProviderPlugin,
   RealtimeVoiceTool,
 } from "openclaw/plugin-sdk/realtime-voice";
 import { normalizeResolvedSecretInputString } from "openclaw/plugin-sdk/secret-input";
 import WebSocket from "ws";
-import {
-  asFiniteNumber,
-  readRealtimeErrorDetail,
-  resolveOpenAIProviderConfigRecord,
-  trimToUndefined,
-} from "./realtime-provider-shared.js";
 
 export type OpenAIRealtimeVoice =
   | "alloy"
@@ -84,10 +79,25 @@ type RealtimeSessionUpdate = {
   };
 };
 
+function trimToUndefined(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function asObject(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
 function normalizeProviderConfig(
   config: RealtimeVoiceProviderConfig,
 ): OpenAIRealtimeVoiceProviderConfig {
-  const raw = resolveOpenAIProviderConfigRecord(config);
+  const providers = asObject(config.providers);
+  const raw = asObject(providers?.openai) ?? asObject(config.openai) ?? asObject(config);
   return {
     apiKey: normalizeResolvedSecretInputString({
       value: raw?.apiKey,
@@ -95,14 +105,20 @@ function normalizeProviderConfig(
     }),
     model: trimToUndefined(raw?.model),
     voice: trimToUndefined(raw?.voice) as OpenAIRealtimeVoice | undefined,
-    temperature: asFiniteNumber(raw?.temperature),
-    vadThreshold: asFiniteNumber(raw?.vadThreshold),
-    silenceDurationMs: asFiniteNumber(raw?.silenceDurationMs),
-    prefixPaddingMs: asFiniteNumber(raw?.prefixPaddingMs),
+    temperature: asNumber(raw?.temperature),
+    vadThreshold: asNumber(raw?.vadThreshold),
+    silenceDurationMs: asNumber(raw?.silenceDurationMs),
+    prefixPaddingMs: asNumber(raw?.prefixPaddingMs),
     azureEndpoint: trimToUndefined(raw?.azureEndpoint),
     azureDeployment: trimToUndefined(raw?.azureDeployment),
     azureApiVersion: trimToUndefined(raw?.azureApiVersion),
   };
+}
+
+function readProviderConfig(
+  providerConfig: RealtimeVoiceProviderConfig,
+): OpenAIRealtimeVoiceProviderConfig {
+  return normalizeProviderConfig(providerConfig);
 }
 
 function base64ToBuffer(b64: string): Buffer {
@@ -437,7 +453,12 @@ class OpenAIRealtimeVoiceBridge implements RealtimeVoiceBridge {
       }
 
       case "error": {
-        const detail = readRealtimeErrorDetail(event.error);
+        const detail =
+          event.error && typeof event.error === "object" && "message" in event.error
+            ? String((event.error as { message?: unknown }).message ?? "Unknown error")
+            : event.error
+              ? String(event.error)
+              : "Unknown error";
         this.config.onError?.(new Error(detail));
         return;
       }
@@ -487,9 +508,9 @@ export function buildOpenAIRealtimeVoiceProvider(): RealtimeVoiceProviderPlugin 
     autoSelectOrder: 10,
     resolveConfig: ({ rawConfig }) => normalizeProviderConfig(rawConfig),
     isConfigured: ({ providerConfig }) =>
-      Boolean(normalizeProviderConfig(providerConfig).apiKey || process.env.OPENAI_API_KEY),
+      Boolean(readProviderConfig(providerConfig).apiKey || process.env.OPENAI_API_KEY),
     createBridge: (req) => {
-      const config = normalizeProviderConfig(req.providerConfig);
+      const config = readProviderConfig(req.providerConfig);
       const apiKey = config.apiKey || process.env.OPENAI_API_KEY;
       if (!apiKey) {
         throw new Error("OpenAI API key missing");

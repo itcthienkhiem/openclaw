@@ -1,5 +1,4 @@
 import { EventEmitter } from "node:events";
-import type { ClientRequest, IncomingMessage, RequestOptions } from "node:http";
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 
 // Mock http and https modules before importing the client
@@ -22,27 +21,6 @@ let sendFileUrl: typeof import("./client.js").sendFileUrl;
 let fetchChatUsers: typeof import("./client.js").fetchChatUsers;
 let resolveLegacyWebhookNameToChatUserId: typeof import("./client.js").resolveLegacyWebhookNameToChatUserId;
 
-type RequestCallback = (res: IncomingMessage) => void;
-type MockRequestHandler = (
-  url: string | URL,
-  options: RequestOptions,
-  callback?: RequestCallback,
-) => ClientRequest;
-
-function createMockResponseEmitter(statusCode: number): IncomingMessage {
-  const res = new EventEmitter() as Partial<IncomingMessage>;
-  res.statusCode = statusCode;
-  return res as IncomingMessage;
-}
-
-function createMockRequestEmitter(): ClientRequest {
-  const req = new EventEmitter() as Partial<ClientRequest>;
-  req.write = vi.fn() as ClientRequest["write"];
-  req.end = vi.fn() as ClientRequest["end"];
-  req.destroy = vi.fn() as ClientRequest["destroy"];
-  return req as ClientRequest;
-}
-
 async function settleTimers<T>(promise: Promise<T>): Promise<T> {
   await Promise.resolve();
   await vi.runAllTimersAsync();
@@ -51,16 +29,20 @@ async function settleTimers<T>(promise: Promise<T>): Promise<T> {
 
 function mockResponse(statusCode: number, body: string) {
   const httpsRequest = vi.mocked(https.request);
-  httpsRequest.mockImplementation(((...args) => {
-    const callback = args[2];
-    const res = createMockResponseEmitter(statusCode);
+  httpsRequest.mockImplementation((_url: any, _opts: any, callback: any) => {
+    const res = new EventEmitter() as any;
+    res.statusCode = statusCode;
     process.nextTick(() => {
-      callback?.(res);
+      callback(res);
       res.emit("data", Buffer.from(body));
       res.emit("end");
     });
-    return createMockRequestEmitter();
-  }) as MockRequestHandler);
+    const req = new EventEmitter() as any;
+    req.write = vi.fn();
+    req.end = vi.fn();
+    req.destroy = vi.fn();
+    return req;
+  });
 }
 
 function mockSuccessResponse() {
@@ -174,15 +156,18 @@ function mockUserListResponseImpl(
   users: Array<{ user_id: number; username: string; nickname: string }>,
   once: boolean,
 ) {
-  const httpsGet = vi.mocked(https.get);
-  const impl: MockRequestHandler = (_url, _opts, callback) => {
-    const res = createMockResponseEmitter(200);
+  const httpsGet = vi.mocked((https as any).get);
+  const impl = (_url: any, _opts: any, callback: any) => {
+    const res = new EventEmitter() as any;
+    res.statusCode = 200;
     process.nextTick(() => {
-      callback?.(res);
+      callback(res);
       res.emit("data", Buffer.from(JSON.stringify({ success: true, data: { users } })));
       res.emit("end");
     });
-    return createMockRequestEmitter();
+    const req = new EventEmitter() as any;
+    req.destroy = vi.fn();
+    return req;
   };
   if (once) {
     httpsGet.mockImplementationOnce(impl);
@@ -266,7 +251,7 @@ describe("resolveLegacyWebhookNameToChatUserId", () => {
       incomingUrl: baseUrl,
       mutableWebhookUsername: "anyone",
     });
-    const httpsGet = vi.mocked(https.get);
+    const httpsGet = vi.mocked((https as any).get);
     expect(httpsGet).toHaveBeenCalledWith(
       expect.stringContaining("method=user_list"),
       expect.any(Object),
@@ -289,7 +274,7 @@ describe("resolveLegacyWebhookNameToChatUserId", () => {
 
     expect(result1).toBe(4);
     expect(result2).toBe(9);
-    const httpsGet = vi.mocked(https.get);
+    const httpsGet = vi.mocked((https as any).get);
     expect(httpsGet).toHaveBeenCalledTimes(2);
   });
 });
@@ -298,11 +283,12 @@ describe("fetchChatUsers", () => {
   installFakeTimerHarness();
 
   it("filters malformed user entries while keeping valid ones", async () => {
-    const httpsGet = vi.mocked(https.get);
-    httpsGet.mockImplementation(((_url, _opts, callback) => {
-      const res = createMockResponseEmitter(200);
+    const httpsGet = vi.mocked((https as any).get);
+    httpsGet.mockImplementation((_url: any, _opts: any, callback: any) => {
+      const res = new EventEmitter() as any;
+      res.statusCode = 200;
       process.nextTick(() => {
-        callback?.(res);
+        callback(res);
         res.emit(
           "data",
           Buffer.from(
@@ -319,8 +305,10 @@ describe("fetchChatUsers", () => {
         );
         res.emit("end");
       });
-      return createMockRequestEmitter();
-    }) as MockRequestHandler);
+      const req = new EventEmitter() as any;
+      req.destroy = vi.fn();
+      return req;
+    });
 
     const users = await fetchChatUsers(
       "https://nas.example.com/webapi/entry.cgi?api=SYNO.Chat.External&method=chatbot&version=2&token=%22test%22",
@@ -336,7 +324,7 @@ describe("fetchChatUsers", () => {
 
     await fetchChatUsers(freshUrl);
 
-    const httpsGet = vi.mocked(https.get);
+    const httpsGet = vi.mocked((https as any).get);
     expect(httpsGet.mock.calls[0]?.[1]).toMatchObject({ rejectUnauthorized: true });
   });
 });

@@ -135,8 +135,6 @@ function expectTalkConfig(
     provider: string;
     voiceId?: string;
     apiKey?: string | SecretRef;
-    providerApiKey?: string | SecretRef;
-    resolvedApiKey?: string | SecretRef;
     silenceTimeoutMs?: number;
   },
 ) {
@@ -148,12 +146,6 @@ function expectTalkConfig(
   if ("apiKey" in expected) {
     expect(talk?.providers?.[expected.provider]?.apiKey).toEqual(expected.apiKey);
     expect(talk?.resolved?.config?.apiKey).toEqual(expected.apiKey);
-  }
-  if ("providerApiKey" in expected) {
-    expect(talk?.providers?.[expected.provider]?.apiKey).toEqual(expected.providerApiKey);
-  }
-  if ("resolvedApiKey" in expected) {
-    expect(talk?.resolved?.config?.apiKey).toEqual(expected.resolvedApiKey);
   }
   if ("silenceTimeoutMs" in expected) {
     expect(talk?.silenceTimeoutMs).toBe(expected.silenceTimeoutMs);
@@ -192,7 +184,7 @@ describe("gateway talk.config", () => {
         apiKey: "__OPENCLAW_REDACTED__",
         silenceTimeoutMs: 1500,
       });
-      expect(res.payload?.config?.session?.mainKey).toBe("main-test");
+      expect(res.payload?.config?.session?.mainKey).toBe("main");
       expect(res.payload?.config?.ui?.seamColor).toBe("#112233");
     });
   });
@@ -264,7 +256,7 @@ describe("gateway talk.config", () => {
     });
   });
 
-  it("preserves configured Talk provider data when plugin-owned defaults exist", async () => {
+  it("resolves plugin-owned Talk defaults before redaction", async () => {
     await writeTalkConfig({
       provider: GENERIC_TALK_PROVIDER_ID,
       voiceId: "voice-from-config",
@@ -304,7 +296,7 @@ describe("gateway talk.config", () => {
             expectTalkConfig(res.payload?.config?.talk, {
               provider: GENERIC_TALK_PROVIDER_ID,
               voiceId: "voice-from-config",
-              providerApiKey: undefined,
+              apiKey: "__OPENCLAW_REDACTED__",
             });
           });
         },

@@ -1,7 +1,6 @@
 import { getChannelPlugin, normalizeChannelId } from "../../channels/plugins/index.js";
 import type { OpenClawConfig } from "../../config/config.js";
 import type { BlockStreamingCoalesceConfig } from "../../config/types.js";
-import { resolveChannelStreamingBlockCoalesce } from "../../plugin-sdk/channel-streaming.js";
 import { resolveAccountEntry } from "../../routing/account-lookup.js";
 import { normalizeAccountId } from "../../routing/session-key.js";
 import { normalizeMessageChannel } from "../../utils/message-channel.js";
@@ -40,11 +39,7 @@ function resolveProviderChunkContext(
 
 type ProviderBlockStreamingConfig = {
   blockStreamingCoalesce?: BlockStreamingCoalesceConfig;
-  streaming?: unknown;
-  accounts?: Record<
-    string,
-    { blockStreamingCoalesce?: BlockStreamingCoalesceConfig; streaming?: unknown }
-  >;
+  accounts?: Record<string, { blockStreamingCoalesce?: BlockStreamingCoalesceConfig }>;
 };
 
 function resolveProviderBlockStreamingCoalesce(params: {
@@ -63,12 +58,7 @@ function resolveProviderBlockStreamingCoalesce(params: {
   const normalizedAccountId = normalizeAccountId(accountId);
   const typed = providerCfg as ProviderBlockStreamingConfig;
   const accountCfg = resolveAccountEntry(typed.accounts, normalizedAccountId);
-  return (
-    resolveChannelStreamingBlockCoalesce(accountCfg) ??
-    resolveChannelStreamingBlockCoalesce(typed) ??
-    accountCfg?.blockStreamingCoalesce ??
-    typed.blockStreamingCoalesce
-  );
+  return accountCfg?.blockStreamingCoalesce ?? typed.blockStreamingCoalesce;
 }
 
 export type BlockStreamingCoalescing = {

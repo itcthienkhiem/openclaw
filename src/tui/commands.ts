@@ -23,7 +23,6 @@ export type SlashCommandOptions = {
 
 const COMMAND_ALIASES: Record<string, string> = {
   elev: "elevated",
-  gwstatus: "gateway-status",
 };
 
 function createLevelCompletion(
@@ -61,8 +60,7 @@ export function getSlashCommands(options: SlashCommandOptions = {}): SlashComman
   const activationCompletions = createLevelCompletion(ACTIVATION_LEVELS);
   const commands: SlashCommand[] = [
     { name: "help", description: "Show slash command help" },
-    { name: "gateway-status", description: "Show gateway status summary" },
-    { name: "gwstatus", description: "Alias for /gateway-status" },
+    { name: "status", description: "Show gateway status summary" },
     { name: "agent", description: "Switch agent (or open picker)" },
     { name: "agents", description: "Open agent picker" },
     { name: "session", description: "Switch session (or open picker)" },
@@ -147,8 +145,6 @@ export function helpText(options: SlashCommandOptions = {}): string {
     "/help",
     "/commands",
     "/status",
-    "/gateway-status",
-    "/gwstatus",
     "/agent <id> (or /agents)",
     "/session <key> (or /sessions)",
     "/model <provider/model> (or /models)",

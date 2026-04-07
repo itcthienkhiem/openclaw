@@ -1,4 +1,4 @@
-import { getActivePluginChannelRegistry, getActivePluginRegistry } from "../plugins/runtime.js";
+import { getActivePluginRegistry } from "../plugins/runtime.js";
 import { getChatChannelMeta, listChatChannels, type ChatChannelMeta } from "./chat-meta.js";
 import {
   CHANNEL_IDS,
@@ -20,10 +20,6 @@ type RegisteredChannelPluginEntry = {
 };
 
 function listRegisteredChannelPluginEntries(): RegisteredChannelPluginEntry[] {
-  const channelRegistry = getActivePluginChannelRegistry();
-  if (channelRegistry && channelRegistry.channels && channelRegistry.channels.length > 0) {
-    return channelRegistry.channels;
-  }
   return getActivePluginRegistry()?.channels ?? [];
 }
 

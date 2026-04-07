@@ -7,7 +7,6 @@ import {
   type ProviderDiscoveryContext,
 } from "openclaw/plugin-sdk/plugin-entry";
 import { buildProviderReplayFamilyHooks } from "openclaw/plugin-sdk/provider-model-shared";
-import { readStringValue } from "openclaw/plugin-sdk/text-runtime";
 import {
   buildOllamaProvider,
   configureOllamaNonInteractive,
@@ -24,7 +23,6 @@ import { resolveOllamaApiBase } from "./src/provider-models.js";
 import {
   createConfiguredOllamaCompatStreamWrapper,
   createConfiguredOllamaStreamFn,
-  resolveConfiguredOllamaProviderConfig,
 } from "./src/stream.js";
 import { createOllamaWebSearchProvider } from "./src/web-search-provider.js";
 
@@ -119,7 +117,7 @@ export default definePluginEntry({
             return null;
           }
           const ollamaKey = ctx.resolveProviderApiKey(PROVIDER_ID).apiKey;
-          const explicitApiKey = readStringValue(explicit?.apiKey);
+          const explicitApiKey = typeof explicit?.apiKey === "string" ? explicit.apiKey : undefined;
           if (hasExplicitModels && explicit) {
             return {
               provider: {
@@ -185,11 +183,10 @@ export default definePluginEntry({
         }
         await ensureOllamaModelPulled({ config, model, prompter });
       },
-      createStreamFn: ({ config, model, provider }) => {
+      createStreamFn: ({ config, model }) => {
         return createConfiguredOllamaStreamFn({
           model,
-          providerBaseUrl: resolveConfiguredOllamaProviderConfig({ config, providerId: provider })
-            ?.baseUrl,
+          providerBaseUrl: config?.models?.providers?.ollama?.baseUrl,
         });
       },
       ...OPENAI_COMPATIBLE_REPLAY_HOOKS,

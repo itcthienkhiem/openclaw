@@ -6,9 +6,6 @@ import type { HealthSummary } from "./health.js";
 import { healthCommand } from "./health.js";
 
 const callGatewayMock = vi.fn();
-const buildGatewayConnectionDetailsMock = vi.fn(() => ({
-  message: "Gateway mode: local\nGateway target: ws://127.0.0.1:18789",
-}));
 const logWebSelfIdMock = vi.fn();
 
 function createRecentSessionRows(now = Date.now()) {
@@ -19,10 +16,7 @@ function createRecentSessionRows(now = Date.now()) {
 }
 
 vi.mock("../gateway/call.js", () => ({
-  callGateway: (...args: [unknown, ...unknown[]]) =>
-    Reflect.apply(callGatewayMock, undefined, args),
-  buildGatewayConnectionDetails: (...args: [unknown, ...unknown[]]) =>
-    Reflect.apply(buildGatewayConnectionDetailsMock, undefined, args),
+  callGateway: (...args: unknown[]) => callGatewayMock(...args),
 }));
 
 describe("healthCommand (coverage)", () => {
@@ -34,9 +28,6 @@ describe("healthCommand (coverage)", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    buildGatewayConnectionDetailsMock.mockReturnValue({
-      message: "Gateway mode: local\nGateway target: ws://127.0.0.1:18789",
-    });
     setActivePluginRegistry(
       createTestRegistry([
         {
@@ -133,33 +124,5 @@ describe("healthCommand (coverage)", () => {
       /WhatsApp: linked/i,
     );
     expect(logWebSelfIdMock).toHaveBeenCalled();
-  });
-
-  it("prints gateway connection details in verbose mode", async () => {
-    callGatewayMock.mockResolvedValueOnce({
-      ok: true,
-      ts: Date.now(),
-      durationMs: 5,
-      channels: {},
-      channelOrder: [],
-      channelLabels: {},
-      heartbeatSeconds: 60,
-      defaultAgentId: "main",
-      agents: [],
-      sessions: {
-        path: "/tmp/sessions.json",
-        count: 0,
-        recent: [],
-      },
-    } satisfies HealthSummary);
-
-    await healthCommand({ json: false, verbose: true, timeoutMs: 1000 }, runtime as never);
-
-    expect(runtime.log.mock.calls.slice(0, 3)).toEqual([
-      ["Gateway connection:"],
-      ["  Gateway mode: local"],
-      ["  Gateway target: ws://127.0.0.1:18789"],
-    ]);
-    expect(buildGatewayConnectionDetailsMock).toHaveBeenCalled();
   });
 });

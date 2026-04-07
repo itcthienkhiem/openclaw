@@ -180,8 +180,6 @@ describe("feishu tool account routing", () => {
     const result = await tool.execute("call", { action: "search" });
 
     expect(createFeishuClientMock).not.toHaveBeenCalled();
-    expect(String(result.details.error ?? "")).toContain(
-      "Resolve this command against an active gateway runtime snapshot before reading it.",
-    );
+    expect(String(result.details.error ?? "")).toContain("unresolved SecretRef");
   });
 });

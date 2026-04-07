@@ -1,4 +1,3 @@
-import { listBundledChannelPlugins } from "../../../channels/plugins/bundled.js";
 import { listChannelPlugins } from "../../../channels/plugins/registry.js";
 import type {
   ChannelDoctorAdapter,
@@ -13,34 +12,14 @@ type ChannelDoctorEntry = {
   doctor: ChannelDoctorAdapter;
 };
 
-function safeListActiveChannelPlugins() {
-  try {
-    return listChannelPlugins();
-  } catch {
-    return [];
-  }
-}
-
-function safeListBundledChannelPlugins() {
-  try {
-    return listBundledChannelPlugins();
-  } catch {
-    return [];
-  }
-}
-
 function listChannelDoctorEntries(): ChannelDoctorEntry[] {
-  const byId = new Map<string, ChannelDoctorEntry>();
-  for (const plugin of [...safeListActiveChannelPlugins(), ...safeListBundledChannelPlugins()]) {
-    if (!plugin.doctor) {
-      continue;
-    }
-    const existing = byId.get(plugin.id);
-    if (!existing) {
-      byId.set(plugin.id, { channelId: plugin.id, doctor: plugin.doctor });
-    }
+  try {
+    return listChannelPlugins()
+      .flatMap((plugin) => (plugin.doctor ? [{ channelId: plugin.id, doctor: plugin.doctor }] : []))
+      .filter((entry) => entry.doctor);
+  } catch {
+    return [];
   }
-  return [...byId.values()];
 }
 
 export async function runChannelDoctorConfigSequences(params: {

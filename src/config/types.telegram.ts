@@ -1,5 +1,6 @@
 import type {
-  ChannelPreviewStreamingConfig,
+  BlockStreamingChunkConfig,
+  BlockStreamingCoalesceConfig,
   ContextVisibilityMode,
   DmPolicy,
   GroupPolicy,
@@ -147,8 +148,22 @@ export type TelegramAccountConfig = {
   dms?: Record<string, DmConfig>;
   /** Outbound text chunk size (chars). Default: 4000. */
   textChunkLimit?: number;
-  /** Streaming + chunking settings. Prefer this nested shape over legacy flat keys. */
-  streaming?: ChannelPreviewStreamingConfig;
+  /** Chunking mode: "length" (default) splits by size; "newline" splits on every newline. */
+  chunkMode?: "length" | "newline";
+  /**
+   * Stream preview mode:
+   * - "off": disable preview updates
+   * - "partial": edit a single preview message
+   * - "block": stream in larger chunked updates
+   * - "progress": alias that maps to "partial" on Telegram
+   */
+  streaming?: TelegramStreamingMode;
+  /** Disable block streaming for this account. */
+  blockStreaming?: boolean;
+  /** Draft block-stream chunking thresholds for Telegram preview edits. */
+  draftChunk?: BlockStreamingChunkConfig;
+  /** Merge streamed block replies before sending. */
+  blockStreamingCoalesce?: BlockStreamingCoalesceConfig;
   mediaMaxMb?: number;
   /** Telegram API client timeout in seconds (grammY ApiClientOptions). */
   timeoutSeconds?: number;

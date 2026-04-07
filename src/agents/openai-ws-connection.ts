@@ -44,9 +44,6 @@ export interface UsageInfo {
   total_tokens?: number;
   prompt_tokens?: number;
   completion_tokens?: number;
-  input_tokens_details?: {
-    cached_tokens?: number;
-  };
 }
 
 export type OpenAIResponsesAssistantPhase = "commentary" | "final_answer";

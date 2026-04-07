@@ -2,7 +2,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { cleanupTempDirs, makeTempDir } from "../../test/helpers/temp-dir.js";
 
 const {
   normalizeRoute,
@@ -96,8 +95,7 @@ describe("docs-link-audit", () => {
   });
 
   it("builds an English-only docs tree for anchor audits", () => {
-    const tempDirs: string[] = [];
-    const fixtureRoot = makeTempDir(tempDirs, "docs-link-audit-fixture-");
+    const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "docs-link-audit-fixture-"));
     const docsRoot = path.join(fixtureRoot, "docs");
     fs.mkdirSync(path.join(docsRoot, "help"), { recursive: true });
     fs.mkdirSync(path.join(docsRoot, "zh-CN", "help"), { recursive: true });
@@ -142,7 +140,7 @@ describe("docs-link-audit", () => {
       });
     } finally {
       fs.rmSync(anchorDocsDir, { recursive: true, force: true });
-      cleanupTempDirs(tempDirs);
+      fs.rmSync(fixtureRoot, { recursive: true, force: true });
     }
   });
 

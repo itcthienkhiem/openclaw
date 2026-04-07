@@ -1,0 +1,50 @@
+/* ── RestoreOptionPage ────────────────────────────────── */
+
+.UiRestoreCard {
+  display: flex;
+  flex-direction: column;
+}
+
+.UiRestoreCardBottom {
+  margin-top: auto;
+}
+
+.UiRestoreOptionIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.UiRestoreOptionText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.UiRestoreOptionName {
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff;
+  line-height: 1.3;
+}
+
+.UiRestoreOptionDesc {
+  font-size: 13px;
+  color: #8e8e8e;
+  line-height: 14px;
+}
+
+.UiRestoreError {
+  color: #ff6b6b;
+  font-size: 13px;
+  text-align: center;
+  padding: 8px 16px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: rgba(255, 107, 107, 0.1);
+}

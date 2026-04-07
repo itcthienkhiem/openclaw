@@ -1,10 +1,12 @@
 import {
+  buildChannelConfigSchema,
+  BlockStreamingCoalesceSchema,
+  DmConfigSchema,
   DmPolicySchema,
   GroupPolicySchema,
   MarkdownConfigSchema,
   ReplyRuntimeConfigSchemaShape,
   ToolPolicySchema,
-  buildChannelConfigSchema,
   requireOpenAllowFrom,
 } from "openclaw/plugin-sdk/channel-config-schema";
 import { z } from "openclaw/plugin-sdk/zod";

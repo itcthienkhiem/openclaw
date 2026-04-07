@@ -606,7 +606,7 @@ describe("spawnAcpDirect", () => {
     expectAgentGatewayCall({
       deliver: true,
       channel: "matrix",
-      to: "room:!room:example",
+      to: "channel:child-thread",
       threadId: "child-thread",
     });
   });

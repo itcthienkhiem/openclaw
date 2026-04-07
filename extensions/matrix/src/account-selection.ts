@@ -16,7 +16,10 @@ import {
   type MatrixResolvedStringField,
 } from "./auth-precedence.js";
 import { getMatrixScopedEnvVarNames, listMatrixEnvAccountIds } from "./env-vars.js";
-import { isRecord } from "./record-shared.js";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
 
 type MatrixTopologyStringSources = Partial<Record<MatrixResolvedStringField, string>>;
 

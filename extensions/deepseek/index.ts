@@ -1,4 +1,3 @@
-import { readConfiguredProviderCatalogEntries } from "openclaw/plugin-sdk/provider-catalog-shared";
 import { defineSingleProviderPluginEntry } from "openclaw/plugin-sdk/provider-entry";
 import { applyDeepSeekConfig, DEEPSEEK_DEFAULT_MODEL_REF } from "./onboard.js";
 import { buildDeepSeekProvider } from "./provider-catalog.js";
@@ -35,11 +34,6 @@ export default defineSingleProviderPluginEntry({
     catalog: {
       buildProvider: buildDeepSeekProvider,
     },
-    augmentModelCatalog: ({ config }) =>
-      readConfiguredProviderCatalogEntries({
-        config,
-        providerId: PROVIDER_ID,
-      }),
     matchesContextOverflowError: ({ errorMessage }) =>
       /\bdeepseek\b.*(?:input.*too long|context.*exceed)/i.test(errorMessage),
   },

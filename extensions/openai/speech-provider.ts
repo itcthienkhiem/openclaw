@@ -6,12 +6,6 @@ import type {
   SpeechProviderPlugin,
 } from "openclaw/plugin-sdk/speech";
 import {
-  asFiniteNumber,
-  asObjectRecord,
-  resolveOpenAIProviderConfigRecord,
-  trimToUndefined,
-} from "./realtime-provider-shared.js";
-import {
   DEFAULT_OPENAI_BASE_URL,
   isValidOpenAIModel,
   isValidOpenAIVoice,
@@ -36,10 +30,25 @@ type OpenAITtsProviderOverrides = {
   speed?: number;
 };
 
+function trimToUndefined(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function asObject(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
 function normalizeOpenAIProviderConfig(
   rawConfig: Record<string, unknown>,
 ): OpenAITtsProviderConfig {
-  const raw = resolveOpenAIProviderConfigRecord(rawConfig);
+  const providers = asObject(rawConfig.providers);
+  const raw = asObject(providers?.openai) ?? asObject(rawConfig.openai);
   return {
     apiKey: normalizeResolvedSecretInputString({
       value: raw?.apiKey,
@@ -52,7 +61,7 @@ function normalizeOpenAIProviderConfig(
     ),
     model: trimToUndefined(raw?.model) ?? "gpt-4o-mini-tts",
     voice: trimToUndefined(raw?.voice) ?? "coral",
-    speed: asFiniteNumber(raw?.speed),
+    speed: asNumber(raw?.speed),
     instructions: trimToUndefined(raw?.instructions),
   };
 }
@@ -64,7 +73,7 @@ function readOpenAIProviderConfig(config: SpeechProviderConfig): OpenAITtsProvid
     baseUrl: trimToUndefined(config.baseUrl) ?? normalized.baseUrl,
     model: trimToUndefined(config.model) ?? normalized.model,
     voice: trimToUndefined(config.voice) ?? normalized.voice,
-    speed: asFiniteNumber(config.speed) ?? normalized.speed,
+    speed: asNumber(config.speed) ?? normalized.speed,
     instructions: trimToUndefined(config.instructions) ?? normalized.instructions,
   };
 }
@@ -78,7 +87,7 @@ function readOpenAIOverrides(
   return {
     model: trimToUndefined(overrides.model),
     voice: trimToUndefined(overrides.voice),
-    speed: asFiniteNumber(overrides.speed),
+    speed: asNumber(overrides.speed),
   };
 }
 
@@ -87,7 +96,7 @@ function parseDirectiveToken(ctx: SpeechDirectiveTokenParseContext): {
   overrides?: SpeechProviderOverrides;
   warnings?: string[];
 } {
-  const baseUrl = trimToUndefined(asObjectRecord(ctx.providerConfig)?.baseUrl);
+  const baseUrl = trimToUndefined(ctx.providerConfig?.baseUrl);
   switch (ctx.key) {
     case "voice":
     case "openai_voice":
@@ -144,9 +153,9 @@ export function buildOpenAISpeechProvider(): SpeechProviderPlugin {
         ...(trimToUndefined(talkProviderConfig.voiceId) == null
           ? {}
           : { voice: trimToUndefined(talkProviderConfig.voiceId) }),
-        ...(asFiniteNumber(talkProviderConfig.speed) == null
+        ...(asNumber(talkProviderConfig.speed) == null
           ? {}
-          : { speed: asFiniteNumber(talkProviderConfig.speed) }),
+          : { speed: asNumber(talkProviderConfig.speed) }),
         ...(trimToUndefined(talkProviderConfig.instructions) == null
           ? {}
           : { instructions: trimToUndefined(talkProviderConfig.instructions) }),
@@ -159,7 +168,7 @@ export function buildOpenAISpeechProvider(): SpeechProviderPlugin {
       ...(trimToUndefined(params.modelId) == null
         ? {}
         : { model: trimToUndefined(params.modelId) }),
-      ...(asFiniteNumber(params.speed) == null ? {} : { speed: asFiniteNumber(params.speed) }),
+      ...(asNumber(params.speed) == null ? {} : { speed: asNumber(params.speed) }),
     }),
     listVoices: async () => OPENAI_TTS_VOICES.map((voice) => ({ id: voice, name: voice })),
     isConfigured: ({ providerConfig }) =>

@@ -1,5 +1,4 @@
 import type { OpenClawConfig } from "../config/config.js";
-import { shouldPreserveThinkingBlocks } from "../plugins/provider-replay-helpers.js";
 import { resolveProviderRuntimePlugin } from "../plugins/provider-runtime.js";
 import type { ProviderReplayPolicy, ProviderRuntimeModel } from "../plugins/types.js";
 import { normalizeProviderId } from "./model-selection.js";
@@ -94,9 +93,7 @@ function buildUnownedProviderTransportReplayFallback(params: {
           },
         }
       : {}),
-    ...(isAnthropic && modelId.includes("claude")
-      ? { dropThinkingBlocks: !shouldPreserveThinkingBlocks(modelId) }
-      : {}),
+    ...(isAnthropic && modelId.includes("claude") ? { dropThinkingBlocks: true } : {}),
     ...(isGoogle || isStrictOpenAiCompatible ? { applyAssistantFirstOrderingFix: true } : {}),
     ...(isGoogle || isStrictOpenAiCompatible ? { validateGeminiTurns: true } : {}),
     ...(isAnthropic || isStrictOpenAiCompatible ? { validateAnthropicTurns: true } : {}),

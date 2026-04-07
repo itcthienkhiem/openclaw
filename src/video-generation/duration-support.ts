@@ -1,4 +1,3 @@
-import { resolveVideoGenerationModeCapabilities } from "./capabilities.js";
 import type { VideoGenerationProvider } from "./types.js";
 
 function normalizeSupportedDurationValues(
@@ -18,14 +17,8 @@ function normalizeSupportedDurationValues(
 export function resolveVideoGenerationSupportedDurations(params: {
   provider?: VideoGenerationProvider;
   model?: string;
-  inputImageCount?: number;
-  inputVideoCount?: number;
 }): number[] | undefined {
-  const { capabilities: caps } = resolveVideoGenerationModeCapabilities({
-    provider: params.provider,
-    inputImageCount: params.inputImageCount,
-    inputVideoCount: params.inputVideoCount,
-  });
+  const caps = params.provider?.capabilities;
   const model = params.model?.trim();
   const modelSpecific =
     model && caps?.supportedDurationSecondsByModel
@@ -38,8 +31,6 @@ export function normalizeVideoGenerationDuration(params: {
   provider?: VideoGenerationProvider;
   model?: string;
   durationSeconds?: number;
-  inputImageCount?: number;
-  inputVideoCount?: number;
 }): number | undefined {
   if (typeof params.durationSeconds !== "number" || !Number.isFinite(params.durationSeconds)) {
     return undefined;

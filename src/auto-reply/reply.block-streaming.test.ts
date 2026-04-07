@@ -1,7 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OpenClawConfig } from "../config/config.js";
-import { withFastReplyConfig } from "./reply/get-reply-fast-path.js";
-import { loadGetReplyModuleForTest } from "./reply/get-reply.test-loader.js";
 import { createMockTypingController } from "./reply/reply.test-helpers.js";
 import type { MsgContext } from "./templating.js";
 
@@ -88,7 +86,8 @@ vi.mock("./reply/get-reply-run.js", () => ({
 let getReplyFromConfig: typeof import("./reply/get-reply.js").getReplyFromConfig;
 
 async function loadFreshGetReplyModuleForTest() {
-  ({ getReplyFromConfig } = await loadGetReplyModuleForTest({ cacheKey: import.meta.url }));
+  vi.resetModules();
+  ({ getReplyFromConfig } = await import("./reply/get-reply.js"));
 }
 
 function createTelegramMessage(messageSid: string): MsgContext {
@@ -104,21 +103,16 @@ function createTelegramMessage(messageSid: string): MsgContext {
 }
 
 function createReplyConfig(streamMode?: "block"): OpenClawConfig {
-  return withFastReplyConfig({
+  return {
     agents: {
       defaults: {
         model: { primary: "anthropic/claude-opus-4-6" },
         workspace: "/tmp/workspace",
       },
     },
-    channels: {
-      telegram: {
-        allowFrom: ["*"],
-        ...(streamMode ? { streaming: { mode: streamMode } } : {}),
-      },
-    },
+    channels: { telegram: { allowFrom: ["*"], ...(streamMode ? { streaming: streamMode } : {}) } },
     session: { store: "/tmp/sessions.json" },
-  } as OpenClawConfig);
+  };
 }
 
 function createContinueDirectivesResult() {

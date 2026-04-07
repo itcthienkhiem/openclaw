@@ -1,7 +1,3 @@
-import {
-  startWebLoginWithQr as startWebLoginWithQrImpl,
-  waitForWebLogin as waitForWebLoginImpl,
-} from "../login-qr-runtime.js";
 import { getActiveWebListener as getActiveWebListenerImpl } from "./active-listener.js";
 import {
   getWebAuthAgeMs as getWebAuthAgeMsImpl,
@@ -21,10 +17,17 @@ type LogoutWeb = typeof import("./auth-store.js").logoutWeb;
 type ReadWebSelfId = typeof import("./auth-store.js").readWebSelfId;
 type WebAuthExists = typeof import("./auth-store.js").webAuthExists;
 type LoginWeb = typeof import("./login.js").loginWeb;
-type StartWebLoginWithQr = typeof import("../login-qr-runtime.js").startWebLoginWithQr;
-type WaitForWebLogin = typeof import("../login-qr-runtime.js").waitForWebLogin;
+type StartWebLoginWithQr = typeof import("./login-qr.js").startWebLoginWithQr;
+type WaitForWebLogin = typeof import("./login-qr.js").waitForWebLogin;
 type WhatsAppSetupWizard = typeof import("./setup-surface.js").whatsappSetupWizard;
 type MonitorWebChannel = typeof import("./auto-reply/monitor.js").monitorWebChannel;
+
+let loginQrPromise: Promise<typeof import("./login-qr.js")> | null = null;
+
+function loadWhatsAppLoginQr() {
+  loginQrPromise ??= import("./login-qr.js");
+  return loginQrPromise;
+}
 
 export function getActiveWebListener(
   ...args: Parameters<GetActiveWebListener>
@@ -59,13 +62,15 @@ export function loginWeb(...args: Parameters<LoginWeb>): ReturnType<LoginWeb> {
 export async function startWebLoginWithQr(
   ...args: Parameters<StartWebLoginWithQr>
 ): ReturnType<StartWebLoginWithQr> {
-  return await startWebLoginWithQrImpl(...args);
+  const { startWebLoginWithQr } = await loadWhatsAppLoginQr();
+  return await startWebLoginWithQr(...args);
 }
 
 export async function waitForWebLogin(
   ...args: Parameters<WaitForWebLogin>
 ): ReturnType<WaitForWebLogin> {
-  return await waitForWebLoginImpl(...args);
+  const { waitForWebLogin } = await loadWhatsAppLoginQr();
+  return await waitForWebLogin(...args);
 }
 
 export const whatsappSetupWizard: WhatsAppSetupWizard = { ...whatsappSetupWizardImpl };

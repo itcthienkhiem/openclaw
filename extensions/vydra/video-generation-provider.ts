@@ -1,14 +1,21 @@
 import { isProviderApiKeyConfigured } from "openclaw/plugin-sdk/provider-auth";
-import { assertOkOrThrowHttpError, postJsonRequest } from "openclaw/plugin-sdk/provider-http";
+import { resolveApiKeyForProvider } from "openclaw/plugin-sdk/provider-auth-runtime";
+import {
+  assertOkOrThrowHttpError,
+  postJsonRequest,
+  resolveProviderHttpRequestConfig,
+} from "openclaw/plugin-sdk/provider-http";
 import type { VideoGenerationProvider } from "openclaw/plugin-sdk/video-generation";
 import {
+  DEFAULT_VYDRA_BASE_URL,
   DEFAULT_VYDRA_VIDEO_MODEL,
   downloadVydraAsset,
   extractVydraResultUrls,
-  resolveCompletedVydraPayload,
+  resolveVydraBaseUrlFromConfig,
+  resolveVydraErrorMessage,
   resolveVydraResponseJobId,
   resolveVydraResponseStatus,
-  resolveVydraRequestContext,
+  waitForVydraJob,
 } from "./shared.js";
 
 const VYDRA_KLING_MODEL = "kling";
@@ -27,9 +34,7 @@ function resolveVydraVideoRequestBody(
       model,
       body: {
         prompt: req.prompt,
-        // Vydra's kling route has been inconsistent about which field it requires.
         image_url: imageUrl,
-        video_url: imageUrl,
       },
     };
   }
@@ -58,29 +63,38 @@ export function buildVydraVideoGenerationProvider(): VideoGenerationProvider {
         agentDir,
       }),
     capabilities: {
-      generate: {
-        maxVideos: 1,
-      },
-      imageToVideo: {
-        enabled: true,
-        maxVideos: 1,
-        maxInputImages: 1,
-      },
-      videoToVideo: {
-        enabled: false,
-      },
+      maxVideos: 1,
+      maxInputImages: 1,
+      maxInputVideos: 0,
     },
     async generateVideo(req) {
       if ((req.inputVideos?.length ?? 0) > 0) {
         throw new Error("Vydra video generation does not support video reference inputs.");
       }
 
-      const { fetchFn, baseUrl, allowPrivateNetwork, headers, dispatcherPolicy } =
-        await resolveVydraRequestContext({
-          cfg: req.cfg,
-          agentDir: req.agentDir,
-          authStore: req.authStore,
+      const auth = await resolveApiKeyForProvider({
+        provider: "vydra",
+        cfg: req.cfg,
+        agentDir: req.agentDir,
+        store: req.authStore,
+      });
+      if (!auth.apiKey) {
+        throw new Error("Vydra API key missing");
+      }
+
+      const fetchFn = fetch;
+      const { baseUrl, allowPrivateNetwork, headers, dispatcherPolicy } =
+        resolveProviderHttpRequestConfig({
+          baseUrl: resolveVydraBaseUrlFromConfig(req.cfg),
+          defaultBaseUrl: DEFAULT_VYDRA_BASE_URL,
+          allowPrivateNetwork: false,
+          defaultHeaders: {
+            Authorization: `Bearer ${auth.apiKey}`,
+            "Content-Type": "application/json",
+          },
+          provider: "vydra",
           capability: "video",
+          transport: "http",
         });
       const { model, body } = resolveVydraVideoRequestBody(req);
       const { response, release } = await postJsonRequest({
@@ -96,15 +110,27 @@ export function buildVydraVideoGenerationProvider(): VideoGenerationProvider {
       try {
         await assertOkOrThrowHttpError(response, "Vydra video generation failed");
         const submitted = await response.json();
-        const completedPayload = await resolveCompletedVydraPayload({
-          submitted,
-          baseUrl,
-          headers,
-          timeoutMs: req.timeoutMs,
-          fetchFn,
-          kind: "video",
-          missingJobIdMessage: "Vydra video generation response missing job id",
-        });
+        const completedPayload =
+          resolveVydraResponseStatus(submitted) === "completed" ||
+          extractVydraResultUrls(submitted, "video").length > 0
+            ? submitted
+            : await (() => {
+                const jobId = resolveVydraResponseJobId(submitted);
+                if (!jobId) {
+                  throw new Error(
+                    resolveVydraErrorMessage(submitted) ??
+                      "Vydra video generation response missing job id",
+                  );
+                }
+                return waitForVydraJob({
+                  baseUrl,
+                  jobId,
+                  headers,
+                  timeoutMs: req.timeoutMs,
+                  fetchFn,
+                  kind: "video",
+                });
+              })();
         const videoUrl = extractVydraResultUrls(completedPayload, "video")[0];
         if (!videoUrl) {
           throw new Error("Vydra video generation completed without a video URL");

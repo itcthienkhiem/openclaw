@@ -1,7 +1,8 @@
 import type { OpenClawConfig } from "../config/config.js";
 import { GATEWAY_CLIENT_MODES, GATEWAY_CLIENT_NAMES } from "../utils/message-channel.js";
-import { resolveGatewayClientBootstrap } from "./client-bootstrap.js";
+import { buildGatewayConnectionDetails } from "./call.js";
 import { GatewayClient, type GatewayClientOptions } from "./client.js";
+import { resolveGatewayConnectionAuth } from "./connection-auth.js";
 
 export async function createOperatorApprovalsGatewayClient(
   params: Pick<
@@ -12,16 +13,27 @@ export async function createOperatorApprovalsGatewayClient(
     gatewayUrl?: string;
   },
 ): Promise<GatewayClient> {
-  const bootstrap = await resolveGatewayClientBootstrap({
+  const { url: gatewayUrl, urlSource } = buildGatewayConnectionDetails({
     config: params.config,
-    gatewayUrl: params.gatewayUrl,
+    url: params.gatewayUrl,
+  });
+  const gatewayUrlOverrideSource =
+    urlSource === "cli --url"
+      ? "cli"
+      : urlSource === "env OPENCLAW_GATEWAY_URL"
+        ? "env"
+        : undefined;
+  const auth = await resolveGatewayConnectionAuth({
+    config: params.config,
     env: process.env,
+    urlOverride: gatewayUrlOverrideSource ? gatewayUrl : undefined,
+    urlOverrideSource: gatewayUrlOverrideSource,
   });
 
   return new GatewayClient({
-    url: bootstrap.url,
-    token: bootstrap.auth.token,
-    password: bootstrap.auth.password,
+    url: gatewayUrl,
+    token: auth.token,
+    password: auth.password,
     clientName: GATEWAY_CLIENT_NAMES.GATEWAY_CLIENT,
     clientDisplayName: params.clientDisplayName,
     mode: GATEWAY_CLIENT_MODES.BACKEND,
@@ -31,60 +43,4 @@ export async function createOperatorApprovalsGatewayClient(
     onConnectError: params.onConnectError,
     onClose: params.onClose,
   });
-}
-
-export async function withOperatorApprovalsGatewayClient<T>(
-  params: {
-    config: OpenClawConfig;
-    gatewayUrl?: string;
-    clientDisplayName: string;
-  },
-  run: (client: GatewayClient) => Promise<T>,
-): Promise<T> {
-  let readySettled = false;
-  let resolveReady!: () => void;
-  let rejectReady!: (err: unknown) => void;
-  const ready = new Promise<void>((resolve, reject) => {
-    resolveReady = resolve;
-    rejectReady = reject;
-  });
-  const markReady = () => {
-    if (readySettled) {
-      return;
-    }
-    readySettled = true;
-    resolveReady();
-  };
-  const failReady = (err: unknown) => {
-    if (readySettled) {
-      return;
-    }
-    readySettled = true;
-    rejectReady(err);
-  };
-
-  const gatewayClient = await createOperatorApprovalsGatewayClient({
-    config: params.config,
-    gatewayUrl: params.gatewayUrl,
-    clientDisplayName: params.clientDisplayName,
-    onHelloOk: () => {
-      markReady();
-    },
-    onConnectError: (err) => {
-      failReady(err);
-    },
-    onClose: (code, reason) => {
-      failReady(new Error(`gateway closed (${code}): ${reason}`));
-    },
-  });
-
-  try {
-    gatewayClient.start();
-    await ready;
-    return await run(gatewayClient);
-  } finally {
-    await gatewayClient.stopAndWait().catch(() => {
-      gatewayClient.stop();
-    });
-  }
 }

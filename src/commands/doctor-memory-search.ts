@@ -8,7 +8,6 @@ import { resolveMemorySearchConfig } from "../agents/memory-search.js";
 import { resolveApiKeyForProvider } from "../agents/model-auth.js";
 import { formatCliCommand } from "../cli/command-format.js";
 import type { OpenClawConfig } from "../config/config.js";
-import { formatErrorMessage } from "../infra/errors.js";
 import { DEFAULT_LOCAL_MODEL } from "../memory-host-sdk/engine-embeddings.js";
 import { checkQmdBinaryAvailability } from "../memory-host-sdk/engine-qmd.js";
 import { hasConfiguredMemorySecretInput } from "../memory-host-sdk/secret.js";
@@ -26,7 +25,6 @@ import {
 import { note } from "../terminal/note.js";
 import { resolveUserPath } from "../utils.js";
 import type { DoctorPrompter } from "./doctor-prompter.js";
-import { isRecord } from "./doctor/shared/legacy-config-record-shared.js";
 
 function resolveSuggestedRemoteMemoryProvider(): string | undefined {
   return listBuiltinAutoSelectMemoryEmbeddingProviderDoctorMetadata().find(
@@ -40,6 +38,13 @@ type RuntimeMemoryAuditContext = {
   dbPath?: string;
   qmdCollections?: number;
 };
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
 
 async function resolveRuntimeMemoryAuditContext(
   cfg: OpenClawConfig,
@@ -56,8 +61,7 @@ async function resolveRuntimeMemoryAuditContext(
   }
   try {
     const status = manager.status();
-    const customQmd =
-      isRecord(status.custom) && isRecord(status.custom.qmd) ? status.custom.qmd : null;
+    const customQmd = asRecord(asRecord(status.custom)?.qmd);
     return {
       workspaceDir: status.workspaceDir?.trim(),
       backend: status.backend,
@@ -109,7 +113,10 @@ export async function noteMemoryRecallHealth(cfg: OpenClawConfig): Promise<void>
       note(message, "Memory search");
     }
   } catch (err) {
-    note(`Memory recall audit could not be completed: ${formatErrorMessage(err)}`, "Memory search");
+    note(
+      `Memory recall audit could not be completed: ${err instanceof Error ? err.message : String(err)}`,
+      "Memory search",
+    );
   }
 }
 
@@ -159,7 +166,7 @@ export async function maybeRepairMemoryRecallHealth(params: {
     note(lines.join("\n"), "Doctor changes");
   } catch (err) {
     note(
-      `Memory recall repair could not be completed: ${formatErrorMessage(err)}`,
+      `Memory recall repair could not be completed: ${err instanceof Error ? err.message : String(err)}`,
       "Memory search",
     );
   }

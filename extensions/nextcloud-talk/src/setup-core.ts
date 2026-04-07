@@ -6,12 +6,18 @@ import {
   mergeAllowFromEntries,
   promptParsedAllowFromForAccount,
   resolveSetupAccountId,
+  setSetupChannelEnabled,
   type ChannelSetupDmPolicy,
+  type ChannelSetupWizard,
   type WizardPrompter,
 } from "openclaw/plugin-sdk/setup-runtime";
 import { formatDocsLink } from "openclaw/plugin-sdk/setup-tools";
 import { applyAccountNameToChannelSection, patchScopedAccountConfig } from "../runtime-api.js";
-import { resolveDefaultNextcloudTalkAccountId, resolveNextcloudTalkAccount } from "./accounts.js";
+import {
+  listNextcloudTalkAccountIds,
+  resolveDefaultNextcloudTalkAccountId,
+  resolveNextcloudTalkAccount,
+} from "./accounts.js";
 import type { CoreConfig } from "./types.js";
 
 const channel = "nextcloud-talk" as const;
@@ -72,7 +78,7 @@ export function clearNextcloudTalkAccountFields(
     return {
       ...cfg,
       channels: {
-        ...cfg.channels,
+        ...(cfg.channels ?? {}),
         "nextcloud-talk": nextSection as NextcloudTalkSection,
       },
     } as CoreConfig;
@@ -90,7 +96,7 @@ export function clearNextcloudTalkAccountFields(
   return {
     ...cfg,
     channels: {
-      ...cfg.channels,
+      ...(cfg.channels ?? {}),
       "nextcloud-talk": {
         ...section,
         accounts: {
@@ -204,7 +210,7 @@ export const nextcloudTalkSetupAdapter: ChannelSetupAdapter = {
   validateInput: createSetupInputPresenceValidator({
     defaultAccountOnlyEnvError:
       "NEXTCLOUD_TALK_BOT_SECRET can only be used for the default account.",
-    validate: ({ input }) => {
+    validate: ({ accountId, input }) => {
       const setupInput = input as NextcloudSetupInput;
       if (!setupInput.useEnv && !setupInput.secret && !setupInput.secretFile) {
         return "Nextcloud Talk requires bot secret or --secret-file (or --use-env).";

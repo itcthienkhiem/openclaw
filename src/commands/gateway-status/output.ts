@@ -32,7 +32,6 @@ export function buildGatewayStatusWarnings(params: {
   sshTarget: string | null;
   sshTunnelStarted: boolean;
   sshTunnelError: string | null;
-  localTlsLoadError?: string | null;
 }): GatewayStatusWarning[] {
   const reachable = params.probed.filter((entry) => isProbeReachable(entry.probe));
   const degradedScopeLimited = params.probed.filter((entry) =>
@@ -45,13 +44,6 @@ export function buildGatewayStatusWarnings(params: {
       message: params.sshTunnelError
         ? `SSH tunnel failed: ${String(params.sshTunnelError)}`
         : "SSH tunnel failed to start; falling back to direct probes.",
-    });
-  }
-  if (params.localTlsLoadError) {
-    warnings.push({
-      code: "local_tls_runtime_unavailable",
-      message: `Local gateway TLS is enabled but OpenClaw could not load the local certificate fingerprint: ${params.localTlsLoadError}`,
-      targetIds: ["localLoopback"],
     });
   }
   if (reachable.length > 1) {

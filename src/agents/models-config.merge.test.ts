@@ -1,16 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ExistingProviderConfig } from "./models-config.merge.js";
+import { describe, expect, it } from "vitest";
+import { NON_ENV_SECRETREF_MARKER } from "./model-auth-markers.js";
+import {
+  mergeProviderModels,
+  mergeProviders,
+  mergeWithExistingProviderSecrets,
+  type ExistingProviderConfig,
+} from "./models-config.merge.js";
 import type { ProviderConfig } from "./models-config.providers.secrets.js";
-
-async function loadMergeModules() {
-  vi.doUnmock("../plugins/manifest-registry.js");
-  vi.resetModules();
-  return Promise.all([import("./model-auth-markers.js"), import("./models-config.merge.js")]);
-}
-
-beforeEach(() => {
-  vi.doUnmock("../plugins/manifest-registry.js");
-});
 
 describe("models-config merge helpers", () => {
   const preservedApiKey = "AGENT_KEY"; // pragma: allowlist secret
@@ -50,8 +46,7 @@ describe("models-config merge helpers", () => {
     } as ExistingProviderConfig;
   }
 
-  it("refreshes implicit model metadata while preserving explicit reasoning overrides", async () => {
-    const [, { mergeProviderModels }] = await loadMergeModules();
+  it("refreshes implicit model metadata while preserving explicit reasoning overrides", () => {
     const merged = mergeProviderModels(
       {
         api: "openai-responses",
@@ -94,8 +89,7 @@ describe("models-config merge helpers", () => {
     ]);
   });
 
-  it("merges explicit providers onto trimmed keys", async () => {
-    const [, { mergeProviders }] = await loadMergeModules();
+  it("merges explicit providers onto trimmed keys", () => {
     const merged = mergeProviders({
       explicit: {
         " custom ": {
@@ -110,8 +104,7 @@ describe("models-config merge helpers", () => {
     });
   });
 
-  it("keeps existing providers alongside newly configured providers in merge mode", async () => {
-    const [, { mergeWithExistingProviderSecrets }] = await loadMergeModules();
+  it("keeps existing providers alongside newly configured providers in merge mode", () => {
     const merged = mergeWithExistingProviderSecrets({
       nextProviders: {
         "custom-proxy": {
@@ -136,8 +129,7 @@ describe("models-config merge helpers", () => {
     expect(merged["custom-proxy"]?.baseUrl).toBe("http://localhost:4000/v1");
   });
 
-  it("preserves non-empty existing apiKey while explicit baseUrl wins", async () => {
-    const [, { mergeWithExistingProviderSecrets }] = await loadMergeModules();
+  it("preserves non-empty existing apiKey while explicit baseUrl wins", () => {
     const merged = mergeWithExistingProviderSecrets({
       nextProviders: {
         custom: createConfigProvider(),
@@ -153,8 +145,7 @@ describe("models-config merge helpers", () => {
     expect(merged.custom?.baseUrl).toBe("https://config.example/v1");
   });
 
-  it("preserves existing apiKey after explicit provider key normalization", async () => {
-    const [, { mergeProviders, mergeWithExistingProviderSecrets }] = await loadMergeModules();
+  it("preserves existing apiKey after explicit provider key normalization", () => {
     const normalized = mergeProviders({
       explicit: {
         " custom ": createConfigProvider(),
@@ -173,8 +164,7 @@ describe("models-config merge helpers", () => {
     expect(merged.custom?.baseUrl).toBe("https://config.example/v1");
   });
 
-  it("preserves implicit provider headers when explicit config adds extra headers", async () => {
-    const [, { mergeProviderModels }] = await loadMergeModules();
+  it("preserves implicit provider headers when explicit config adds extra headers", () => {
     const merged = mergeProviderModels(
       {
         baseUrl: "https://api.example.com",
@@ -210,8 +200,7 @@ describe("models-config merge helpers", () => {
     });
   });
 
-  it("replaces stale baseUrl when model api surface changes", async () => {
-    const [, { mergeWithExistingProviderSecrets }] = await loadMergeModules();
+  it("replaces stale baseUrl when model api surface changes", () => {
     const merged = mergeWithExistingProviderSecrets({
       nextProviders: {
         custom: {
@@ -238,8 +227,7 @@ describe("models-config merge helpers", () => {
     );
   });
 
-  it("replaces stale baseUrl when only model-level apis change", async () => {
-    const [, { mergeWithExistingProviderSecrets }] = await loadMergeModules();
+  it("replaces stale baseUrl when only model-level apis change", () => {
     const nextProvider = createConfigProvider();
     delete (nextProvider as { api?: string }).api;
     nextProvider.models = [createModel({ api: "openai-responses" })];
@@ -262,12 +250,11 @@ describe("models-config merge helpers", () => {
     expect(merged.custom?.baseUrl).toBe("https://config.example/v1");
   });
 
-  it("does not preserve stale plaintext apiKey when next entry is a marker", async () => {
-    const [, { mergeWithExistingProviderSecrets }] = await loadMergeModules();
+  it("does not preserve stale plaintext apiKey when next entry is a marker", () => {
     const merged = mergeWithExistingProviderSecrets({
       nextProviders: {
         custom: {
-          apiKey: "GOOGLE_API_KEY", // pragma: allowlist secret
+          apiKey: "OPENAI_API_KEY", // pragma: allowlist secret
           models: [createModel({ id: "model", api: "openai-responses" })],
         } as ProviderConfig,
       },
@@ -281,12 +268,10 @@ describe("models-config merge helpers", () => {
       explicitBaseUrlProviders: new Set<string>(),
     });
 
-    expect(merged.custom?.apiKey).toBe("GOOGLE_API_KEY"); // pragma: allowlist secret
+    expect(merged.custom?.apiKey).toBe("OPENAI_API_KEY"); // pragma: allowlist secret
   });
 
-  it("does not preserve a stale non-env marker when config returns to plaintext", async () => {
-    const [{ NON_ENV_SECRETREF_MARKER }, { mergeWithExistingProviderSecrets }] =
-      await loadMergeModules();
+  it("does not preserve a stale non-env marker when config returns to plaintext", () => {
     const merged = mergeWithExistingProviderSecrets({
       nextProviders: {
         custom: createConfigProvider({ apiKey: "ALLCAPS_SAMPLE" }), // pragma: allowlist secret
@@ -304,8 +289,7 @@ describe("models-config merge helpers", () => {
     expect(merged.custom?.baseUrl).toBe("https://config.example/v1");
   });
 
-  it("uses config apiKey/baseUrl when existing values are empty", async () => {
-    const [, { mergeWithExistingProviderSecrets }] = await loadMergeModules();
+  it("uses config apiKey/baseUrl when existing values are empty", () => {
     const merged = mergeWithExistingProviderSecrets({
       nextProviders: {
         custom: createConfigProvider(),

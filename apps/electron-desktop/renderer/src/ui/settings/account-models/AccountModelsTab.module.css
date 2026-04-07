@@ -1,0 +1,601 @@
+/* ── Connection & AI Models tab ──────────────────────────── */
+
+.root {
+  margin-top: 12px;
+}
+
+/* ── Active status bar ───────────────────────────────── */
+
+.statusBar {
+  display: flex;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-height: 42px;
+}
+
+/* Subscription / API keys: same label/value column blocks as Local Models; row with 16px gap, no space-between */
+.statusBarVertical {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.statusBarVerticalMain {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  column-gap: 40px;
+  row-gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.statusBarVerticalMain .statusSegment {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.statusBarVerticalMain .statusLabel {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.statusBarVerticalMain .statusValue {
+  flex: 0 1 auto;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 24px;
+}
+
+.statusBarVerticalMain .statusValueText {
+  line-height: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Local models: one flex row — all status blocks + API endpoint share space-between + gap */
+.statusBarHorizontal {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+}
+
+.statusBarHorizontalMain {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  column-gap: 4px;
+  row-gap: 4px;
+  width: 100%;
+}
+
+/* API Endpoint uses the same column layout as .statusSegment */
+.statusBarHorizontal .statusBarApiEndpoint {
+  max-width: 100%;
+}
+
+.statusBarHorizontal .statusBarApiEndpoint .statusLabel {
+  min-width: 0;
+}
+
+.apiEndpointRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.apiEndpointLink {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 16px;
+  color: rgba(255, 255, 255, 0.5);
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.35);
+  text-underline-offset: 2px;
+  word-break: break-all;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    text-decoration-color 0.15s ease;
+}
+
+.apiEndpointLink:hover {
+  color: rgba(255, 255, 255, 0.72);
+  text-decoration-color: rgba(255, 255, 255, 0.55);
+}
+
+.apiEndpointCopyBtn {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.apiEndpointCopyBtn:hover {
+  color: rgba(255, 255, 255, 0.75);
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Local models: each label/value pair stacks vertically (2px gap between them) */
+.statusBarHorizontal .statusSegment {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.statusBarHorizontal .statusLabel {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.statusBarHorizontal .statusValue {
+  flex: 0 1 auto;
+  align-self: stretch;
+  min-width: 0;
+  /* Same vertical rhythm as API row with 24px copy control */
+  min-height: 24px;
+}
+
+.statusBarHorizontal .statusBarApiEndpoint .statusValue {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.statusSegment {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
+}
+
+.statusLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.4);
+  min-width: 48px;
+  flex-shrink: 0;
+}
+
+.statusValue {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.statusValueText {
+  min-width: 0;
+}
+
+.statusBarHorizontal .statusValueText {
+  line-height: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.serverDot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.serverDot--running {
+  background: #22c55e;
+}
+
+.serverDot--starting {
+  background: #ff9f0a;
+  animation: server-dot-pulse 1.2s ease-in-out infinite;
+}
+
+.serverDot--loading {
+  background: #5ac8fa;
+  animation: server-dot-pulse 1.2s ease-in-out infinite;
+}
+
+.serverDot--error {
+  background: #ff453a;
+}
+
+.serverDot--stopped {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+@keyframes server-dot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ── Connection mode toggle ──────────────────────────── */
+
+.connectionSection {
+  margin-bottom: 24px;
+}
+
+.connectionLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 8px;
+}
+
+.connectionSelector {
+  display: flex;
+  gap: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 3px;
+}
+
+.connectionOption {
+  flex: 1;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer !important;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+  white-space: nowrap;
+}
+
+.connectionOption:hover:not(:disabled) {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.connectionOption--active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.connectionOption:disabled {
+  cursor: not-allowed;
+}
+
+/* ── Paid account section divider ────────────────────── */
+
+.title {
+  color: #fff;
+  font-size: 20px;
+  font-style: normal;
+  font-weight: 590;
+  line-height: 24px;
+  letter-spacing: -0.2px;
+  margin-bottom: 16px;
+}
+
+/* ── Provider + Model dropdowns row ──────────────────── */
+
+.dropdownRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.dropdownRowWithoutMargin {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.dropdownGroup {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 24px;
+}
+
+.dropdownGroupWithoutMargin {
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdownRow > .dropdownGroup {
+  margin-bottom: 0;
+}
+
+.dropdownLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 6px;
+}
+
+/* ── No models hint ──────────────────────────────────── */
+
+.noModelsHint {
+  font-size: 13px;
+  color: rgb(255, 255, 255);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.modeSwitchLoader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 16px;
+  margin-bottom: 24px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.modeSwitchSpinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-top-color: rgba(255, 255, 255, 0.9);
+  animation: account-models-spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+.modeSwitchLoaderText {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+@keyframes account-models-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── API Key inline section ──────────────────────────── */
+
+.apiKeySection {
+  border-top: 1px solid rgba(230, 237, 243, 0.08);
+  padding-top: 20px;
+  margin-top: 4px;
+}
+
+.apiKeyLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 10px;
+}
+
+.apiKeyConfiguredCard {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: var(--radius-lg, 14px);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.apiKeyConfiguredIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+  color: #34c759;
+}
+
+.apiKeyConfiguredBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.apiKeyConfiguredTitle {
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 20px;
+  margin: 0;
+  color: var(--text, #fff);
+}
+
+.apiKeyConfiguredHint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 16px;
+  margin: 0;
+}
+
+.apiKeyConfiguredButton {
+  width: 200px !important;
+}
+
+.editBtn {
+  margin-left: auto;
+  appearance: none;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.editBtn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.apiKeyHelpText {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.5;
+  margin-bottom: 12px;
+  min-height: 20px;
+}
+
+.apiKeySetupSteps {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  height: 60px;
+}
+
+.apiKeyInputRow {
+  margin-bottom: 12px;
+}
+
+.apiKeyActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* ── Auth mode toggle (API key / Setup token) ── */
+
+.authToggle {
+  display: flex;
+  gap: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 3px;
+  margin-bottom: 12px;
+}
+
+.authToggleBtn {
+  flex: 1;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+  white-space: nowrap;
+}
+
+.authToggleBtn:hover:not(:disabled) {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.authToggleBtn--active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.authToggleBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.inlineCode {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9em;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* ── Coming Soon banner (local models on non-Mac) ── */
+
+.comingSoonBanner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 20px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.comingSoonIcon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.comingSoonBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.comingSoonTitle {
+  font-size: 15px;
+  font-weight: 650;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.comingSoonDesc {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.5;
+}

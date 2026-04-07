@@ -1,7 +1,8 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import type { OpenClawConfig } from "openclaw/plugin-sdk/memory-core";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   __testing,
   reconcileShortTermDreamingCronJob,
@@ -9,10 +10,8 @@ import {
   runShortTermDreamingPromotionIfTriggered,
 } from "./dreaming.js";
 import { recordShortTermRecalls } from "./short-term-promotion.js";
-import { createMemoryCoreTestHarness } from "./test-helpers.js";
 
 const constants = __testing.constants;
-const { createTempWorkspace } = createMemoryCoreTestHarness();
 
 type CronParam = NonNullable<Parameters<typeof reconcileShortTermDreamingCronJob>[0]["cron"]>;
 type CronJobLike = Awaited<ReturnType<CronParam["list"]>>[number];
@@ -75,7 +74,7 @@ function createCronHarness(
       if (index < 0) {
         return {};
       }
-      const current = jobs[index];
+      const current = jobs[index]!;
       jobs[index] = {
         ...current,
         ...(patch.name ? { name: patch.name } : {}),
@@ -545,7 +544,7 @@ describe("short-term dreaming cron reconciliation", () => {
       logger,
     });
 
-    expect(result.status).toBe("updated");
+    expect(result.status).toBe("noop");
     expect(result.removed).toBe(2);
     expect(harness.removeCalls).toEqual(["job-light", "job-rem"]);
   });
@@ -622,9 +621,17 @@ describe("short-term dreaming cron reconciliation", () => {
 });
 
 describe("short-term dreaming trigger", () => {
+  const tempDirs: string[] = [];
+
+  afterEach(async () => {
+    await Promise.all(tempDirs.map((dir) => fs.rm(dir, { recursive: true, force: true })));
+    tempDirs.length = 0;
+  });
+
   it("applies promotions when the managed dreaming heartbeat event fires", async () => {
     const logger = createLogger();
-    const workspaceDir = await createTempWorkspace("memory-dreaming-");
+    const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "memory-dreaming-"));
+    tempDirs.push(workspaceDir);
     await writeDailyMemoryNote(workspaceDir, "2026-04-02", ["Move backups to S3 Glacier."]);
 
     await recordShortTermRecalls({
@@ -666,7 +673,8 @@ describe("short-term dreaming trigger", () => {
 
   it("keeps one-off recalls out of long-term memory under default thresholds", async () => {
     const logger = createLogger();
-    const workspaceDir = await createTempWorkspace("memory-dreaming-strict-");
+    const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "memory-dreaming-strict-"));
+    tempDirs.push(workspaceDir);
     await writeDailyMemoryNote(workspaceDir, "2026-04-03", [
       "Move backups to S3 Glacier.",
       "Retain quarterly snapshots.",
@@ -739,7 +747,8 @@ describe("short-term dreaming trigger", () => {
 
   it("skips dreaming promotion cleanly when limit is zero", async () => {
     const logger = createLogger();
-    const workspaceDir = await createTempWorkspace("memory-dreaming-limit-zero-");
+    const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "memory-dreaming-limit-zero-"));
+    tempDirs.push(workspaceDir);
 
     const result = await runShortTermDreamingPromotionIfTriggered({
       cleanedBody: constants.DREAMING_SYSTEM_EVENT_TEXT,
@@ -772,7 +781,8 @@ describe("short-term dreaming trigger", () => {
 
   it("repairs recall artifacts before dreaming promotion runs", async () => {
     const logger = createLogger();
-    const workspaceDir = await createTempWorkspace("memory-dreaming-repair-");
+    const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "memory-dreaming-repair-"));
+    tempDirs.push(workspaceDir);
     await writeDailyMemoryNote(workspaceDir, "2026-04-03", [
       "Move backups to S3 Glacier and sync router failover notes.",
       "Keep router recovery docs current.",
@@ -852,7 +862,8 @@ describe("short-term dreaming trigger", () => {
 
   it("emits detailed run logs when verboseLogging is enabled", async () => {
     const logger = createLogger();
-    const workspaceDir = await createTempWorkspace("memory-dreaming-verbose-");
+    const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "memory-dreaming-verbose-"));
+    tempDirs.push(workspaceDir);
     await writeDailyMemoryNote(workspaceDir, "2026-04-02", ["Move backups to S3 Glacier."]);
 
     await recordShortTermRecalls({
@@ -901,7 +912,8 @@ describe("short-term dreaming trigger", () => {
 
   it("fans out one dreaming run across configured agent workspaces", async () => {
     const logger = createLogger();
-    const workspaceRoot = await createTempWorkspace("memory-dreaming-multi-");
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "memory-dreaming-multi-"));
+    tempDirs.push(workspaceRoot);
     const alphaWorkspace = path.join(workspaceRoot, "alpha");
     const betaWorkspace = path.join(workspaceRoot, "beta");
 

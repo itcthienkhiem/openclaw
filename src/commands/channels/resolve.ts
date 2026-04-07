@@ -1,8 +1,9 @@
 import { getChannelPlugin } from "../../channels/plugins/index.js";
 import type { ChannelResolveKind, ChannelResolveResult } from "../../channels/plugins/types.js";
-import { resolveCommandConfigWithSecrets } from "../../cli/command-config-resolution.js";
+import { resolveCommandSecretRefsViaGateway } from "../../cli/command-secret-gateway.js";
 import { getChannelsCommandSecretTargetIds } from "../../cli/command-secret-targets.js";
 import { loadConfig, readConfigFileSnapshot, replaceConfigFile } from "../../config/config.js";
+import { applyPluginAutoEnable } from "../../config/plugin-auto-enable.js";
 import { danger } from "../../globals.js";
 import { resolveMessageChannelSelection } from "../../infra/outbound/channel-selection.js";
 import { type RuntimeEnv, writeRuntimeJson } from "../../runtime.js";
@@ -107,14 +108,19 @@ function formatResolveResult(result: ResolveResult): string {
 export async function channelsResolveCommand(opts: ChannelsResolveOptions, runtime: RuntimeEnv) {
   const sourceSnapshotPromise = readConfigFileSnapshot().catch(() => null);
   const loadedRaw = loadConfig();
-  let { effectiveConfig: cfg } = await resolveCommandConfigWithSecrets({
+  const { resolvedConfig, diagnostics } = await resolveCommandSecretRefsViaGateway({
     config: loadedRaw,
     commandName: "channels resolve",
     targetIds: getChannelsCommandSecretTargetIds(),
     mode: "read_only_operational",
-    runtime,
-    autoEnable: true,
   });
+  let cfg = applyPluginAutoEnable({
+    config: resolvedConfig,
+    env: process.env,
+  }).config;
+  for (const entry of diagnostics) {
+    runtime.log(`[secrets] ${entry}`);
+  }
   const entries = (opts.entries ?? []).map((entry) => entry.trim()).filter(Boolean);
   if (entries.length === 0) {
     throw new Error("At least one entry is required.");

@@ -1,7 +1,6 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { formatErrorMessage } from "../infra/errors.js";
 import { parseStrictInteger, parseStrictPositiveInteger } from "../infra/parse-finite-number.js";
 import { splitArgsPreservingQuotes } from "./arg-split.js";
 import {
@@ -614,7 +613,7 @@ export async function readSystemdServiceRuntime(
   } catch (err) {
     return {
       status: "unknown",
-      detail: formatErrorMessage(err),
+      detail: err instanceof Error ? err.message : String(err),
     };
   }
   const serviceName = resolveSystemdServiceName(env);

@@ -112,8 +112,8 @@ export function queueOverflowAttemptWithOversizedToolOutput(
       promptError: overflowError,
       messagesSnapshot: [
         {
-          role: "toolResult",
-          content: [{ type: "text", text: "x".repeat(80_000) }],
+          role: "assistant",
+          content: "big tool output",
         } as unknown as EmbeddedRunAttemptResult["messagesSnapshot"][number],
       ],
     }),

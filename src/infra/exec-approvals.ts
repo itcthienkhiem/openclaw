@@ -2,7 +2,6 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { DEFAULT_AGENT_ID } from "../routing/session-key.js";
-import { readStringValue } from "../shared/string-coerce.js";
 import { resolveAllowAlwaysPatternEntries } from "./exec-approvals-allowlist.js";
 import type { ExecCommandSegment } from "./exec-approvals-analysis.js";
 import { expandHomePrefix } from "./home-dir.js";
@@ -32,7 +31,9 @@ export function normalizeExecTarget(value?: string | null): ExecTarget | null {
 }
 
 /** Coerce a raw JSON field to string, returning undefined for non-string types. */
-const toStringOrUndefined = readStringValue;
+function toStringOrUndefined(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
 
 export function normalizeExecSecurity(value?: string | null): ExecSecurity | null {
   const normalized = value?.trim().toLowerCase();

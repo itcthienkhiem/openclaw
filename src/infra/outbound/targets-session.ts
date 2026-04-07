@@ -1,7 +1,7 @@
 import {
   comparableChannelTargetsShareRoute,
-  parseExplicitTargetForLoadedChannel,
-  resolveComparableTargetForLoadedChannel,
+  parseExplicitTargetForChannel,
+  resolveComparableTargetForChannel,
 } from "../../channels/plugins/target-parsing.js";
 import type { ChannelOutboundTargetMode } from "../../channels/plugins/types.js";
 import type { SessionEntry } from "../../config/sessions.js";
@@ -42,7 +42,7 @@ function parseExplicitTargetWithPlugin(params: {
   if (!provider) {
     return null;
   }
-  return parseExplicitTargetForLoadedChannel(provider, raw);
+  return parseExplicitTargetForChannel(provider, raw);
 }
 
 export function resolveSessionDeliveryTarget(params: {
@@ -68,7 +68,7 @@ export function resolveSessionDeliveryTarget(params: {
   const sessionLastChannel =
     context?.channel && isDeliverableMessageChannel(context.channel) ? context.channel : undefined;
   const parsedSessionTarget = sessionLastChannel
-    ? resolveComparableTargetForLoadedChannel({
+    ? resolveComparableTargetForChannel({
         channel: sessionLastChannel,
         rawTarget: context?.to,
         fallbackThreadId: context?.threadId,
@@ -78,7 +78,7 @@ export function resolveSessionDeliveryTarget(params: {
   const hasTurnSourceChannel = params.turnSourceChannel != null;
   const parsedTurnSourceTarget =
     hasTurnSourceChannel && params.turnSourceChannel
-      ? resolveComparableTargetForLoadedChannel({
+      ? resolveComparableTargetForChannel({
           channel: params.turnSourceChannel,
           rawTarget: params.turnSourceTo,
           fallbackThreadId: params.turnSourceThreadId,

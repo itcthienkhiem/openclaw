@@ -2,7 +2,7 @@ import actualFs from "node:fs";
 import actualFsPromises from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 type FakeFsEntry = { kind: "file"; content: string } | { kind: "dir" };
 
@@ -115,8 +115,7 @@ describe("resolveOpenClawPackageRoot", () => {
     state.realpathErrors.clear();
   });
 
-  beforeEach(async () => {
-    vi.resetModules();
+  beforeAll(async () => {
     ({ resolveOpenClawPackageRoot, resolveOpenClawPackageRootSync } =
       await import("./openclaw-root.js"));
   });

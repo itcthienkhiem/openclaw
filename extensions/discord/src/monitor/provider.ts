@@ -223,7 +223,7 @@ function classifyAcpStatusProbeError(params: {
     return { status: "stale", reason: "session-init-failed" };
   }
 
-  const message = formatErrorMessage(params.error);
+  const message = params.error instanceof Error ? params.error.message : String(params.error);
   if (isLegacyMissingSessionError(message)) {
     return { status: "stale", reason: "session-missing" };
   }

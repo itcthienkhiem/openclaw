@@ -133,7 +133,8 @@ export function describeProcessTool(params?: { hasCronTool?: boolean }): string 
 
 export function createProcessTool(
   defaults?: ProcessToolDefaults,
-): AgentToolWithMeta<typeof processSchema, unknown> {
+  // oxlint-disable-next-line typescript/no-explicit-any
+): AgentToolWithMeta<any, unknown> {
   if (defaults?.cleanupMs !== undefined) {
     setJobTtlMs(defaults.cleanupMs);
   }

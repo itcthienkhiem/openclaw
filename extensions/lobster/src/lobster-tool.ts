@@ -6,11 +6,7 @@ import {
   type LobsterRunner,
   type LobsterRunnerParams,
 } from "./lobster-runner.js";
-import {
-  type ManagedLobsterFlowResult,
-  resumeManagedLobsterFlow,
-  runManagedLobsterFlow,
-} from "./lobster-taskflow.js";
+import { resumeManagedLobsterFlow, runManagedLobsterFlow } from "./lobster-taskflow.js";
 
 type BoundTaskFlow = ReturnType<
   NonNullable<OpenClawPluginApi["runtime"]>["taskFlow"]["bindSession"]
@@ -44,13 +40,6 @@ type ManagedFlowResumeParams = {
   expectedRevision: number;
   currentStep?: string;
   waitingStep?: string;
-};
-
-type ManagedFlowSuccessResult = {
-  ok: true;
-  envelope: unknown;
-  flow: unknown;
-  mutation: unknown;
 };
 
 function readOptionalTrimmedString(value: unknown, fieldName: string): string | undefined {
@@ -178,36 +167,6 @@ function parseResumeFlowParams(params: Record<string, unknown>): ManagedFlowResu
   };
 }
 
-function formatManagedFlowResult(result: ManagedFlowSuccessResult) {
-  const envelope =
-    result.envelope && typeof result.envelope === "object" && !Array.isArray(result.envelope)
-      ? result.envelope
-      : { envelope: result.envelope };
-  const details = {
-    ...envelope,
-    flow: result.flow,
-    mutation: result.mutation,
-  };
-  return {
-    content: [{ type: "text", text: JSON.stringify(details, null, 2) }],
-    details,
-  };
-}
-
-function requireTaskFlowRuntime(taskFlow: BoundTaskFlow | undefined, action: "run" | "resume") {
-  if (!taskFlow) {
-    throw new Error(`Managed TaskFlow ${action} mode requires a bound taskFlow runtime`);
-  }
-  return taskFlow;
-}
-
-function resolveManagedFlowToolResult(result: ManagedLobsterFlowResult) {
-  if (!result.ok) {
-    throw result.error;
-  }
-  return formatManagedFlowResult(result);
-}
-
 export function createLobsterTool(api: OpenClawPluginApi, options?: LobsterToolOptions) {
   const runner = options?.runner ?? createEmbeddedLobsterRunner();
   return {
@@ -271,37 +230,63 @@ export function createLobsterTool(api: OpenClawPluginApi, options?: LobsterToolO
       if (action === "run") {
         const flowParams = parseRunFlowParams(params);
         if (flowParams) {
-          return resolveManagedFlowToolResult(
-            await runManagedLobsterFlow({
-              taskFlow: requireTaskFlowRuntime(taskFlow, "run"),
-              runner,
-              runnerParams,
-              controllerId: flowParams.controllerId,
-              goal: flowParams.goal,
-              ...(flowParams.stateJson !== undefined ? { stateJson: flowParams.stateJson } : {}),
-              ...(flowParams.currentStep ? { currentStep: flowParams.currentStep } : {}),
-              ...(flowParams.waitingStep ? { waitingStep: flowParams.waitingStep } : {}),
-            }),
-          );
+          if (!taskFlow) {
+            throw new Error("Managed TaskFlow run mode requires a bound taskFlow runtime");
+          }
+          const result = await runManagedLobsterFlow({
+            taskFlow,
+            runner,
+            runnerParams,
+            controllerId: flowParams.controllerId,
+            goal: flowParams.goal,
+            ...(flowParams.stateJson !== undefined ? { stateJson: flowParams.stateJson } : {}),
+            ...(flowParams.currentStep ? { currentStep: flowParams.currentStep } : {}),
+            ...(flowParams.waitingStep ? { waitingStep: flowParams.waitingStep } : {}),
+          });
+          if (!result.ok) {
+            throw result.error;
+          }
+          const details = {
+            ...result.envelope,
+            flow: result.flow,
+            mutation: result.mutation,
+          };
+          return {
+            content: [{ type: "text", text: JSON.stringify(details, null, 2) }],
+            details,
+          };
         }
       } else {
         const flowParams = parseResumeFlowParams(params);
         if (flowParams) {
-          return resolveManagedFlowToolResult(
-            await resumeManagedLobsterFlow({
-              taskFlow: requireTaskFlowRuntime(taskFlow, "resume"),
-              runner,
-              runnerParams: runnerParams as LobsterRunnerParams & {
-                action: "resume";
-                token: string;
-                approve: boolean;
-              },
-              flowId: flowParams.flowId,
-              expectedRevision: flowParams.expectedRevision,
-              ...(flowParams.currentStep ? { currentStep: flowParams.currentStep } : {}),
-              ...(flowParams.waitingStep ? { waitingStep: flowParams.waitingStep } : {}),
-            }),
-          );
+          if (!taskFlow) {
+            throw new Error("Managed TaskFlow resume mode requires a bound taskFlow runtime");
+          }
+          const result = await resumeManagedLobsterFlow({
+            taskFlow,
+            runner,
+            runnerParams: runnerParams as LobsterRunnerParams & {
+              action: "resume";
+              token: string;
+              approve: boolean;
+            },
+            flowId: flowParams.flowId,
+            expectedRevision: flowParams.expectedRevision,
+            ...(flowParams.currentStep ? { currentStep: flowParams.currentStep } : {}),
+            ...(flowParams.waitingStep ? { waitingStep: flowParams.waitingStep } : {}),
+          });
+          if (!result.ok) {
+            throw result.error;
+          }
+          const details = {
+            ...result.envelope,
+            flow: result.flow,
+            mutation: result.mutation,
+          };
+          return {
+            content: [{ type: "text", text: JSON.stringify(details, null, 2) }],
+            details,
+          };
         }
       }
 

@@ -4,7 +4,6 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { pathToFileURL } from "node:url";
-import { formatErrorMessage } from "./error-format.mjs";
 import { splitCommandLine } from "./mcp-command-line.mjs";
 
 function decodePayload(argv) {
@@ -95,7 +94,7 @@ function main() {
   child.stdout.pipe(process.stdout);
 
   child.on("error", (error) => {
-    process.stderr.write(`${formatErrorMessage(error)}\n`);
+    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     process.exit(1);
   });
 

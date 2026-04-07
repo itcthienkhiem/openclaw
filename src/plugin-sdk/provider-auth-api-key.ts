@@ -13,12 +13,7 @@ export {
   promptSecretRefForSetup,
   resolveSecretInputModeForEnvSelection,
 } from "../plugins/provider-auth-input.js";
-export {
-  applyAuthProfileConfig,
-  buildApiKeyCredential,
-  upsertApiKeyProfile,
-  type ApiKeyStorageOptions,
-} from "../plugins/provider-auth-helpers.js";
+export { applyAuthProfileConfig, buildApiKeyCredential } from "../plugins/provider-auth-helpers.js";
 export { createProviderApiKeyAuthMethod } from "../plugins/provider-api-key-auth.js";
 export {
   normalizeOptionalSecretInput,

@@ -195,18 +195,16 @@ export function createMatrixHandlerTestHarness(
     } as never,
     cfg: (options.cfg ?? {}) as never,
     accountId: options.accountId ?? "ops",
-    runtime:
-      options.runtime ??
+    runtime: (options.runtime ??
       ({
         error: () => {},
-      } as RuntimeEnv),
-    logger:
-      options.logger ??
+      } as RuntimeEnv)) as RuntimeEnv,
+    logger: (options.logger ??
       ({
         info: () => {},
         warn: () => {},
         error: () => {},
-      } as RuntimeLogger),
+      } as RuntimeLogger)) as RuntimeLogger,
     logVerboseMessage: options.logVerboseMessage ?? (() => {}),
     allowFrom: options.allowFrom ?? [],
     groupAllowFrom: options.groupAllowFrom ?? [],

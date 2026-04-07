@@ -62,19 +62,7 @@ export function normalizePluginDiscoveryResult(params: {
   }
 
   if ("provider" in result) {
-    const normalized: Record<string, ModelProviderConfig> = {};
-    for (const providerId of [
-      params.provider.id,
-      ...(params.provider.aliases ?? []),
-      ...(params.provider.hookAliases ?? []),
-    ]) {
-      const normalizedKey = normalizeProviderId(providerId);
-      if (!normalizedKey) {
-        continue;
-      }
-      normalized[normalizedKey] = result.provider;
-    }
-    return normalized;
+    return { [normalizeProviderId(params.provider.id)]: result.provider };
   }
 
   const normalized: Record<string, ModelProviderConfig> = {};

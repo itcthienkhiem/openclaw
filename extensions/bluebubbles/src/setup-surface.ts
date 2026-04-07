@@ -8,7 +8,11 @@ import {
   type ChannelSetupWizard,
   type OpenClawConfig,
 } from "openclaw/plugin-sdk/setup";
-import { resolveBlueBubblesAccount, resolveDefaultBlueBubblesAccountId } from "./accounts.js";
+import {
+  listBlueBubblesAccountIds,
+  resolveBlueBubblesAccount,
+  resolveDefaultBlueBubblesAccountId,
+} from "./accounts.js";
 import { applyBlueBubblesConnectionConfig } from "./config-apply.js";
 import { hasConfiguredSecretInput, normalizeSecretInputString } from "./secret-input.js";
 import {
@@ -76,7 +80,7 @@ const promptBlueBubblesAllowFrom = createPromptParsedAllowFromForAccount({
 });
 
 function validateBlueBubblesServerUrlInput(value: unknown): string | undefined {
-  const trimmed = typeof value === "string" ? value.trim() : "";
+  const trimmed = String(value ?? "").trim();
   if (!trimmed) {
     return "Required";
   }

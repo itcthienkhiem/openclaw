@@ -1,5 +1,3 @@
-import { isRecord } from "../utils.js";
-
 export type SecretRefSource = "env" | "file" | "exec"; // pragma: allowlist secret
 
 /**
@@ -27,6 +25,10 @@ type SecretDefaults = {
 
 export function isValidEnvSecretRefId(value: string): boolean {
   return ENV_SECRET_REF_ID_RE.test(value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export function isSecretRef(value: unknown): value is SecretRef {

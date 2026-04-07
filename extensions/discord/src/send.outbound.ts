@@ -432,10 +432,18 @@ export async function sendStickerDiscord(
   stickerIds: string[],
   opts: DiscordSendOpts & { content?: string } = {},
 ): Promise<DiscordSendResult> {
-  const { rest, request, channelId, rewrittenContent } = await resolveDiscordStructuredSendContext(
-    to,
-    opts,
-  );
+  const cfg = opts.cfg ?? loadConfig();
+  const accountInfo = resolveDiscordAccount({
+    cfg,
+    accountId: opts.accountId,
+  });
+  const { rest, request, channelId } = await resolveDiscordSendTarget(to, opts);
+  const content = opts.content?.trim();
+  const rewrittenContent = content
+    ? rewriteDiscordKnownMentions(content, {
+        accountId: accountInfo.accountId,
+      })
+    : undefined;
   const stickers = normalizeStickerIds(stickerIds);
   const res = (await request(
     () =>
@@ -455,10 +463,18 @@ export async function sendPollDiscord(
   poll: PollInput,
   opts: DiscordSendOpts & { content?: string } = {},
 ): Promise<DiscordSendResult> {
-  const { rest, request, channelId, rewrittenContent } = await resolveDiscordStructuredSendContext(
-    to,
-    opts,
-  );
+  const cfg = opts.cfg ?? loadConfig();
+  const accountInfo = resolveDiscordAccount({
+    cfg,
+    accountId: opts.accountId,
+  });
+  const { rest, request, channelId } = await resolveDiscordSendTarget(to, opts);
+  const content = opts.content?.trim();
+  const rewrittenContent = content
+    ? rewriteDiscordKnownMentions(content, {
+        accountId: accountInfo.accountId,
+      })
+    : undefined;
   if (poll.durationSeconds !== undefined) {
     throw new Error("Discord polls do not support durationSeconds; use durationHours");
   }
@@ -476,30 +492,6 @@ export async function sendPollDiscord(
     "poll",
   )) as { id: string; channel_id: string };
   return toDiscordSendResult(res, channelId);
-}
-
-async function resolveDiscordStructuredSendContext(
-  to: string,
-  opts: DiscordSendOpts & { content?: string },
-): Promise<{
-  rest: RequestClient;
-  request: DiscordClientRequest;
-  channelId: string;
-  rewrittenContent?: string;
-}> {
-  const cfg = opts.cfg ?? loadConfig();
-  const accountInfo = resolveDiscordAccount({
-    cfg,
-    accountId: opts.accountId,
-  });
-  const { rest, request, channelId } = await resolveDiscordSendTarget(to, opts);
-  const content = opts.content?.trim();
-  const rewrittenContent = content
-    ? rewriteDiscordKnownMentions(content, {
-        accountId: accountInfo.accountId,
-      })
-    : undefined;
-  return { rest, request, channelId, rewrittenContent };
 }
 
 type VoiceMessageOpts = {

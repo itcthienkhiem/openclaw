@@ -1,9 +1,10 @@
-import { defineCommandDescriptorCatalog } from "./command-descriptor-utils.js";
-import type { NamedCommandDescriptor } from "./command-group-descriptors.js";
+export type CoreCliCommandDescriptor = {
+  name: string;
+  description: string;
+  hasSubcommands: boolean;
+};
 
-export type CoreCliCommandDescriptor = NamedCommandDescriptor;
-
-const coreCliCommandCatalog = defineCommandDescriptorCatalog([
+export const CORE_CLI_COMMAND_DESCRIPTORS = [
   {
     name: "setup",
     description: "Initialize local config and agent workspace",
@@ -56,11 +57,6 @@ const coreCliCommandCatalog = defineCommandDescriptorCatalog([
     hasSubcommands: true,
   },
   {
-    name: "mcp",
-    description: "Manage OpenClaw MCP config and channel bridge",
-    hasSubcommands: true,
-  },
-  {
     name: "agent",
     description: "Run one agent turn via the Gateway",
     hasSubcommands: false,
@@ -90,18 +86,14 @@ const coreCliCommandCatalog = defineCommandDescriptorCatalog([
     description: "Inspect durable background task state",
     hasSubcommands: true,
   },
-] as const satisfies ReadonlyArray<CoreCliCommandDescriptor>);
-
-export const CORE_CLI_COMMAND_DESCRIPTORS = coreCliCommandCatalog.descriptors;
+] as const satisfies ReadonlyArray<CoreCliCommandDescriptor>;
 
 export function getCoreCliCommandDescriptors(): ReadonlyArray<CoreCliCommandDescriptor> {
-  return coreCliCommandCatalog.getDescriptors();
-}
-
-export function getCoreCliCommandNames(): string[] {
-  return coreCliCommandCatalog.getNames();
+  return CORE_CLI_COMMAND_DESCRIPTORS;
 }
 
 export function getCoreCliCommandsWithSubcommands(): string[] {
-  return coreCliCommandCatalog.getCommandsWithSubcommands();
+  return CORE_CLI_COMMAND_DESCRIPTORS.filter((command) => command.hasSubcommands).map(
+    (command) => command.name,
+  );
 }

@@ -1,4 +1,3 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -110,7 +109,7 @@ async function runAction(params: {
     params: params.params ?? {},
     mediaLocalRoots: params.mediaLocalRoots,
     toolContext: params.toolContext,
-  } as Parameters<ReturnType<typeof requireMSTeamsHandleAction>>[0]);
+  } as any);
 }
 
 async function expectActionError(
@@ -227,7 +226,7 @@ describe("msteamsPlugin message actions", () => {
               tenantId: "tenant-id",
             },
           },
-        } as OpenClawConfig,
+        } as any,
       })?.actions,
     ).toContain("upload-file");
   });

@@ -5,7 +5,6 @@ import type {
   TranscriptRewriteRequest,
   TranscriptRewriteResult,
 } from "../../context-engine/types.js";
-import { formatErrorMessage } from "../../infra/errors.js";
 import { emitSessionTranscriptUpdate } from "../../sessions/transcript-events.js";
 import { getRawSessionAppendMessage } from "../session-tool-result-guard.js";
 import { acquireSessionWriteLock } from "../session-write-lock.js";
@@ -219,7 +218,7 @@ export async function rewriteTranscriptEntriesInSessionFile(params: {
     }
     return result;
   } catch (err) {
-    const reason = formatErrorMessage(err);
+    const reason = err instanceof Error ? err.message : String(err);
     log.warn(`[transcript-rewrite] failed: ${reason}`);
     return {
       changed: false,

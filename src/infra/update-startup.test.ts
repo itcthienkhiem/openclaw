@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createSuiteTempRootTracker } from "../test-helpers/temp-dir.js";
 import { captureEnv } from "../test-utils/env.js";
 import type { UpdateCheckResult } from "./update-check.js";
 
@@ -44,7 +44,8 @@ vi.mock("../process/exec.js", () => ({
 }));
 
 describe("update-startup", () => {
-  const suiteRootTracker = createSuiteTempRootTracker({ prefix: "openclaw-update-check-suite-" });
+  let suiteRoot = "";
+  let suiteCase = 0;
   let tempDir: string;
   let envSnapshot: ReturnType<typeof captureEnv>;
 
@@ -59,13 +60,14 @@ describe("update-startup", () => {
   let loaded = false;
 
   beforeAll(async () => {
-    await suiteRootTracker.setup();
+    suiteRoot = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-update-check-suite-"));
   });
 
   beforeEach(async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-17T10:00:00Z"));
-    tempDir = await suiteRootTracker.make("case");
+    tempDir = path.join(suiteRoot, `case-${++suiteCase}`);
+    await fs.mkdir(tempDir);
     envSnapshot = captureEnv(["OPENCLAW_STATE_DIR", "NODE_ENV", "VITEST"]);
     process.env.OPENCLAW_STATE_DIR = tempDir;
 
@@ -101,7 +103,11 @@ describe("update-startup", () => {
   });
 
   afterAll(async () => {
-    await suiteRootTracker.cleanup();
+    if (suiteRoot) {
+      await fs.rm(suiteRoot, { recursive: true, force: true });
+    }
+    suiteRoot = "";
+    suiteCase = 0;
   });
 
   function mockPackageUpdateStatus(tag = "latest", version = "2.0.0") {

@@ -1,7 +1,7 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createSuiteTempRootTracker } from "../test-helpers/temp-dir.js";
 import {
   clearSessionStoreCacheForTest,
   loadSessionStore,
@@ -26,20 +26,24 @@ function createSingleSessionStore(
 }
 
 describe("Session Store Cache", () => {
-  const suiteRootTracker = createSuiteTempRootTracker({ prefix: "session-cache-test-" });
+  let fixtureRoot = "";
+  let caseId = 0;
   let testDir: string;
   let storePath: string;
 
-  beforeAll(async () => {
-    await suiteRootTracker.setup();
+  beforeAll(() => {
+    fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "session-cache-test-"));
   });
 
-  afterAll(async () => {
-    await suiteRootTracker.cleanup();
+  afterAll(() => {
+    if (fixtureRoot) {
+      fs.rmSync(fixtureRoot, { recursive: true, force: true });
+    }
   });
 
-  beforeEach(async () => {
-    testDir = await suiteRootTracker.make("case");
+  beforeEach(() => {
+    testDir = path.join(fixtureRoot, `case-${caseId++}`);
+    fs.mkdirSync(testDir, { recursive: true });
     storePath = path.join(testDir, "sessions.json");
 
     // Clear cache before each test

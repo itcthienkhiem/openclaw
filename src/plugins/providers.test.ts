@@ -7,7 +7,6 @@ import type { ProviderPlugin } from "./types.js";
 
 type ResolveRuntimePluginRegistry = typeof import("./loader.js").resolveRuntimePluginRegistry;
 type LoadOpenClawPlugins = typeof import("./loader.js").loadOpenClawPlugins;
-type IsPluginRegistryLoadInFlight = typeof import("./loader.js").isPluginRegistryLoadInFlight;
 type LoadPluginManifestRegistry =
   typeof import("./manifest-registry.js").loadPluginManifestRegistry;
 type ApplyPluginAutoEnable = typeof import("../config/plugin-auto-enable.js").applyPluginAutoEnable;
@@ -15,7 +14,6 @@ type SetActivePluginRegistry = typeof import("./runtime.js").setActivePluginRegi
 
 const resolveRuntimePluginRegistryMock = vi.fn<ResolveRuntimePluginRegistry>();
 const loadOpenClawPluginsMock = vi.fn<LoadOpenClawPlugins>();
-const isPluginRegistryLoadInFlightMock = vi.fn<IsPluginRegistryLoadInFlight>((_) => false);
 const loadPluginManifestRegistryMock = vi.fn<LoadPluginManifestRegistry>();
 const applyPluginAutoEnableMock = vi.fn<ApplyPluginAutoEnable>();
 
@@ -28,7 +26,6 @@ let setActivePluginRegistry: SetActivePluginRegistry;
 function createManifestProviderPlugin(params: {
   id: string;
   providerIds: string[];
-  cliBackends?: string[];
   origin?: "bundled" | "workspace";
   enabledByDefault?: boolean;
   modelSupport?: { modelPrefixes?: string[]; modelPatterns?: string[] };
@@ -38,7 +35,6 @@ function createManifestProviderPlugin(params: {
     enabledByDefault: params.enabledByDefault,
     channels: [],
     providers: params.providerIds,
-    cliBackends: params.cliBackends ?? [],
     modelSupport: params.modelSupport,
     skills: [],
     hooks: [],
@@ -65,7 +61,6 @@ function setOwningProviderManifestPlugins() {
     createManifestProviderPlugin({
       id: "openai",
       providerIds: ["openai", "openai-codex"],
-      cliBackends: ["codex-cli"],
       modelSupport: {
         modelPrefixes: ["gpt-", "o1", "o3", "o4"],
       },
@@ -73,7 +68,6 @@ function setOwningProviderManifestPlugins() {
     createManifestProviderPlugin({
       id: "anthropic",
       providerIds: ["anthropic"],
-      cliBackends: ["claude-cli"],
       modelSupport: {
         modelPrefixes: ["claude-"],
       },
@@ -90,7 +84,6 @@ function setOwningProviderManifestPluginsWithWorkspace() {
     createManifestProviderPlugin({
       id: "openai",
       providerIds: ["openai", "openai-codex"],
-      cliBackends: ["codex-cli"],
       modelSupport: {
         modelPrefixes: ["gpt-", "o1", "o3", "o4"],
       },
@@ -98,7 +91,6 @@ function setOwningProviderManifestPluginsWithWorkspace() {
     createManifestProviderPlugin({
       id: "anthropic",
       providerIds: ["anthropic"],
-      cliBackends: ["claude-cli"],
       modelSupport: {
         modelPrefixes: ["claude-"],
       },
@@ -259,15 +251,9 @@ function expectProviderRuntimeRegistryLoad(params?: { config?: unknown; env?: No
 describe("resolvePluginProviders", () => {
   beforeAll(async () => {
     vi.resetModules();
-    loadPluginManifestRegistryMock.mockReturnValue({
-      plugins: [],
-      diagnostics: [],
-    });
     vi.doMock("./loader.js", () => ({
       loadOpenClawPlugins: (...args: Parameters<LoadOpenClawPlugins>) =>
         loadOpenClawPluginsMock(...args),
-      isPluginRegistryLoadInFlight: (...args: Parameters<IsPluginRegistryLoadInFlight>) =>
-        isPluginRegistryLoadInFlightMock(...args),
       resolveRuntimePluginRegistry: (...args: Parameters<ResolveRuntimePluginRegistry>) =>
         resolveRuntimePluginRegistryMock(...args),
     }));
@@ -288,19 +274,10 @@ describe("resolvePluginProviders", () => {
     ({ setActivePluginRegistry } = await import("./runtime.js"));
   });
 
-  it("maps cli backend ids to owning plugin ids via manifests", () => {
-    setOwningProviderManifestPlugins();
-
-    expectOwningPluginIds("claude-cli", ["anthropic"]);
-    expectOwningPluginIds("codex-cli", ["openai"]);
-  });
-
   beforeEach(() => {
     setActivePluginRegistry(createEmptyPluginRegistry());
     resolveRuntimePluginRegistryMock.mockReset();
     loadOpenClawPluginsMock.mockReset();
-    isPluginRegistryLoadInFlightMock.mockReset();
-    isPluginRegistryLoadInFlightMock.mockReturnValue(false);
     const provider: ProviderPlugin = {
       id: "demo-provider",
       label: "Demo Provider",

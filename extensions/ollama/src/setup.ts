@@ -1,4 +1,3 @@
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import type { OpenClawConfig } from "openclaw/plugin-sdk/provider-auth";
 import { upsertAuthProfileWithLock } from "openclaw/plugin-sdk/provider-auth";
 import { applyAgentDefaultModelPrimary } from "openclaw/plugin-sdk/provider-onboard";
@@ -196,7 +195,7 @@ async function pullOllamaModelCore(params: {
       await release();
     }
   } catch (err) {
-    const reason = formatErrorMessage(err);
+    const reason = err instanceof Error ? err.message : String(err);
     return { ok: false, message: `Failed to download ${modelName}: ${reason}` };
   }
 }
@@ -246,14 +245,9 @@ function buildOllamaModelsConfig(
   modelNames: string[],
   discoveredModelsByName?: Map<string, OllamaModelWithContext>,
 ) {
-  return modelNames.map((name) => {
-    const discovered = discoveredModelsByName?.get(name);
-    // Suggested cloud models may be injected before `/api/tags` exposes them,
-    // so keep Kimi vision-capable during setup even without discovered metadata.
-    const capabilities =
-      discovered?.capabilities ?? (name === "kimi-k2.5:cloud" ? ["vision"] : undefined);
-    return buildOllamaModelDefinition(name, discovered?.contextWindow, capabilities);
-  });
+  return modelNames.map((name) =>
+    buildOllamaModelDefinition(name, discoveredModelsByName?.get(name)?.contextWindow),
+  );
 }
 
 function applyOllamaProviderConfig(
@@ -305,9 +299,7 @@ export async function buildOllamaProvider(
   return {
     baseUrl: apiBase,
     api: "ollama",
-    models: discovered.map((model) =>
-      buildOllamaModelDefinition(model.name, model.contextWindow, model.capabilities),
-    ),
+    models: discovered.map((model) => buildOllamaModelDefinition(model.name, model.contextWindow)),
   };
 }
 
@@ -490,7 +482,7 @@ export async function configureOllamaNonInteractive(params: {
 
     defaultModelId =
       allModelNames.find((name) => availableModelNames.has(name)) ??
-      Array.from(availableModelNames)[0];
+      Array.from(availableModelNames)[0]!;
     params.runtime.log(
       `Ollama model ${requestedDefaultModelId} was not available; using ${defaultModelId} instead.`,
     );

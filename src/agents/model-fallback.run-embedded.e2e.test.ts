@@ -186,12 +186,6 @@ async function writeAuthStore(
         "openai:p1": { type: "api_key", provider: "openai", key: "sk-openai" },
         "groq:p1": { type: "api_key", provider: "groq", key: "sk-groq" },
       },
-    }),
-  );
-  await fs.writeFile(
-    path.join(agentDir, "auth-state.json"),
-    JSON.stringify({
-      version: 1,
       usageStats:
         usageStats ??
         ({
@@ -203,7 +197,7 @@ async function writeAuthStore(
 }
 
 async function readUsageStats(agentDir: string) {
-  const raw = await fs.readFile(path.join(agentDir, "auth-state.json"), "utf-8");
+  const raw = await fs.readFile(path.join(agentDir, "auth-profiles.json"), "utf-8");
   return JSON.parse(raw).usageStats as Record<string, Record<string, unknown> | undefined>;
 }
 
@@ -218,12 +212,6 @@ async function writeMultiProfileAuthStore(agentDir: string) {
         "openai:p3": { type: "api_key", provider: "openai", key: "sk-openai-3" },
         "groq:p1": { type: "api_key", provider: "groq", key: "sk-groq" },
       },
-    }),
-  );
-  await fs.writeFile(
-    path.join(agentDir, "auth-state.json"),
-    JSON.stringify({
-      version: 1,
       usageStats: {
         "openai:p1": { lastUsed: 1 },
         "openai:p2": { lastUsed: 2 },
@@ -592,12 +580,6 @@ describe("runWithModelFallback + runEmbeddedPiAgent overload policy", () => {
             "openai:p3": { type: "api_key", provider: "openai", key: "sk-openai-3" },
             "groq:p1": { type: "api_key", provider: "groq", key: "sk-groq" },
           },
-        }),
-      );
-      await fs.writeFile(
-        path.join(agentDir, "auth-state.json"),
-        JSON.stringify({
-          version: 1,
           usageStats: {
             "openai:p1": { lastUsed: 1 },
             "openai:p2": { lastUsed: 2 },

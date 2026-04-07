@@ -1,5 +1,4 @@
 import crypto from "node:crypto";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import { fetchWithSsrFGuard } from "../runtime-api.js";
 import type { ResolvedGoogleChatAccount } from "./accounts.js";
 import { getGoogleChatAccessToken } from "./auth.js";
@@ -314,7 +313,7 @@ export async function probeGoogleChat(account: ResolvedGoogleChatAccount): Promi
   } catch (err) {
     return {
       ok: false,
-      error: formatErrorMessage(err),
+      error: err instanceof Error ? err.message : String(err),
     };
   }
 }

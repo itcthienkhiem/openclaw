@@ -1,24 +1,28 @@
-import type {
-  ChannelSetupAdapter,
-  ChannelSetupWizard,
-  ChannelSetupWizardTextInput,
-} from "openclaw/plugin-sdk/setup-runtime";
 import {
   createCliPathTextInput,
   createDelegatedSetupWizardProxy,
   createDelegatedTextInputShouldPrompt,
   createPatchedAccountSetupAdapter,
   mergeAllowFromEntries,
-  parseSetupEntriesAllowingWildcard,
   patchChannelConfigForAccount,
+  parseSetupEntriesAllowingWildcard,
   promptParsedAllowFromForAccount,
   setAccountAllowFromForChannel,
   setSetupChannelEnabled,
   type OpenClawConfig,
   type WizardPrompter,
 } from "openclaw/plugin-sdk/setup-runtime";
+import type {
+  ChannelSetupAdapter,
+  ChannelSetupWizard,
+  ChannelSetupWizardTextInput,
+} from "openclaw/plugin-sdk/setup-runtime";
 import { formatDocsLink } from "openclaw/plugin-sdk/setup-tools";
-import { resolveDefaultIMessageAccountId, resolveIMessageAccount } from "./accounts.js";
+import {
+  listIMessageAccountIds,
+  resolveDefaultIMessageAccountId,
+  resolveIMessageAccount,
+} from "./accounts.js";
 import { normalizeIMessageHandle } from "./targets.js";
 
 const channel = "imessage" as const;

@@ -24,7 +24,7 @@ function withPluginsEnabled<T>(cfg: T): T {
   return {
     ...record,
     plugins: {
-      ...(record.plugins && typeof record.plugins === "object" ? record.plugins : {}),
+      ...(record.plugins && typeof record.plugins === "object" ? (record.plugins as object) : {}),
       enabled: true,
     },
   } as T;

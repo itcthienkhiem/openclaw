@@ -8,9 +8,9 @@ export async function clearAllIndexedDbState(): Promise<void> {
         (name) =>
           new Promise<void>((resolve, reject) => {
             const req = indexedDB.deleteDatabase(name);
-            req.addEventListener("success", () => resolve(), { once: true });
-            req.addEventListener("error", () => reject(req.error), { once: true });
-            req.addEventListener("blocked", () => resolve(), { once: true });
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+            req.onblocked = () => resolve();
           }),
       ),
   );
@@ -24,26 +24,26 @@ export async function seedDatabase(params: {
 }): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const req = indexedDB.open(params.name, params.version ?? 1);
-    req.addEventListener("upgradeneeded", () => {
+    req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(params.storeName)) {
         db.createObjectStore(params.storeName);
       }
-    });
-    req.addEventListener("success", () => {
+    };
+    req.onsuccess = () => {
       const db = req.result;
       const tx = db.transaction(params.storeName, "readwrite");
       const store = tx.objectStore(params.storeName);
       for (const record of params.records) {
         store.put(record.value, record.key);
       }
-      tx.addEventListener("complete", () => {
+      tx.oncomplete = () => {
         db.close();
         resolve();
-      });
-      tx.addEventListener("error", () => reject(tx.error), { once: true });
-    });
-    req.addEventListener("error", () => reject(req.error), { once: true });
+      };
+      tx.onerror = () => reject(tx.error);
+    };
+    req.onerror = () => reject(req.error);
   });
 }
 
@@ -54,7 +54,7 @@ export async function readDatabaseRecords(params: {
 }): Promise<Array<{ key: IDBValidKey; value: unknown }>> {
   return await new Promise((resolve, reject) => {
     const req = indexedDB.open(params.name, params.version ?? 1);
-    req.addEventListener("success", () => {
+    req.onsuccess = () => {
       const db = req.result;
       const tx = db.transaction(params.storeName, "readonly");
       const store = tx.objectStore(params.storeName);
@@ -72,17 +72,17 @@ export async function readDatabaseRecords(params: {
         resolve(keys.map((key, index) => ({ key, value: resolvedValues[index] })));
       };
 
-      keysReq.addEventListener("success", () => {
+      keysReq.onsuccess = () => {
         keys = keysReq.result;
         maybeResolve();
-      });
-      valuesReq.addEventListener("success", () => {
+      };
+      valuesReq.onsuccess = () => {
         values = valuesReq.result;
         maybeResolve();
-      });
-      keysReq.addEventListener("error", () => reject(keysReq.error), { once: true });
-      valuesReq.addEventListener("error", () => reject(valuesReq.error), { once: true });
-    });
-    req.addEventListener("error", () => reject(req.error), { once: true });
+      };
+      keysReq.onerror = () => reject(keysReq.error);
+      valuesReq.onerror = () => reject(valuesReq.error);
+    };
+    req.onerror = () => reject(req.error);
   });
 }

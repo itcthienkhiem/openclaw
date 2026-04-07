@@ -14,7 +14,6 @@ import {
   resolveIMessageConfigDefaultTo,
 } from "./config-accessors.js";
 import { looksLikeIMessageTargetId, normalizeIMessageMessagingTarget } from "./normalize.js";
-export { chunkTextForOutbound } from "openclaw/plugin-sdk/text-chunking";
 
 export {
   collectStatusIssuesFromLastError,
@@ -30,3 +29,19 @@ export {
 };
 
 export type { ChannelPlugin, ChannelStatusIssue, OpenClawConfig };
+
+export function chunkTextForOutbound(text: string, limit: number): string[] {
+  const chunks: string[] = [];
+  let remaining = text;
+  while (remaining.length > limit) {
+    const window = remaining.slice(0, limit);
+    const splitAt = Math.max(window.lastIndexOf("\n"), window.lastIndexOf(" "));
+    const breakAt = splitAt > 0 ? splitAt : limit;
+    chunks.push(remaining.slice(0, breakAt).trimEnd());
+    remaining = remaining.slice(breakAt).trimStart();
+  }
+  if (remaining.length > 0 || text.length === 0) {
+    chunks.push(remaining);
+  }
+  return chunks;
+}

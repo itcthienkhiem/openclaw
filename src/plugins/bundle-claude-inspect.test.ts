@@ -1,10 +1,10 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { inspectBundleLspRuntimeSupport } from "./bundle-lsp.js";
 import { loadBundleManifest } from "./bundle-manifest.js";
 import { inspectBundleMcpRuntimeSupport } from "./bundle-mcp.js";
-import { cleanupTrackedTempDirs, makeTrackedTempDir } from "./test-helpers/fs-fixtures.js";
 
 /**
  * Integration test: builds a Claude Code bundle plugin fixture on disk
@@ -13,7 +13,6 @@ import { cleanupTrackedTempDirs, makeTrackedTempDir } from "./test-helpers/fs-fi
  */
 describe("Claude bundle plugin inspect integration", () => {
   let rootDir: string;
-  const tempDirs: string[] = [];
 
   function writeFixtureText(relativePath: string, value: string) {
     fs.mkdirSync(path.dirname(path.join(rootDir, relativePath)), { recursive: true });
@@ -152,12 +151,12 @@ describe("Claude bundle plugin inspect integration", () => {
   }
 
   beforeAll(() => {
-    rootDir = makeTrackedTempDir("openclaw-claude-bundle", tempDirs);
+    rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "openclaw-claude-bundle-"));
     setupClaudeInspectFixture();
   });
 
   afterAll(() => {
-    cleanupTrackedTempDirs(tempDirs);
+    fs.rmSync(rootDir, { recursive: true, force: true });
   });
 
   it("loads the full Claude bundle manifest with all capabilities", () => {

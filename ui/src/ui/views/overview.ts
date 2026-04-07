@@ -37,7 +37,6 @@ export type OverviewProps = {
   cronEnabled: boolean | null;
   cronNext: number | null;
   lastChannelsRefresh: number | null;
-  warnQueryToken: boolean;
   // New dashboard data
   usageResult: SessionsUsageResult | null;
   sessionsResult: SessionsListResult | null;
@@ -188,25 +187,6 @@ export function renderOverview(props: OverviewProps) {
             >Docs: Insecure HTTP</a
           >
         </div>
-      </div>
-    `;
-  })();
-
-  const queryTokenHint = (() => {
-    if (props.connected || !props.lastError || !props.warnQueryToken) {
-      return null;
-    }
-    const lower = props.lastError.toLowerCase();
-    const authFailed = lower.includes("unauthorized") || lower.includes("device identity required");
-    if (!authFailed) {
-      return null;
-    }
-    return html`
-      <div class="muted" style="margin-top: 8px">
-        Auth token must be passed as a URL fragment:
-        <span class="mono">#token=&lt;token&gt;</span>. Query parameters (<span class="mono"
-          >?token=</span
-        >) may appear in server logs.
       </div>
     `;
   })();
@@ -397,7 +377,6 @@ export function renderOverview(props: OverviewProps) {
           ? html`<div class="callout danger" style="margin-top: 14px;">
               <div>${props.lastError}</div>
               ${pairingHint ?? ""} ${authHint ?? ""} ${insecureContextHint ?? ""}
-              ${queryTokenHint ?? ""}
             </div>`
           : html`
               <div class="callout" style="margin-top: 14px">

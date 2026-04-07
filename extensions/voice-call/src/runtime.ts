@@ -1,5 +1,4 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import type {
   RealtimeVoiceProviderConfig,
   RealtimeVoiceProviderPlugin,
@@ -182,7 +181,7 @@ async function resolveRealtimeProvider(params: {
   const provider = resolution.provider;
   return {
     provider,
-    providerConfig: resolution.providerConfig,
+    providerConfig: resolution.providerConfig as RealtimeVoiceProviderConfig,
   };
 }
 
@@ -224,7 +223,7 @@ export async function createVoiceCallRuntime(params: {
   const realtimeProvider = config.realtime.enabled
     ? await resolveRealtimeProvider({
         config,
-        fullConfig: fullConfig ?? (coreConfig as OpenClawConfig),
+        fullConfig: (fullConfig ?? (coreConfig as OpenClawConfig)) as OpenClawConfig,
       })
     : null;
   const webhookServer = new VoiceCallWebhookServer(
@@ -232,7 +231,7 @@ export async function createVoiceCallRuntime(params: {
     manager,
     provider,
     coreConfig,
-    fullConfig ?? (coreConfig as OpenClawConfig),
+    (fullConfig ?? (coreConfig as OpenClawConfig)) as OpenClawConfig,
     agentRuntime,
   );
   if (realtimeProvider) {
@@ -272,7 +271,9 @@ export async function createVoiceCallRuntime(params: {
         lifecycle.setTunnelResult(nextTunnelResult);
         publicUrl = nextTunnelResult?.publicUrl ?? null;
       } catch (err) {
-        log.error(`[voice-call] Tunnel setup failed: ${formatErrorMessage(err)}`);
+        log.error(
+          `[voice-call] Tunnel setup failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
 
@@ -302,7 +303,11 @@ export async function createVoiceCallRuntime(params: {
           twilioProvider.setTTSProvider(ttsProvider);
           log.info("[voice-call] Telephony TTS provider configured");
         } catch (err) {
-          log.warn(`[voice-call] Failed to initialize telephony TTS: ${formatErrorMessage(err)}`);
+          log.warn(
+            `[voice-call] Failed to initialize telephony TTS: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
         }
       } else {
         log.warn("[voice-call] Telephony TTS unavailable; streaming TTS disabled");

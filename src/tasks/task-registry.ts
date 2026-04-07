@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 import type { OpenClawConfig } from "../config/config.js";
 import { onAgentEvent } from "../infra/agent-events.js";
-import { formatErrorMessage } from "../infra/errors.js";
 import { requestHeartbeatNow } from "../infra/heartbeat-wake.js";
 import { enqueueSystemEvent } from "../infra/system-events.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
@@ -1784,7 +1783,7 @@ export async function cancelTaskById(params: {
     return {
       found: true,
       cancelled: false,
-      reason: formatErrorMessage(error),
+      reason: error instanceof Error ? error.message : String(error),
       task: cloneTaskRecord(task),
     };
   }

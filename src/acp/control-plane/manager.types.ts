@@ -68,7 +68,6 @@ export type AcpCloseSessionInput = {
   cfg: OpenClawConfig;
   sessionKey: string;
   reason: string;
-  discardPersistentState?: boolean;
   clearMeta?: boolean;
   allowBackendUnavailable?: boolean;
   requireAcpSession?: boolean;

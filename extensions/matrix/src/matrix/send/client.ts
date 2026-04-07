@@ -39,7 +39,11 @@ export async function withResolvedMatrixSendClient<T>(
   },
   run: (client: MatrixClient) => Promise<T>,
 ): Promise<T> {
-  return await withResolvedMatrixClient(
+  if (opts.client) {
+    return await run(opts.client);
+  }
+  const { withResolvedRuntimeMatrixClient } = await loadMatrixSendClientRuntime();
+  return await withResolvedRuntimeMatrixClient(
     {
       ...opts,
       // One-off outbound sends still need a started client so room encryption
@@ -62,29 +66,15 @@ export async function withResolvedMatrixControlClient<T>(
   },
   run: (client: MatrixClient) => Promise<T>,
 ): Promise<T> {
-  return await withResolvedMatrixClient(
+  if (opts.client) {
+    return await run(opts.client);
+  }
+  const { withResolvedRuntimeMatrixClient } = await loadMatrixSendClientRuntime();
+  return await withResolvedRuntimeMatrixClient(
     {
       ...opts,
       readiness: "none",
     },
     run,
   );
-}
-
-async function withResolvedMatrixClient<T>(
-  opts: {
-    client?: MatrixClient;
-    cfg?: CoreConfig;
-    timeoutMs?: number;
-    accountId?: string | null;
-    readiness: "started" | "none";
-  },
-  run: (client: MatrixClient) => Promise<T>,
-  shutdownBehavior?: "persist",
-): Promise<T> {
-  if (opts.client) {
-    return await run(opts.client);
-  }
-  const { withResolvedRuntimeMatrixClient } = await loadMatrixSendClientRuntime();
-  return await withResolvedRuntimeMatrixClient(opts, run, shutdownBehavior);
 }

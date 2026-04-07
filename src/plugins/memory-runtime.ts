@@ -1,19 +1,19 @@
 import type { OpenClawConfig } from "../config/config.js";
+import { applyPluginAutoEnable } from "../config/plugin-auto-enable.js";
 import { resolveRuntimePluginRegistry } from "./loader.js";
 import { getMemoryRuntime } from "./memory-state.js";
-import {
-  buildPluginRuntimeLoadOptions,
-  resolvePluginRuntimeLoadContext,
-} from "./runtime/load-context.js";
 
 function ensureMemoryRuntime(cfg?: OpenClawConfig) {
   const current = getMemoryRuntime();
   if (current || !cfg) {
     return current;
   }
-  resolveRuntimePluginRegistry(
-    buildPluginRuntimeLoadOptions(resolvePluginRuntimeLoadContext({ config: cfg })),
-  );
+  const autoEnabled = applyPluginAutoEnable({ config: cfg, env: process.env });
+  resolveRuntimePluginRegistry({
+    config: autoEnabled.config,
+    activationSourceConfig: cfg,
+    autoEnabledReasons: autoEnabled.autoEnabledReasons,
+  });
   return getMemoryRuntime();
 }
 

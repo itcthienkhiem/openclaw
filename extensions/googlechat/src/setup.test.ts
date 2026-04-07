@@ -296,6 +296,7 @@ describe("googlechat setup", () => {
           },
         },
       } as OpenClawConfig,
+      // oxlint-disable-next-line typescript/no-explicit-any
       prompter: prompter as any,
     });
 

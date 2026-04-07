@@ -68,10 +68,6 @@ const BASE_METHODS = [
   "sessions.messages.subscribe",
   "sessions.messages.unsubscribe",
   "sessions.preview",
-  "sessions.compaction.list",
-  "sessions.compaction.get",
-  "sessions.compaction.branch",
-  "sessions.compaction.restore",
   "sessions.create",
   "sessions.send",
   "sessions.abort",
@@ -122,6 +118,7 @@ const BASE_METHODS = [
   "chat.history",
   "chat.abort",
   "chat.send",
+  "audio.transcribe",
 ];
 
 export function listGatewayMethods(): string[] {

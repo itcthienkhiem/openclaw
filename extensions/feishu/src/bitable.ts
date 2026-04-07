@@ -1,6 +1,5 @@
 import type * as Lark from "@larksuiteoapi/node-sdk";
 import { Type } from "@sinclair/typebox";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import type { OpenClawPluginApi } from "../runtime-api.js";
 import { listEnabledFeishuAccounts } from "./accounts.js";
 import { createFeishuToolClient } from "./tool-account.js";
@@ -280,7 +279,7 @@ async function cleanupNewBitable(
         });
         cleanedFields++;
       } catch (err) {
-        logger.debug(`Failed to rename primary field: ${String(err)}`);
+        logger.debug(`Failed to rename primary field: ${err}`);
       }
     }
 
@@ -301,7 +300,7 @@ async function cleanupNewBitable(
           });
           cleanedFields++;
         } catch (err) {
-          logger.debug(`Failed to delete default field ${field.field_name}: ${String(err)}`);
+          logger.debug(`Failed to delete default field ${field.field_name}: ${err}`);
         }
       }
     }
@@ -335,7 +334,7 @@ async function cleanupNewBitable(
             });
             cleanedRows++;
           } catch (err) {
-            logger.debug(`Failed to delete empty row ${recordId}: ${String(err)}`);
+            logger.debug(`Failed to delete empty row ${recordId}: ${err}`);
           }
         }
       }
@@ -382,7 +381,7 @@ async function createApp(
       }
     }
   } catch (err) {
-    log.debug(`Cleanup failed (non-critical): ${String(err)}`);
+    log.debug(`Cleanup failed (non-critical): ${err}`);
   }
 
   return {
@@ -580,7 +579,7 @@ export function registerFeishuBitableTools(api: OpenClawPluginApi) {
               }),
             );
           } catch (err) {
-            return json({ error: formatErrorMessage(err) });
+            return json({ error: err instanceof Error ? err.message : String(err) });
           }
         },
       }),

@@ -1,5 +1,4 @@
 import { collectIssuesForEnabledAccounts } from "openclaw/plugin-sdk/status-helpers";
-import { asRecord } from "./monitor-normalize.js";
 import type { ChannelAccountSnapshot } from "./runtime-api.js";
 
 type BlueBubblesAccountStatus = {
@@ -18,6 +17,10 @@ type BlueBubblesProbeResult = {
   error?: string | null;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 function asString(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
@@ -25,30 +28,28 @@ function asString(value: unknown): string | null {
 function readBlueBubblesAccountStatus(
   value: ChannelAccountSnapshot,
 ): BlueBubblesAccountStatus | null {
-  const record = asRecord(value);
-  if (!record) {
+  if (!isRecord(value)) {
     return null;
   }
   return {
-    accountId: record.accountId,
-    enabled: record.enabled,
-    configured: record.configured,
-    running: record.running,
-    baseUrl: record.baseUrl,
-    lastError: record.lastError,
-    probe: record.probe,
+    accountId: value.accountId,
+    enabled: value.enabled,
+    configured: value.configured,
+    running: value.running,
+    baseUrl: value.baseUrl,
+    lastError: value.lastError,
+    probe: value.probe,
   };
 }
 
 function readBlueBubblesProbeResult(value: unknown): BlueBubblesProbeResult | null {
-  const record = asRecord(value);
-  if (!record) {
+  if (!isRecord(value)) {
     return null;
   }
   return {
-    ok: typeof record.ok === "boolean" ? record.ok : undefined,
-    status: typeof record.status === "number" ? record.status : null,
-    error: asString(record.error) ?? null,
+    ok: typeof value.ok === "boolean" ? value.ok : undefined,
+    status: typeof value.status === "number" ? value.status : null,
+    error: asString(value.error) ?? null,
   };
 }
 

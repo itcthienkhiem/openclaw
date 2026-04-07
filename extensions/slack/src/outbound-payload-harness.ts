@@ -1,7 +1,10 @@
+import type { ChannelOutboundAdapter } from "openclaw/plugin-sdk/channel-contract";
 import type { ReplyPayload } from "openclaw/plugin-sdk/reply-runtime";
-import { primeChannelOutboundSendMock } from "openclaw/plugin-sdk/testing";
+import {
+  loadBundledPluginTestApiSync,
+  primeChannelOutboundSendMock,
+} from "openclaw/plugin-sdk/testing";
 import { vi, type Mock } from "vitest";
-import { slackOutbound } from "./outbound-adapter.js";
 
 type OutboundSendMock = Mock<(...args: unknown[]) => Promise<Record<string, unknown>>>;
 
@@ -10,6 +13,17 @@ type SlackOutboundPayloadHarness = {
   sendMock: OutboundSendMock;
   to: string;
 };
+
+let slackOutboundCache: ChannelOutboundAdapter | undefined;
+
+function getSlackOutbound(): ChannelOutboundAdapter {
+  if (!slackOutboundCache) {
+    ({ slackOutbound: slackOutboundCache } = loadBundledPluginTestApiSync<{
+      slackOutbound: ChannelOutboundAdapter;
+    }>("slack"));
+  }
+  return slackOutboundCache;
+}
 
 export function createSlackOutboundPayloadHarness(params: {
   payload: ReplyPayload;
@@ -31,7 +45,7 @@ export function createSlackOutboundPayloadHarness(params: {
     },
   };
   return {
-    run: async () => await slackOutbound.sendPayload!(ctx),
+    run: async () => await getSlackOutbound().sendPayload!(ctx),
     sendMock: sendSlack,
     to: ctx.to,
   };

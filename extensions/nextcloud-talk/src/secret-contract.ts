@@ -6,7 +6,7 @@ import {
   type ResolverContext,
   type SecretDefaults,
   type SecretTargetRegistryEntry,
-} from "openclaw/plugin-sdk/channel-secret-runtime";
+} from "openclaw/plugin-sdk/security-runtime";
 
 export const secretTargetRegistryEntries = [
   {
@@ -96,8 +96,3 @@ export function collectRuntimeConfigAssignments(params: {
     accountInactiveReason: "Nextcloud Talk account is disabled.",
   });
 }
-
-export const channelSecrets = {
-  secretTargetRegistryEntries,
-  collectRuntimeConfigAssignments,
-};

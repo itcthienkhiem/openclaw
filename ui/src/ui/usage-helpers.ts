@@ -139,7 +139,10 @@ const getSessionModels = (session: UsageSessionQueryTarget): string[] => {
 const getSessionTools = (session: UsageSessionQueryTarget): string[] =>
   (session.usage?.toolUsage?.tools ?? []).map((tool) => tool.name.toLowerCase());
 
-const matchesUsageQuery = (session: UsageSessionQueryTarget, term: UsageQueryTerm): boolean => {
+export const matchesUsageQuery = (
+  session: UsageSessionQueryTarget,
+  term: UsageQueryTerm,
+): boolean => {
   const value = normalizeQueryText(term.value ?? "");
   if (!value) {
     return true;

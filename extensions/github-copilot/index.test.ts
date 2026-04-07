@@ -12,7 +12,7 @@ vi.mock("./register.runtime.js", () => ({
 
 import plugin from "./index.js";
 
-function _registerProvider() {
+function registerProvider() {
   return registerProviderWithPluginConfig({});
 }
 

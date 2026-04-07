@@ -27,7 +27,7 @@ describe("shouldBypassAcpDispatchForCommand", () => {
     expect(shouldBypassAcpDispatchForCommand(ctx, {} as OpenClawConfig)).toBe(false);
   });
 
-  it("returns true for ACP reset-tail slash commands", () => {
+  it("returns false for ACP reset-tail slash commands", () => {
     const ctx = buildTestCtx({
       Provider: "discord",
       Surface: "discord",
@@ -37,19 +37,7 @@ describe("shouldBypassAcpDispatchForCommand", () => {
       BodyForAgent: "/new continue with deployment",
     });
 
-    expect(shouldBypassAcpDispatchForCommand(ctx, {} as OpenClawConfig)).toBe(true);
-  });
-
-  it("returns true for bare ACP reset slash commands", () => {
-    const ctx = buildTestCtx({
-      Provider: "discord",
-      Surface: "discord",
-      CommandBody: "/reset",
-      BodyForCommands: "/reset",
-      BodyForAgent: "/reset",
-    });
-
-    expect(shouldBypassAcpDispatchForCommand(ctx, {} as OpenClawConfig)).toBe(true);
+    expect(shouldBypassAcpDispatchForCommand(ctx, {} as OpenClawConfig)).toBe(false);
   });
 
   it("returns false for slash commands when text commands are disabled", () => {

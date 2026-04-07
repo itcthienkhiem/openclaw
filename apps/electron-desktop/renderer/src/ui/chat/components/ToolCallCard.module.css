@@ -1,0 +1,206 @@
+/* Tool call: inline collapsible section ("Write File" style) */
+.ToolCallCards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.ToolCallCard {
+  display: flex;
+  flex-direction: column;
+}
+
+.ToolCallHeader {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  font-size: 14px;
+  font-family: inherit;
+  text-align: left;
+  transition: color var(--transition-fast, 120ms);
+  height: 24px;
+  box-sizing: border-box;
+  text-transform: capitalize;
+}
+
+.ToolCallLabel {
+  white-space: nowrap;
+}
+
+.ToolCallChevron {
+  flex-shrink: 0;
+  width: 10px;
+  height: 6px;
+  color: rgba(255, 255, 255, 0.25);
+  user-select: none;
+  transition: transform var(--transition-fast, 120ms);
+}
+
+.ToolCallChevron--open {
+  transform: rotate(180deg);
+}
+
+.ToolCallBadge--error {
+  flex-shrink: 0;
+  font-size: 12px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm, 4px);
+  color: #ff3b30;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Expanded body — indented content under the header */
+.ToolCallBody {
+  padding: 4px 0 8px 0;
+}
+
+.ToolCallArgLine {
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.35);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ToolCallArgKey {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.ToolCallArgValue {
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* Status line (✓ Approved / ✗ Denied / ⏳ Pending) */
+.ToolCallStatusLine {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.ToolCallStatusLine--approved {
+  color: #38bb58;
+}
+
+.ToolCallStatusLine--denied {
+  color: #ff3b30;
+}
+
+.ToolCallStatusLine--pending {
+  color: #e47a00;
+}
+
+.ToolCallStatusLine--running {
+  color: rgba(160, 160, 180, 0.7);
+}
+
+.ToolCallStatusLine--error {
+  color: #ff3b30;
+}
+
+.ToolCallStatusIcon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+.ToolCallStatusText {
+  font-weight: 500;
+}
+
+/* Result text */
+.ToolCallResultText {
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 2px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Standalone tool-result images shown outside the collapsed ActionLog */
+.ToolResultImageBlock {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.ToolResultImageWrap {
+  position: relative;
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.ToolResultImg {
+  display: block;
+  max-width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+  border-radius: var(--radius-md, 8px);
+}
+
+.ToolResultDownloadBtn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  appearance: none;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  color: rgba(255, 255, 255, 0.8);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition:
+    opacity var(--transition-fast, 120ms),
+    background var(--transition-fast, 120ms);
+}
+
+.ToolResultImageWrap:hover .ToolResultDownloadBtn {
+  opacity: 1;
+}
+
+.ToolResultDownloadBtn:hover {
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+}
+
+/* Attachments (images + files) inside expanded tool result */
+.ToolCallAttachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.ToolCallAttachmentImage {
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.ToolCallAttachmentImg {
+  display: block;
+  max-width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  border-radius: var(--radius-md, 8px);
+}

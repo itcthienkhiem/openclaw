@@ -30,11 +30,25 @@ Manage Trello boards, lists, and cards directly from OpenClaw.
 
 1. Get your API key: https://trello.com/app-key
 2. Generate a token (click "Token" link on that page)
-3. Set environment variables:
+3. Configure via OpenClaw desktop app settings, or set environment variables:
    ```bash
    export TRELLO_API_KEY="your-api-key"
    export TRELLO_TOKEN="your-token"
    ```
+
+The `TRELLO_API_KEY` and `TRELLO_TOKEN` environment variables are set automatically when configured through OpenClaw settings.
+
+## Cross-platform note
+
+Examples below use bash syntax. On **PowerShell (Windows)** apply these changes:
+
+| bash                              | PowerShell                                                             |
+| --------------------------------- | ---------------------------------------------------------------------- |
+| `$TRELLO_API_KEY`                 | `$env:TRELLO_API_KEY`                                                  |
+| `$TRELLO_TOKEN`                   | `$env:TRELLO_TOKEN`                                                    |
+| `curl`                            | `curl.exe` (bare `curl` is a PowerShell alias for `Invoke-WebRequest`) |
+| `\` (line continuation)           | `` ` `` (backtick)                                                     |
+| `'{"json"}'` (single-quoted body) | `'{"json"}'` (same — single quotes in PowerShell are literal)          |
 
 ## Usage
 
@@ -96,6 +110,8 @@ curl -s -X PUT "https://api.trello.com/1/cards/{cardId}?key=$TRELLO_API_KEY&toke
 
 ## Examples
 
+**bash/zsh:**
+
 ```bash
 # Get all boards
 curl -s "https://api.trello.com/1/members/me/boards?key=$TRELLO_API_KEY&token=$TRELLO_TOKEN&fields=name,id" | jq
@@ -105,4 +121,14 @@ curl -s "https://api.trello.com/1/members/me/boards?key=$TRELLO_API_KEY&token=$T
 
 # Get all cards on a board
 curl -s "https://api.trello.com/1/boards/{boardId}/cards?key=$TRELLO_API_KEY&token=$TRELLO_TOKEN" | jq '.[] | {name, list: .idList}'
+```
+
+**PowerShell (Windows):**
+
+```powershell
+# Get all boards
+curl.exe -s "https://api.trello.com/1/members/me/boards?key=$env:TRELLO_API_KEY&token=$env:TRELLO_TOKEN&fields=name,id" | jq
+
+# Find a specific board by name
+curl.exe -s "https://api.trello.com/1/members/me/boards?key=$env:TRELLO_API_KEY&token=$env:TRELLO_TOKEN" | jq '.[] | select(.name | contains(\"Work\"))'
 ```

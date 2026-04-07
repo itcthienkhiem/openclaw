@@ -1,5 +1,4 @@
 import { resolveActiveTalkProviderConfig } from "openclaw/plugin-sdk/config-runtime";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import type { SpeechVoiceOption } from "openclaw/plugin-sdk/speech";
 import { definePluginEntry, type OpenClawPluginApi } from "./api.js";
 
@@ -170,7 +169,7 @@ export default definePluginEntry({
               text: formatVoiceList(voices, Number.isFinite(limit) ? limit : 12, providerId),
             };
           } catch (error) {
-            const message = formatErrorMessage(error);
+            const message = error instanceof Error ? error.message : String(error);
             return { text: `${providerLabel} voice list failed: ${message}` };
           }
         }
@@ -195,7 +194,7 @@ export default definePluginEntry({
               baseUrl,
             });
           } catch (error) {
-            const message = formatErrorMessage(error);
+            const message = error instanceof Error ? error.message : String(error);
             return { text: `${providerLabel} voice lookup failed: ${message}` };
           }
           const chosen = findVoice(voices, query);
@@ -210,9 +209,9 @@ export default definePluginEntry({
               ...cfg.talk,
               provider: providerId,
               providers: {
-                ...cfg.talk?.providers,
+                ...(cfg.talk?.providers ?? {}),
                 [providerId]: {
-                  ...cfg.talk?.providers?.[providerId],
+                  ...(cfg.talk?.providers?.[providerId] ?? {}),
                   voiceId: chosen.id,
                 },
               },

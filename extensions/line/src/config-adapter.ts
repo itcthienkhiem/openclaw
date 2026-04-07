@@ -3,6 +3,7 @@ import {
   listLineAccountIds,
   resolveDefaultLineAccountId,
   resolveLineAccount,
+  type OpenClawConfig,
   type ResolvedLineAccount,
 } from "./channel-api.js";
 
@@ -12,7 +13,8 @@ export function normalizeLineAllowFrom(entry: string): string {
 
 export const lineConfigAdapter = createScopedChannelConfigAdapter<
   ResolvedLineAccount,
-  ResolvedLineAccount
+  ResolvedLineAccount,
+  OpenClawConfig
 >({
   sectionKey: "line",
   listAccountIds: listLineAccountIds,

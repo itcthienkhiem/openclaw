@@ -1,18 +1,20 @@
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ResolvedBlueBubblesAccount } from "./accounts.js";
 import { fetchBlueBubblesHistory } from "./history.js";
 import { createBlueBubblesDebounceRegistry } from "./monitor-debounce.js";
 import type { NormalizedWebhookMessage } from "./monitor-normalize.js";
 import { resetBlueBubblesSelfChatCache } from "./monitor-self-chat-cache.js";
-import { resolveBlueBubblesMessageId } from "./monitor.js";
+import { handleBlueBubblesWebhookRequest, resolveBlueBubblesMessageId } from "./monitor.js";
 import {
   createMockAccount,
-  createMockRequest,
   createNewMessagePayloadForTest,
-  createTimestampedMessageReactionPayloadForTest,
+  createMockRequest,
   createTimestampedNewMessagePayloadForTest,
-  dispatchWebhookPayloadForTest,
+  createTimestampedMessageReactionPayloadForTest,
   dispatchWebhookRequestForTest,
+  dispatchWebhookPayloadForTest,
+  flushAsync,
   setupWebhookTargetForTest,
   setupWebhookTargetsForTest,
   trackWebhookRegistrationForTest,
@@ -156,7 +158,9 @@ function getFirstDispatchCall(): DispatchReplyParams {
 
 function installTimingAwareInboundDebouncer(core: PluginRuntime) {
   // Use a timing-aware debouncer test double that respects debounceMs/buildKey/shouldDebounce.
+  // oxlint-disable-next-line typescript/no-explicit-any
   core.channel.debounce.createInboundDebouncer = vi.fn((params: any) => {
+    // oxlint-disable-next-line typescript/no-explicit-any
     type Item = any;
     const buckets = new Map<
       string,
@@ -801,7 +805,7 @@ describe("BlueBubbles webhook monitor", () => {
         const core = createMockRuntime();
         installTimingAwareInboundDebouncer(core);
 
-        const _registration = trackWebhookRegistrationForTest(
+        const registration = trackWebhookRegistrationForTest(
           setupWebhookTargetForTest({
             createCore: createMockRuntime,
             core,

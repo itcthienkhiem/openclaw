@@ -6,12 +6,9 @@ import { handleCommands } from "./commands-core.js";
 import { createCommandWorkspaceHarness } from "./commands-filesystem.test-support.js";
 import { buildCommandTestParams } from "./commands.test-harness.js";
 
-const { installPluginFromPathMock, installPluginFromClawHubMock, persistPluginInstallMock } =
-  vi.hoisted(() => ({
-    installPluginFromPathMock: vi.fn(),
-    installPluginFromClawHubMock: vi.fn(),
-    persistPluginInstallMock: vi.fn(),
-  }));
+const installPluginFromPathMock = vi.fn();
+const installPluginFromClawHubMock = vi.fn();
+const persistPluginInstallMock = vi.fn();
 
 vi.mock("../../plugins/install.js", async () => {
   const actual = await vi.importActual<typeof import("../../plugins/install.js")>(

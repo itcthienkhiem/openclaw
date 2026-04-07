@@ -11,7 +11,6 @@ import {
   classifySessionKey,
   deriveSessionTitle,
   listAgentsForGateway,
-  listSessionsFromStore,
   loadSessionEntry,
   migrateAndPruneGatewaySessionStoreKey,
   parseGroupKey,
@@ -570,7 +569,7 @@ describe("gateway session utils", () => {
 });
 
 describe("resolveSessionModelRef", () => {
-  test("prefers explicit session overrides ahead of runtime model fields", () => {
+  test("prefers runtime model/provider from session entry", () => {
     const cfg = createModelDefaultsConfig({
       primary: "anthropic/claude-opus-4-6",
     });
@@ -584,7 +583,7 @@ describe("resolveSessionModelRef", () => {
       providerOverride: "anthropic",
     });
 
-    expect(resolved).toEqual({ provider: "anthropic", model: "claude-opus-4-6" });
+    expect(resolved).toEqual({ provider: "openai-codex", model: "gpt-5.4" });
   });
 
   test("preserves openrouter provider when model contains vendor prefix", () => {
@@ -619,26 +618,6 @@ describe("resolveSessionModelRef", () => {
     expect(resolved).toEqual({ provider: "openai-codex", model: "gpt-5.4" });
   });
 
-  test("preserves explicit wrapper providers for vendor-prefixed override models", () => {
-    const cfg = createModelDefaultsConfig({
-      primary: "anthropic/claude-opus-4-6",
-    });
-
-    const resolved = resolveSessionModelRef(cfg, {
-      sessionId: "s-openrouter-override",
-      updatedAt: Date.now(),
-      providerOverride: "openrouter",
-      modelOverride: "anthropic/claude-haiku-4.5",
-      modelProvider: "openrouter",
-      model: "openrouter/free",
-    });
-
-    expect(resolved).toEqual({
-      provider: "openrouter",
-      model: "anthropic/claude-haiku-4.5",
-    });
-  });
-
   test("falls back to resolved provider for unprefixed legacy runtime model", () => {
     const cfg = createModelDefaultsConfig({
       primary: "google-gemini-cli/gemini-3-pro-preview",
@@ -670,33 +649,6 @@ describe("resolveSessionModelRef", () => {
     });
 
     expect(resolved).toEqual({ provider: "anthropic", model: "claude-sonnet-4-6" });
-  });
-});
-
-describe("listSessionsFromStore selected model display", () => {
-  test("shows the selected override model even when a fallback runtime model exists", () => {
-    const cfg = createModelDefaultsConfig({
-      primary: "anthropic/claude-opus-4-6",
-    });
-
-    const result = listSessionsFromStore({
-      cfg,
-      storePath: "/tmp/sessions.json",
-      store: {
-        "agent:main:main": {
-          sessionId: "sess-main",
-          updatedAt: Date.now(),
-          providerOverride: "anthropic",
-          modelOverride: "claude-opus-4-6",
-          modelProvider: "openai-codex",
-          model: "gpt-5.4",
-        } as SessionEntry,
-      },
-      opts: {},
-    });
-
-    expect(result.sessions[0]?.modelProvider).toBe("anthropic");
-    expect(result.sessions[0]?.model).toBe("claude-opus-4-6");
   });
 });
 
@@ -865,6 +817,16 @@ describe("deriveSessionTitle", () => {
     expect(deriveSessionTitle(entry, "Hello, how are you?")).toBe("Hello, how are you?");
   });
 
+  test("strips inbound metadata from first user message before deriving title", () => {
+    const entry = {
+      sessionId: "abc123",
+      updatedAt: Date.now(),
+    } as SessionEntry;
+    const firstUserMessage =
+      'Sender (untrusted metadata):\n```json\n{"label":"Alice"}\n```\n\nActual user message';
+    expect(deriveSessionTitle(entry, firstUserMessage)).toBe("Actual user message");
+  });
+
   test("truncates long first user message to 60 chars with ellipsis", () => {
     const entry = {
       sessionId: "abc123",
@@ -951,23 +913,6 @@ describe("resolveGatewayModelSupportsImages", () => {
             id: "deployment-gpt5",
             name: "gpt-5.4",
             provider: "microsoft-foundry",
-            input: ["text"],
-          },
-        ],
-      }),
-    ).resolves.toBe(true);
-  });
-
-  test("treats claude-cli Claude models as image-capable even when catalog metadata is stale or missing", async () => {
-    await expect(
-      resolveGatewayModelSupportsImages({
-        model: "claude-sonnet-4-6",
-        provider: "claude-cli",
-        loadGatewayModelCatalog: async () => [
-          {
-            id: "claude-sonnet-4-6",
-            name: "Claude Sonnet 4.6",
-            provider: "claude-cli",
             input: ["text"],
           },
         ],

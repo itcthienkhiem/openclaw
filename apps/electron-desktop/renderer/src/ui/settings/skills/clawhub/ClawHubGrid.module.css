@@ -1,0 +1,163 @@
+/* ClawHub-specific card additions (base styles come from global skill-cards.css) */
+
+.UiClawHubLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: var(--muted2);
+  font-size: 14px;
+}
+
+.UiClawHubError {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  color: var(--error);
+  font-size: 14px;
+  text-align: center;
+}
+
+.UiClawHubEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  gap: 8px;
+}
+
+.UiClawHubEmptyText {
+  font-size: 14px;
+  color: var(--muted2);
+}
+
+.UiClawHubEmptySubtext {
+  font-size: 13px;
+  color: var(--muted2);
+  opacity: 0.7;
+}
+
+.UiClawHubCard {
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 142px;
+}
+
+.UiClawHubCard:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.UiClawHubBadgeRow {
+  display: flex;
+  gap: 6px;
+}
+
+.UiClawHubFeaturedBadge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--accent, #e0540a);
+  border-radius: var(--radius-full);
+  padding: 2px 8px;
+}
+
+.UiClawHubOfficialBadge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(147, 197, 253, 0.95);
+  background: rgba(59, 130, 246, 0.16);
+  border-radius: var(--radius-full);
+  padding: 2px 8px;
+}
+
+.UiClawHubFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.UiClawHubFooterLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.UiClawHubAuthor {
+  font-size: 11px;
+  color: var(--muted2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.UiClawHubStat {
+  font-size: 11px;
+  color: var(--muted2);
+  white-space: nowrap;
+}
+
+.UiClawHubInstallBtn {
+  background: var(--lime) !important;
+  color: var(--surface-secondary) !important;
+}
+
+.UiClawHubRemoveBtn {
+  background: rgba(209, 67, 67, 0.18) !important;
+  color: rgba(255, 188, 188, 0.95) !important;
+}
+
+/* Infinite scroll sentinel */
+.UiClawHubScrollSentinel {
+  display: flex;
+  justify-content: center;
+  padding: 24px 0;
+  min-height: 48px;
+}
+
+.UiClawHubLoadingMore {
+  font-size: 13px;
+  color: var(--muted2);
+}
+
+/* ── Skeleton ── */
+
+@keyframes skelPulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+
+.UiSkelBar {
+  display: inline-block;
+  border-radius: 4px;
+  background: rgba(230, 237, 243, 0.12);
+  animation: skelPulse 1.6s ease-in-out infinite;
+  vertical-align: middle;
+}
+
+.UiSkelCircle {
+  display: inline-block;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(230, 237, 243, 0.12);
+  animation: skelPulse 1.6s ease-in-out infinite;
+  flex-shrink: 0;
+}

@@ -98,13 +98,12 @@ export const resolveEnforceFinalTag = (
   model = run.model,
 ) =>
   Boolean(
-    (run.skipProviderRuntimeHints ? false : undefined) ??
-    (run.enforceFinalTag ||
-      isReasoningTagProvider(provider, {
-        config: run.config,
-        workspaceDir: run.workspaceDir,
-        modelId: model,
-      })),
+    run.enforceFinalTag ||
+    isReasoningTagProvider(provider, {
+      config: run.config,
+      workspaceDir: run.workspaceDir,
+      modelId: model,
+    }),
   );
 
 export function resolveModelFallbackOptions(run: FollowupRun["run"]) {

@@ -23,7 +23,13 @@ if (mode !== "lint" && mode !== "format") {
 const lintExts = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
 const formatExts = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".json", ".md", ".mdx"]);
 
+// Directories excluded from pre-commit lint/format checks
+const excludedPrefixes = ["apps/electron-desktop/"];
+
 const shouldSelect = (filePath) => {
+  if (excludedPrefixes.some((prefix) => filePath.startsWith(prefix))) {
+    return false;
+  }
   const ext = path.extname(filePath).toLowerCase();
   if (mode === "lint") {
     return lintExts.has(ext);

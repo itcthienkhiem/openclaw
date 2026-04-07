@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const THREAD_CHANNEL = "thread-chat";
 const ROOM_CHANNEL = "room-chat";
@@ -34,11 +34,9 @@ vi.mock("../../../channels/plugins/index.js", () => ({
 let handleSubagentsAgentsAction: typeof import("./action-agents.js").handleSubagentsAgentsAction;
 
 describe("handleSubagentsAgentsAction", () => {
-  beforeAll(async () => {
+  beforeEach(async () => {
+    vi.resetModules();
     ({ handleSubagentsAgentsAction } = await import("./action-agents.js"));
-  });
-
-  beforeEach(() => {
     listBySessionMock.mockReset();
     getChannelPluginMock.mockClear();
     normalizeChannelIdMock.mockClear();

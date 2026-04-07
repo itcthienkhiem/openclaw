@@ -3,7 +3,6 @@ import {
   normalizeAccountId,
   resolveMergedAccountConfig,
 } from "openclaw/plugin-sdk/account-resolution";
-import { resolveChannelStreamingChunkMode } from "openclaw/plugin-sdk/channel-streaming";
 import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
 import { hasConfiguredSecretInput, normalizeSecretInputString } from "./secret-input.js";
 import { normalizeBlueBubblesServerUrl, type BlueBubblesAccountConfig } from "./types.js";
@@ -35,10 +34,7 @@ function mergeBlueBubblesAccountConfig(
     accountId,
     omitKeys: ["defaultAccount"],
   });
-  return {
-    ...merged,
-    chunkMode: resolveChannelStreamingChunkMode(merged) ?? merged.chunkMode ?? "length",
-  };
+  return { ...merged, chunkMode: merged.chunkMode ?? "length" };
 }
 
 export function resolveBlueBubblesAccount(params: {
@@ -52,7 +48,7 @@ export function resolveBlueBubblesAccount(params: {
   const merged = mergeBlueBubblesAccountConfig(params.cfg, accountId);
   const accountEnabled = merged.enabled !== false;
   const serverUrl = normalizeSecretInputString(merged.serverUrl);
-  const _password = normalizeSecretInputString(merged.password);
+  const password = normalizeSecretInputString(merged.password);
   const configured = Boolean(serverUrl && hasConfiguredSecretInput(merged.password));
   const baseUrl = serverUrl ? normalizeBlueBubblesServerUrl(serverUrl) : undefined;
   return {

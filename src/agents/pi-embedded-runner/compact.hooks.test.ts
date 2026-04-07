@@ -1,5 +1,7 @@
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
+import { getApiProvider, unregisterApiProviders } from "@mariozechner/pi-ai";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { getCustomApiRegistrySourceId } from "../custom-api-registry.js";
 import {
   applyExtraParamsToAgentMock,
   contextEngineCompactMock,
@@ -8,7 +10,7 @@ import {
   getMemorySearchManagerMock,
   hookRunner,
   loadCompactHooksHarness,
-  registerProviderStreamForModelMock,
+  resolveAgentTransportOverrideMock,
   resolveContextEngineMock,
   resolveEmbeddedAgentStreamFnMock,
   resolveMemorySearchConfigMock,
@@ -161,6 +163,7 @@ describe("compactEmbeddedPiSessionDirect hooks", () => {
       details: { ok: true },
     });
     resetCompactSessionStateMocks();
+    unregisterApiProviders(getCustomApiRegistrySourceId("ollama"));
   });
 
   it("bootstraps runtime plugins with the resolved workspace", async () => {
@@ -215,29 +218,15 @@ describe("compactEmbeddedPiSessionDirect hooks", () => {
     applyExtraParamsToAgentMock.mockReturnValue({
       effectiveExtraParams: { transport: "websocket" },
     });
-    const session = {
-      agent: {
-        streamFn: vi.fn(),
-      },
-      messages: [{ role: "user", content: "hello" }],
-    };
+    resolveContextEngineMock.mockResolvedValue({ info: { ownsCompaction: false } } as never);
+    resolveAgentTransportOverrideMock.mockReturnValue("websocket");
 
-    compactTesting.prepareCompactionSessionAgent({
-      session: session as never,
-      providerStreamFn: vi.fn(),
-      shouldUseWebSocketTransport: false,
+    await compactEmbeddedPiSessionDirect({
       sessionId: "session-1",
-      signal: new AbortController().signal,
-      effectiveModel: { provider: "openai", id: "fake", api: "responses", input: [] } as never,
-      resolvedApiKey: undefined,
-      authStorage: { setRuntimeApiKey: vi.fn() },
-      config: undefined,
+      sessionFile: "/tmp/session.jsonl",
+      workspaceDir: "/tmp/workspace",
       provider: "openai",
-      modelId: "gpt-5.4",
-      thinkLevel: "off",
-      sessionAgentId: "main",
-      effectiveWorkspace: "/tmp/workspace",
-      agentDir: "/tmp/workspace",
+      model: "gpt-5.4",
     });
 
     expect(resolveEmbeddedAgentStreamFnMock).toHaveBeenCalledWith(
@@ -254,15 +243,14 @@ describe("compactEmbeddedPiSessionDirect hooks", () => {
       "openai",
       "gpt-5.4",
       undefined,
-      "off",
+      undefined,
       "main",
       "/tmp/workspace",
       expect.objectContaining({
         provider: "openai",
         id: "fake",
-        api: "responses",
       }),
-      "/tmp/workspace",
+      "/tmp",
     );
   });
 
@@ -597,35 +585,39 @@ describe("compactEmbeddedPiSessionDirect hooks", () => {
   });
 
   it("registers the Ollama api provider before compaction", async () => {
-    const streamFn = vi.fn();
-    registerProviderStreamForModelMock.mockReturnValue(streamFn);
-
-    const result = compactTesting.resolveCompactionProviderStream({
-      effectiveModel: {
+    resolveContextEngineMock.mockResolvedValue({ info: { ownsCompaction: false } } as never);
+    resolveModelMock.mockReturnValue({
+      model: {
         provider: "ollama",
         api: "ollama",
         id: "qwen3:8b",
         input: ["text"],
         baseUrl: "http://127.0.0.1:11434",
         headers: { Authorization: "Bearer ollama-cloud" },
-      } as never,
-      config: undefined,
-      agentDir: "/tmp",
-      effectiveWorkspace: "/tmp",
+      },
+      error: null,
+      authStorage: { setRuntimeApiKey: vi.fn() },
+      modelRegistry: {},
+    } as never);
+    sessionCompactImpl.mockImplementation(async () => {
+      expect(getApiProvider("ollama" as Parameters<typeof getApiProvider>[0])).toBeDefined();
+      return {
+        summary: "summary",
+        firstKeptEntryId: "entry-1",
+        tokensBefore: 120,
+        details: { ok: true },
+      };
     });
 
-    expect(result).toBe(streamFn);
-    expect(registerProviderStreamForModelMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        model: expect.objectContaining({
-          provider: "ollama",
-          api: "ollama",
-          id: "qwen3:8b",
-        }),
-        agentDir: "/tmp",
-        workspaceDir: "/tmp",
-      }),
-    );
+    const result = await compactEmbeddedPiSessionDirect({
+      sessionId: "session-1",
+      sessionKey: "agent:main:session-1",
+      sessionFile: "/tmp/session.jsonl",
+      workspaceDir: "/tmp",
+      customInstructions: "focus on decisions",
+    });
+
+    expect(result.ok).toBe(true);
   });
 
   it("aborts in-flight compaction when the caller abort signal fires", async () => {

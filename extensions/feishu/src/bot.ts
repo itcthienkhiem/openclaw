@@ -111,13 +111,9 @@ export type FeishuBotAddedEvent = {
 // Returns null if no broadcast config exists or the peer is not in the broadcast list.
 export function resolveBroadcastAgents(cfg: ClawdbotConfig, peerId: string): string[] | null {
   const broadcast = (cfg as Record<string, unknown>).broadcast;
-  if (!broadcast || typeof broadcast !== "object") {
-    return null;
-  }
+  if (!broadcast || typeof broadcast !== "object") return null;
   const agents = (broadcast as Record<string, unknown>)[peerId];
-  if (!Array.isArray(agents) || agents.length === 0) {
-    return null;
-  }
+  if (!Array.isArray(agents) || agents.length === 0) return null;
   return agents as string[];
 }
 
@@ -387,9 +383,7 @@ export async function handleFeishuMessage(params: {
       senderId: ctx.senderOpenId,
       log,
     });
-    if (senderResult.name) {
-      ctx = { ...ctx, senderName: senderResult.name };
-    }
+    if (senderResult.name) ctx = { ...ctx, senderName: senderResult.name };
 
     // Track permission error to inform agent later (with cooldown to avoid repetition)
     if (senderResult.permissionError) {
@@ -1098,10 +1092,9 @@ export async function handleFeishuMessage(params: {
       }
 
       // --- Broadcast dispatch: send message to all configured agents ---
-      const rawStrategy = (
-        (cfg as Record<string, unknown>).broadcast as Record<string, unknown> | undefined
-      )?.strategy;
-      const strategy = rawStrategy === "sequential" ? "sequential" : "parallel";
+      const strategy =
+        ((cfg as Record<string, unknown>).broadcast as Record<string, unknown> | undefined)
+          ?.strategy || "parallel";
       const activeAgentId =
         ctx.mentionedBot || !requireMention ? normalizeAgentId(route.agentId) : null;
       const agentIds = (cfg.agents?.list ?? []).map((a: { id: string }) => normalizeAgentId(a.id));

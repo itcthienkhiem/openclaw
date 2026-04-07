@@ -12,12 +12,12 @@ import { ensureOpenClawCliOnPath } from "../infra/path-env.js";
 import { assertSupportedRuntime } from "../infra/runtime-guard.js";
 import { enableConsoleCapture } from "../logging.js";
 import { hasMemoryRuntime } from "../plugins/memory-state.js";
-import { resolveCliArgvInvocation } from "./argv-invocation.js";
 import {
-  shouldRegisterPrimaryCommandOnly,
-  shouldSkipPluginCommandRegistration,
-} from "./command-registration-policy.js";
-import { shouldEnsureCliPathForCommandPath } from "./command-startup-policy.js";
+  getCommandPathWithRootOptions,
+  getPrimaryCommand,
+  hasHelpOrVersion,
+  isRootHelpInvocation,
+} from "./argv.js";
 import { maybeRunCliInContainer, parseCliContainerArgs } from "./container-target.js";
 import { applyCliProfileEnv, parseCliProfileArgs } from "./profile.js";
 import { tryRouteCli } from "./route.js";
@@ -46,16 +46,46 @@ export function rewriteUpdateFlagArgv(argv: string[]): string[] {
   return next;
 }
 
+export function shouldRegisterPrimarySubcommand(argv: string[]): boolean {
+  return !hasHelpOrVersion(argv);
+}
+
+export function shouldSkipPluginCommandRegistration(params: {
+  argv: string[];
+  primary: string | null;
+  hasBuiltinPrimary: boolean;
+}): boolean {
+  if (params.hasBuiltinPrimary) {
+    return true;
+  }
+  if (!params.primary) {
+    return hasHelpOrVersion(params.argv);
+  }
+  return false;
+}
+
 export function shouldEnsureCliPath(argv: string[]): boolean {
-  const invocation = resolveCliArgvInvocation(argv);
-  if (invocation.hasHelpOrVersion) {
+  if (hasHelpOrVersion(argv)) {
     return false;
   }
-  return shouldEnsureCliPathForCommandPath(invocation.commandPath);
+  const [primary, secondary] = getCommandPathWithRootOptions(argv, 2);
+  if (!primary) {
+    return true;
+  }
+  if (primary === "status" || primary === "health" || primary === "sessions") {
+    return false;
+  }
+  if (primary === "config" && (secondary === "get" || secondary === "unset")) {
+    return false;
+  }
+  if (primary === "models" && (secondary === "list" || secondary === "status")) {
+    return false;
+  }
+  return true;
 }
 
 export function shouldUseRootHelpFastPath(argv: string[]): boolean {
-  return resolveCliArgvInvocation(argv).isRootHelpInvocation;
+  return isRootHelpInvocation(argv);
 }
 
 export function resolveMissingPluginCommandMessage(
@@ -153,13 +183,9 @@ export async function runCli(argv: string[] = process.argv) {
     // Capture all console output into structured logs while keeping stdout/stderr behavior.
     enableConsoleCapture();
 
-    const [{ buildProgram }, { installUnhandledRejectionHandler }, { restoreTerminalState }] =
-      await Promise.all([
-        import("./program.js"),
-        import("../infra/unhandled-rejections.js"),
-        import("../terminal/restore.js"),
-      ]);
+    const { buildProgram } = await import("./program.js");
     const program = buildProgram();
+    const { installUnhandledRejectionHandler } = await import("../infra/unhandled-rejections.js");
 
     // Global error handlers to prevent silent crashes from unhandled rejections/exceptions.
     // These log the error and exit gracefully instead of crashing without trace.
@@ -167,16 +193,14 @@ export async function runCli(argv: string[] = process.argv) {
 
     process.on("uncaughtException", (error) => {
       console.error("[openclaw] Uncaught exception:", formatUncaughtError(error));
-      restoreTerminalState("uncaught exception", { resumeStdinIfPaused: false });
       process.exit(1);
     });
 
     const parseArgv = rewriteUpdateFlagArgv(normalizedArgv);
-    const invocation = resolveCliArgvInvocation(parseArgv);
     // Register the primary command (builtin or subcli) so help and command parsing
     // are correct even with lazy command registration.
-    const { primary } = invocation;
-    if (primary && shouldRegisterPrimaryCommandOnly(parseArgv)) {
+    const primary = getPrimaryCommand(parseArgv);
+    if (primary) {
       const { getProgramContext } = await import("./program/program-context.js");
       const ctx = getProgramContext(program);
       if (ctx) {
@@ -196,17 +220,15 @@ export async function runCli(argv: string[] = process.argv) {
     });
     if (!shouldSkipPluginRegistration) {
       // Register plugin CLI commands before parsing
-      const { registerPluginCliCommandsFromValidatedConfig } = await import("../plugins/cli.js");
-      const config = await registerPluginCliCommandsFromValidatedConfig(
-        program,
-        undefined,
-        undefined,
-        {
+      const { registerPluginCliCommands } = await import("../plugins/cli.js");
+      const { loadValidatedConfigForPluginRegistration } =
+        await import("./program/register.subclis.js");
+      const config = await loadValidatedConfigForPluginRegistration();
+      if (config) {
+        await registerPluginCliCommands(program, config, undefined, undefined, {
           mode: "lazy",
           primary,
-        },
-      );
-      if (config) {
+        });
         if (primary && !program.commands.some((command) => command.name() === primary)) {
           const missingPluginCommandMessage = resolveMissingPluginCommandMessage(primary, config);
           if (missingPluginCommandMessage) {

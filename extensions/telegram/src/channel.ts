@@ -16,14 +16,13 @@ import {
 } from "openclaw/plugin-sdk/channel-status";
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
 import { createChannelDirectoryAdapter } from "openclaw/plugin-sdk/directory-runtime";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import {
   resolveOutboundSendDep,
   type OutboundSendDeps,
 } from "openclaw/plugin-sdk/outbound-runtime";
-import { chunkMarkdownText } from "openclaw/plugin-sdk/reply-runtime";
 import {
   buildOutboundBaseSessionKey,
+  normalizeMessageChannel,
   normalizeOutboundThreadId,
   resolveThreadSessionKeys,
   type RoutePeer,
@@ -32,7 +31,11 @@ import {
   createComputedAccountStatusAdapter,
   createDefaultChannelRuntimeState,
 } from "openclaw/plugin-sdk/status-helpers";
-import { resolveTelegramAccount, type ResolvedTelegramAccount } from "./accounts.js";
+import {
+  listTelegramAccountIds,
+  resolveTelegramAccount,
+  type ResolvedTelegramAccount,
+} from "./accounts.js";
 import { resolveTelegramAutoThreadId } from "./action-threading.js";
 import { lookupTelegramChatId } from "./api-fetch.js";
 import { telegramApprovalCapability } from "./approval-native.js";
@@ -44,7 +47,14 @@ import {
   listTelegramDirectoryPeersFromConfig,
 } from "./directory-config.js";
 import { buildTelegramExecApprovalPendingPayload } from "./exec-approval-forwarding.js";
-import { shouldSuppressLocalTelegramExecApprovalPrompt } from "./exec-approvals.js";
+import {
+  getTelegramExecApprovalApprovers,
+  isTelegramExecApprovalApprover,
+  isTelegramExecApprovalAuthorizedSender,
+  isTelegramExecApprovalClientEnabled,
+  resolveTelegramExecApprovalTarget,
+  shouldSuppressLocalTelegramExecApprovalPrompt,
+} from "./exec-approvals.js";
 import {
   resolveTelegramGroupRequireMention,
   resolveTelegramGroupToolPolicy,
@@ -54,8 +64,8 @@ import * as monitorModule from "./monitor.js";
 import { looksLikeTelegramTargetId, normalizeTelegramMessagingTarget } from "./normalize.js";
 import { sendTelegramPayloadMessages } from "./outbound-adapter.js";
 import { parseTelegramReplyToMessageId, parseTelegramThreadId } from "./outbound-params.js";
-import type { TelegramProbe } from "./probe.js";
 import * as probeModule from "./probe.js";
+import type { TelegramProbe } from "./probe.js";
 import { resolveTelegramReactionLevel } from "./reaction-level.js";
 import { getTelegramRuntime } from "./runtime.js";
 import { collectTelegramSecurityAuditFindings } from "./security-audit.js";
@@ -250,7 +260,7 @@ function matchTelegramAcpConversation(params: {
   };
 }
 
-function shouldTreatTelegramDeliveredTextAsVisible(params: {
+function shouldTreatTelegramRoutedTextAsVisible(params: {
   kind: "tool" | "block" | "final";
   text?: string;
 }): boolean {
@@ -543,7 +553,7 @@ async function resolveTelegramTargets(params: {
         return {
           input,
           resolved: false as const,
-          note: formatErrorMessage(error),
+          note: error instanceof Error ? error.message : String(error),
         };
       }
     }),
@@ -743,7 +753,7 @@ export const telegramPlugin = createChatChannelPlugin({
       listGroups: async (params) => listTelegramDirectoryGroupsFromConfig(params),
     }),
     actions: telegramMessageActions,
-    status: createComputedAccountStatusAdapter<ResolvedTelegramAccount, TelegramProbe>({
+    status: createComputedAccountStatusAdapter<ResolvedTelegramAccount, TelegramProbe, unknown>({
       defaultRuntime: createDefaultChannelRuntimeState(DEFAULT_ACCOUNT_ID),
       skipStaleSocketHealthCheck: true,
       collectStatusIssues: collectTelegramStatusIssues,
@@ -983,7 +993,7 @@ export const telegramPlugin = createChatChannelPlugin({
   outbound: {
     base: {
       deliveryMode: "direct",
-      chunker: chunkMarkdownText,
+      chunker: (text, limit) => getTelegramRuntime().channel.text.chunkMarkdownText(text, limit),
       chunkerMode: "markdown",
       textChunkLimit: 4000,
       pollMaxOptions: 10,
@@ -1010,7 +1020,7 @@ export const telegramPlugin = createChatChannelPlugin({
         }).catch(() => {});
       },
       shouldSkipPlainTextSanitization: ({ payload }) => Boolean(payload.channelData),
-      shouldTreatDeliveredTextAsVisible: shouldTreatTelegramDeliveredTextAsVisible,
+      shouldTreatRoutedTextAsVisible: shouldTreatTelegramRoutedTextAsVisible,
       targetsMatchForReplySuppression: targetsMatchTelegramReplySuppression,
       resolveEffectiveTextChunkLimit: ({ fallbackLimit }) =>
         typeof fallbackLimit === "number" ? Math.min(fallbackLimit, 4096) : 4096,

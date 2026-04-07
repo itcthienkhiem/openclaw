@@ -1,22 +1,23 @@
+import "./lifecycle.test-support.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRuntimeEnv } from "../../../test/helpers/plugins/runtime-env.js";
-import type { RuntimeEnv } from "../runtime-api.js";
-import "./lifecycle.test-support.js";
+import type { ClawdbotConfig, RuntimeEnv } from "../runtime-api.js";
 import { getFeishuLifecycleTestMocks } from "./lifecycle.test-support.js";
 import {
   createFeishuLifecycleConfig,
   createFeishuLifecycleReplyDispatcher,
   createFeishuTextMessageEvent,
   createResolvedFeishuLifecycleAccount,
-  expectFeishuReplyDispatcherSentFinalReplyOnce,
   expectFeishuReplyPipelineDedupedAcrossReplay,
   expectFeishuReplyPipelineDedupedAfterPostSendFailure,
+  expectFeishuReplyDispatcherSentFinalReplyOnce,
   installFeishuLifecycleReplyRuntime,
   mockFeishuReplyOnceDispatch,
   restoreFeishuLifecycleStateDir,
   setFeishuLifecycleStateDir,
   setupFeishuLifecycleHandler,
 } from "./test-support/lifecycle-test-support.js";
+import type { ResolvedFeishuAccount } from "./types.js";
 
 const {
   createEventDispatcherMock,
@@ -29,7 +30,7 @@ const {
   withReplyDispatcherMock,
 } = getFeishuLifecycleTestMocks();
 
-let _handlers: Record<string, (data: unknown) => Promise<void>> = {};
+let handlers: Record<string, (data: unknown) => Promise<void>> = {};
 let lastRuntime: RuntimeEnv | null = null;
 const originalStateDir = process.env.OPENCLAW_STATE_DIR;
 const lifecycleConfig = createFeishuLifecycleConfig({
@@ -46,7 +47,7 @@ const lifecycleConfig = createFeishuLifecycleConfig({
       },
     },
   },
-});
+}) as ClawdbotConfig;
 
 const lifecycleAccount = createResolvedFeishuLifecycleAccount({
   accountId: "acct-lifecycle",
@@ -62,14 +63,14 @@ const lifecycleAccount = createResolvedFeishuLifecycleAccount({
       },
     },
   },
-});
+}) as ResolvedFeishuAccount;
 
 async function setupLifecycleMonitor() {
   lastRuntime = createRuntimeEnv();
   return setupFeishuLifecycleHandler({
     createEventDispatcherMock,
     onRegister: (registered) => {
-      _handlers = registered;
+      handlers = registered;
     },
     runtime: lastRuntime,
     cfg: lifecycleConfig,
@@ -83,7 +84,7 @@ describe("Feishu reply-once lifecycle", () => {
   beforeEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
-    _handlers = {};
+    handlers = {};
     lastRuntime = null;
     setFeishuLifecycleStateDir("openclaw-feishu-lifecycle");
 

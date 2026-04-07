@@ -100,17 +100,16 @@ Ten repo-grounded candidate scenarios to add after the current seed suite.
 - Docs: `docs/tools/image-generation.md`, `docs/providers/openai.md`
 - Code: `src/agents/openclaw-tools.image-generation.test.ts`, `src/image-generation/runtime.ts`
 
-## 8. Config patch skill disable
+## 8. Hot config patch without restart
 
-- Goal: verify `config.patch` can disable a workspace skill and the restarted gateway exposes the disabled state cleanly.
+- Goal: verify a safe config edit hot-applies and changes behavior immediately.
 - Flow:
-  - Add a workspace skill and verify it is eligible.
-  - Use `config.patch` to disable that skill.
-  - Wait for the gateway restart and read `skills.status` again.
+  - Use `config.patch` to change a hot-reloadable field such as agent skill visibility or message behavior.
+  - Retry the task in the same gateway lifetime.
 - Pass:
   - Patch succeeds.
-  - Gateway restarts cleanly.
-  - The skill flips from eligible to disabled.
+  - No disruptive restart loop.
+  - New behavior is live immediately.
 - Docs: `docs/gateway/configuration.md`, `docs/gateway/protocol.md`
 - Code: `docs/gateway/configuration.md`, `docs/web/control-ui.md`
 
@@ -148,4 +147,4 @@ If we only promote three right away:
 
 1. On-demand memory tools in channel context
 2. Native image generation
-3. Config patch skill disable
+3. Hot config patch without restart

@@ -26,6 +26,7 @@ export function makeBrowserServerState(params?: {
 }): BrowserServerState {
   const profile = params?.profile ?? makeBrowserProfile();
   return {
+    // oxlint-disable-next-line typescript/no-explicit-any
     server: null as any,
     port: 0,
     resolved: {

@@ -2,7 +2,6 @@ import type { StreamFn } from "@mariozechner/pi-agent-core";
 import { streamSimple } from "@mariozechner/pi-ai";
 import type { ThinkLevel } from "../../auto-reply/thinking.js";
 import { isProxyReasoningUnsupportedModelHint } from "../../plugin-sdk/provider-model-shared.js";
-import { readStringValue } from "../../shared/string-coerce.js";
 import { resolveProviderRequestPolicy } from "../provider-attribution.js";
 import { resolveProviderRequestPolicyConfig } from "../provider-request-config.js";
 import { applyAnthropicEphemeralCacheControlMarkers } from "./anthropic-cache-control-payload.js";
@@ -60,14 +59,14 @@ function normalizeProxyReasoningPayload(payload: unknown, thinkingLevel?: ThinkL
 export function createOpenRouterSystemCacheWrapper(baseStreamFn: StreamFn | undefined): StreamFn {
   const underlying = baseStreamFn ?? streamSimple;
   return (model, context, options) => {
-    const provider = readStringValue(model.provider);
-    const modelId = readStringValue(model.id);
+    const provider = typeof model.provider === "string" ? model.provider : undefined;
+    const modelId = typeof model.id === "string" ? model.id : undefined;
     // Keep OpenRouter-specific cache markers on verified OpenRouter routes
     // (or the provider's default route), but not on arbitrary OpenAI proxies.
     const endpointClass = resolveProviderRequestPolicy({
       provider,
-      api: readStringValue(model.api),
-      baseUrl: readStringValue(model.baseUrl),
+      api: typeof model.api === "string" ? model.api : undefined,
+      baseUrl: typeof model.baseUrl === "string" ? model.baseUrl : undefined,
       capability: "llm",
       transport: "stream",
     }).endpointClass;
@@ -95,9 +94,9 @@ export function createOpenRouterWrapper(
   const underlying = baseStreamFn ?? streamSimple;
   return (model, context, options) => {
     const headers = resolveProviderRequestPolicyConfig({
-      provider: readStringValue(model.provider) ?? "openrouter",
-      api: readStringValue(model.api),
-      baseUrl: readStringValue(model.baseUrl),
+      provider: typeof model.provider === "string" ? model.provider : "openrouter",
+      api: typeof model.api === "string" ? model.api : undefined,
+      baseUrl: typeof model.baseUrl === "string" ? model.baseUrl : undefined,
       capability: "llm",
       transport: "stream",
       callerHeaders: options?.headers,
@@ -129,9 +128,9 @@ export function createKilocodeWrapper(
   const underlying = baseStreamFn ?? streamSimple;
   return (model, context, options) => {
     const headers = resolveProviderRequestPolicyConfig({
-      provider: readStringValue(model.provider) ?? "kilocode",
-      api: readStringValue(model.api),
-      baseUrl: readStringValue(model.baseUrl),
+      provider: typeof model.provider === "string" ? model.provider : "kilocode",
+      api: typeof model.api === "string" ? model.api : undefined,
+      baseUrl: typeof model.baseUrl === "string" ? model.baseUrl : undefined,
       capability: "llm",
       transport: "stream",
       callerHeaders: options?.headers,

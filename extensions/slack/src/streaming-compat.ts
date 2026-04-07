@@ -1,8 +1,3 @@
-import {
-  getChannelStreamingConfigObject,
-  resolveChannelStreamingNativeTransport,
-} from "openclaw/plugin-sdk/channel-streaming";
-
 export type StreamingMode = "off" | "partial" | "block" | "progress";
 export type SlackLegacyDraftStreamMode = "replace" | "status_final" | "append";
 
@@ -61,9 +56,7 @@ export function resolveSlackStreamingMode(
     streaming?: unknown;
   } = {},
 ): StreamingMode {
-  const parsedStreaming = parseStreamingMode(
-    getChannelStreamingConfigObject(params)?.mode ?? params.streaming,
-  );
+  const parsedStreaming = parseStreamingMode(params.streaming);
   if (parsedStreaming) {
     return parsedStreaming;
   }
@@ -83,12 +76,25 @@ export function resolveSlackNativeStreaming(
     streaming?: unknown;
   } = {},
 ): boolean {
-  const canonical = resolveChannelStreamingNativeTransport(params);
-  if (typeof canonical === "boolean") {
-    return canonical;
+  if (typeof params.nativeStreaming === "boolean") {
+    return params.nativeStreaming;
   }
   if (typeof params.streaming === "boolean") {
     return params.streaming;
   }
   return true;
+}
+
+export function formatSlackStreamModeMigrationMessage(
+  pathPrefix: string,
+  resolvedStreaming: string,
+): string {
+  return `Moved ${pathPrefix}.streamMode → ${pathPrefix}.streaming (${resolvedStreaming}).`;
+}
+
+export function formatSlackStreamingBooleanMigrationMessage(
+  pathPrefix: string,
+  resolvedNativeStreaming: boolean,
+): string {
+  return `Moved ${pathPrefix}.streaming (boolean) → ${pathPrefix}.nativeStreaming (${resolvedNativeStreaming}).`;
 }

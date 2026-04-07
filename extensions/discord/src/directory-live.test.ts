@@ -24,10 +24,6 @@ function jsonResponse(value: unknown): Response {
   });
 }
 
-function resolveFetchUrl(input: string | URL | Request): string {
-  return typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-}
-
 describe("discord directory live lookups", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -54,7 +50,7 @@ describe("discord directory live lookups", () => {
 
   it("filters group channels by query and respects limit", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-      const url = resolveFetchUrl(input);
+      const url = String(input);
       if (url.endsWith("/users/@me/guilds")) {
         return jsonResponse([
           { id: "g1", name: "Guild 1" },
@@ -83,7 +79,7 @@ describe("discord directory live lookups", () => {
 
   it("returns ranked peer results and caps member search by limit", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-      const url = resolveFetchUrl(input);
+      const url = String(input);
       if (url.endsWith("/users/@me/guilds")) {
         return jsonResponse([{ id: "g1", name: "Guild 1" }]);
       }

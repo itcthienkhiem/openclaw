@@ -17,9 +17,7 @@ export type DmAuthorizationResult =
  * Reject empty tokens explicitly; use shared constant-time comparison otherwise.
  */
 export function validateToken(received: string, expected: string): boolean {
-  if (!received || !expected) {
-    return false;
-  }
+  if (!received || !expected) return false;
   return safeEqualSecret(received, expected);
 }
 
@@ -28,9 +26,7 @@ export function validateToken(received: string, expected: string): boolean {
  * Allowlist mode must be explicit; empty lists should not match any user.
  */
 export function checkUserAllowed(userId: string, allowedUserIds: string[]): boolean {
-  if (allowedUserIds.length === 0) {
-    return false;
-  }
+  if (allowedUserIds.length === 0) return false;
   return allowedUserIds.includes(userId);
 }
 

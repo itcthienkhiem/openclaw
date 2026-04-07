@@ -11,13 +11,30 @@ import {
   installPluginFromPath,
   PLUGIN_INSTALL_ERROR_CODE,
 } from "./install.js";
-import { createSuiteTempRootTracker } from "./test-helpers/fs-fixtures.js";
 
 vi.mock("../process/exec.js", () => ({
   runCommandWithTimeout: vi.fn(),
 }));
 
-const suiteTempRootTracker = createSuiteTempRootTracker("openclaw-plugin-install-path");
+let suiteTempRoot = "";
+let tempDirCounter = 0;
+
+function ensureSuiteTempRoot() {
+  if (suiteTempRoot) {
+    return suiteTempRoot;
+  }
+  const bundleTempRoot = path.join(process.cwd(), ".tmp");
+  fs.mkdirSync(bundleTempRoot, { recursive: true });
+  suiteTempRoot = fs.mkdtempSync(path.join(bundleTempRoot, "openclaw-plugin-install-path-"));
+  return suiteTempRoot;
+}
+
+function makeTempDir() {
+  const dir = path.join(ensureSuiteTempRoot(), `case-${String(tempDirCounter)}`);
+  tempDirCounter += 1;
+  fs.mkdirSync(dir);
+  return dir;
+}
 
 async function packToArchive(params: {
   pkgDir: string;
@@ -43,7 +60,7 @@ function setupBundleInstallFixture(params: {
   bundleFormat: "codex" | "claude" | "cursor";
   name: string;
 }) {
-  const caseDir = suiteTempRootTracker.makeTempDir();
+  const caseDir = makeTempDir();
   const stateDir = path.join(caseDir, "state");
   const pluginDir = path.join(caseDir, "plugin-src");
   fs.mkdirSync(stateDir, { recursive: true });
@@ -83,7 +100,7 @@ function setupBundleInstallFixture(params: {
 }
 
 function setupDualFormatInstallFixture(params: { bundleFormat: "codex" | "claude" }) {
-  const caseDir = suiteTempRootTracker.makeTempDir();
+  const caseDir = makeTempDir();
   const stateDir = path.join(caseDir, "state");
   const pluginDir = path.join(caseDir, "plugin-src");
   fs.mkdirSync(path.join(pluginDir, "dist"), { recursive: true });
@@ -144,7 +161,15 @@ async function installFromFileWithWarnings(params: {
 }
 
 afterAll(() => {
-  suiteTempRootTracker.cleanup();
+  if (!suiteTempRoot) {
+    return;
+  }
+  try {
+    fs.rmSync(suiteTempRoot, { recursive: true, force: true });
+  } finally {
+    suiteTempRoot = "";
+    tempDirCounter = 0;
+  }
 });
 
 beforeEach(() => {
@@ -168,7 +193,7 @@ describe("installPluginFromPath", () => {
     });
     initializeGlobalHookRunner(createMockPluginRegistry([{ hookName: "before_install", handler }]));
 
-    const baseDir = suiteTempRootTracker.makeTempDir();
+    const baseDir = makeTempDir();
     const extensionsDir = path.join(baseDir, "extensions");
     fs.mkdirSync(extensionsDir, { recursive: true });
 
@@ -210,7 +235,7 @@ describe("installPluginFromPath", () => {
   });
 
   it("blocks plain file installs when the scanner finds dangerous code patterns", async () => {
-    const baseDir = suiteTempRootTracker.makeTempDir();
+    const baseDir = makeTempDir();
     const extensionsDir = path.join(baseDir, "extensions");
     fs.mkdirSync(extensionsDir, { recursive: true });
 
@@ -231,7 +256,7 @@ describe("installPluginFromPath", () => {
   });
 
   it("allows plain file installs with dangerous code patterns when forced unsafe install is set", async () => {
-    const baseDir = suiteTempRootTracker.makeTempDir();
+    const baseDir = makeTempDir();
     const extensionsDir = path.join(baseDir, "extensions");
     fs.mkdirSync(extensionsDir, { recursive: true });
 
@@ -255,7 +280,7 @@ describe("installPluginFromPath", () => {
   });
 
   it("blocks hardlink alias overwrites when installing a plain file plugin", async () => {
-    const baseDir = suiteTempRootTracker.makeTempDir();
+    const baseDir = makeTempDir();
     const extensionsDir = path.join(baseDir, "extensions");
     const outsideDir = path.join(baseDir, "outside");
     fs.mkdirSync(extensionsDir, { recursive: true });
@@ -288,7 +313,7 @@ describe("installPluginFromPath", () => {
       bundleFormat: "claude",
       name: "Claude Sample",
     });
-    const archivePath = path.join(suiteTempRootTracker.makeTempDir(), "claude-bundle.tgz");
+    const archivePath = path.join(makeTempDir(), "claude-bundle.tgz");
 
     await packToArchive({
       pkgDir: pluginDir,
@@ -312,7 +337,7 @@ describe("installPluginFromPath", () => {
     const { pluginDir, extensionsDir } = setupDualFormatInstallFixture({
       bundleFormat: "claude",
     });
-    const archivePath = path.join(suiteTempRootTracker.makeTempDir(), "dual-format.tgz");
+    const archivePath = path.join(makeTempDir(), "dual-format.tgz");
 
     await packToArchive({
       pkgDir: pluginDir,

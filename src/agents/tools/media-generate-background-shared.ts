@@ -2,7 +2,6 @@ import crypto from "node:crypto";
 import { parseReplyDirectives } from "../../auto-reply/reply/reply-directives.js";
 import { SILENT_REPLY_TOKEN } from "../../auto-reply/tokens.js";
 import type { OpenClawConfig } from "../../config/config.js";
-import { formatErrorMessage } from "../../infra/errors.js";
 import { createSubsystemLogger } from "../../logging/subsystem.js";
 import { parseAgentSessionKey } from "../../sessions/session-key-utils.js";
 import {
@@ -130,7 +129,7 @@ export function failMediaGenerationTaskRun(params: {
     return;
   }
   const endedAt = Date.now();
-  const errorText = formatErrorMessage(params.error);
+  const errorText = params.error instanceof Error ? params.error.message : String(params.error);
   failTaskRunByRunId({
     runId: params.handle.runId,
     runtime: "cli",

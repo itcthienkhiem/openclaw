@@ -1,4 +1,4 @@
-import type { webhook } from "@line/bot-sdk";
+import type { WebhookRequestBody } from "@line/bot-sdk";
 import { createChannelReplyPipeline } from "openclaw/plugin-sdk/channel-reply-pipeline";
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
 import {
@@ -54,7 +54,7 @@ export interface MonitorLineProviderOptions {
 
 export interface LineProviderMonitor {
   account: ResolvedLineAccount;
-  handleWebhook: (body: webhook.CallbackRequest) => Promise<void>;
+  handleWebhook: (body: WebhookRequestBody) => Promise<void>;
   stop: () => void;
 }
 

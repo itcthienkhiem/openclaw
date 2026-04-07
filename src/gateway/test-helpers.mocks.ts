@@ -54,8 +54,6 @@ const gatewayTestHoisted = getGatewayTestHoistedState();
 
 function createEmbeddedRunMockExports() {
   return {
-    compactEmbeddedPiSession: (...args: unknown[]) =>
-      embeddedRunMock.compactEmbeddedPiSession(...args),
     isEmbeddedPiRunActive: (sessionId: string) => embeddedRunMock.activeIds.has(sessionId),
     abortEmbeddedPiRun: (sessionId: string) => {
       embeddedRunMock.abortCalls.push(sessionId);

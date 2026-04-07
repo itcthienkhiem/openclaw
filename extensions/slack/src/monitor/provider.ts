@@ -15,6 +15,7 @@ import { warn } from "openclaw/plugin-sdk/runtime-env";
 import {
   computeBackoff,
   createNonExitingRuntime,
+  registerUnhandledRejectionHandler,
   sleepWithAbort,
   type RuntimeEnv,
 } from "openclaw/plugin-sdk/runtime-env";
@@ -231,6 +232,19 @@ function formatSlackUserResolved(entry: SlackUserResolution): string {
 export async function monitorSlackProvider(opts: MonitorSlackOpts = {}) {
   const cfg = opts.config ?? loadConfig();
   const runtime: RuntimeEnv = opts.runtime ?? createNonExitingRuntime();
+  const log = runtime.error ?? console.error;
+
+  // Slack Bolt can fire internal WebClient calls (e.g. auth.test inside
+  // SocketModeReceiver) whose rejections escape application-level try/catch.
+  // Suppress non-recoverable auth errors here so they don't crash the gateway
+  // via the global unhandledRejection → process.exit(1) handler.
+  const unregisterHandler = registerUnhandledRejectionHandler((err) => {
+    if (isNonRecoverableSlackAuthError(err)) {
+      log(`[slack] Suppressed auth error (unhandled rejection): ${formatUnknownError(err)}`);
+      return true;
+    }
+    return false;
+  });
 
   let account = resolveSlackAccount({
     cfg,
@@ -312,7 +326,6 @@ export async function monitorSlackProvider(opts: MonitorSlackOpts = {}) {
   const replyToMode = slackCfg.replyToMode ?? "off";
   const threadHistoryScope = slackCfg.thread?.historyScope ?? "thread";
   const threadInheritParent = slackCfg.thread?.inheritParent ?? false;
-  const threadRequireExplicitMention = slackCfg.thread?.requireExplicitMention ?? false;
   const slashCommand = resolveSlackSlashCommandConfig(opts.slashCommand ?? slackCfg.slashCommand);
   const textLimit = resolveTextChunkLimit(cfg, "slack", account.accountId, {
     fallbackLimit: SLACK_TEXT_LIMIT,
@@ -424,7 +437,6 @@ export async function monitorSlackProvider(opts: MonitorSlackOpts = {}) {
     replyToMode,
     threadHistoryScope,
     threadInheritParent,
-    threadRequireExplicitMention,
     slashCommand,
     textLimit,
     ackReactionScope,
@@ -661,6 +673,7 @@ export async function monitorSlackProvider(opts: MonitorSlackOpts = {}) {
       }
     }
   } finally {
+    unregisterHandler();
     opts.abortSignal?.removeEventListener("abort", stopOnAbort);
     unregisterHttpHandler?.();
     await execApprovalsHandler?.stop().catch(() => undefined);

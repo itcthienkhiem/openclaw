@@ -4,6 +4,7 @@ import {
   resolveOutboundSendDep,
   type ChannelOutboundAdapter,
 } from "./runtime-api.js";
+import { getMatrixRuntime } from "./runtime.js";
 
 export const matrixOutbound: ChannelOutboundAdapter = {
   deliveryMode: "direct",

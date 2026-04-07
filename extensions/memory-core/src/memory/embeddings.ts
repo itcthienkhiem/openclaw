@@ -12,7 +12,6 @@ import {
   type MemoryEmbeddingProviderCreateOptions,
   type MemoryEmbeddingProviderRuntime,
 } from "openclaw/plugin-sdk/memory-core-host-engine-embeddings";
-import { formatErrorMessage } from "../dreaming-shared.js";
 import { canAutoSelectLocal } from "./provider-adapters.js";
 
 export {
@@ -43,6 +42,10 @@ type CreateEmbeddingProviderOptions = MemoryEmbeddingProviderCreateOptions & {
   provider: EmbeddingProviderRequest;
   fallback: EmbeddingProviderFallback;
 };
+
+function formatErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
 
 function formatProviderError(adapter: MemoryEmbeddingProviderAdapter, err: unknown): string {
   return adapter.formatSetupError?.(err) ?? formatErrorMessage(err);

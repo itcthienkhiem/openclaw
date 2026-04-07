@@ -30,8 +30,6 @@ import { jsonResult, readNumberParam, readStringParam } from "./common.js";
 import { resolveGatewayOptions } from "./gateway.js";
 
 const AllMessageActions = CHANNEL_MESSAGE_ACTION_NAMES;
-const MESSAGE_TOOL_THREAD_READ_HINT =
-  ' Use action="read" with threadId to fetch prior messages in a thread when you need conversation context you do not have yet.';
 const EXPLICIT_TARGET_ACTIONS = new Set<ChannelMessageActionName>([
   "send",
   "sendWithEffect",
@@ -586,7 +584,7 @@ function buildMessageToolDescription(options?: {
     });
     if (channelActions.length > 0) {
       // Always include "send" as a base action
-      const allActions = new Set<ChannelMessageActionName | "send">(["send", ...channelActions]);
+      const allActions = new Set(["send", ...channelActions]);
       const actionList = Array.from(allActions).toSorted().join(", ");
       let desc = `${baseDescription} Current channel (${currentChannel}) supports: ${actionList}.`;
 
@@ -609,7 +607,7 @@ function buildMessageToolDescription(options?: {
           requesterSenderId: resolvedOptions.requesterSenderId,
         });
         if (actions.length > 0) {
-          const all = new Set<ChannelMessageActionName | "send">(["send", ...actions]);
+          const all = new Set(["send", ...actions]);
           otherChannels.push(`${plugin.id} (${Array.from(all).toSorted().join(", ")})`);
         }
       }
@@ -617,10 +615,7 @@ function buildMessageToolDescription(options?: {
         desc += ` Other configured channels: ${otherChannels.join(", ")}.`;
       }
 
-      return appendMessageToolReadHint(
-        desc,
-        Array.from(allActions) as Iterable<ChannelMessageActionName | "send">,
-      );
+      return desc;
     }
   }
 
@@ -628,26 +623,11 @@ function buildMessageToolDescription(options?: {
   if (resolvedOptions.config) {
     const actions = listChannelMessageActions(resolvedOptions.config);
     if (actions.length > 0) {
-      return appendMessageToolReadHint(
-        `${baseDescription} Supports actions: ${actions.join(", ")}.`,
-        actions,
-      );
+      return `${baseDescription} Supports actions: ${actions.join(", ")}.`;
     }
   }
 
   return `${baseDescription} Supports actions: send, delete, react, poll, pin, threads, and more.`;
-}
-
-function appendMessageToolReadHint(
-  description: string,
-  actions: Iterable<ChannelMessageActionName | "send">,
-): string {
-  for (const action of actions) {
-    if (action === "read") {
-      return `${description}${MESSAGE_TOOL_THREAD_READ_HINT}`;
-    }
-  }
-  return description;
 }
 
 export function createMessageTool(options?: MessageToolOptions): AnyAgentTool {

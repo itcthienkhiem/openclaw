@@ -1,5 +1,4 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { readStringValue } from "openclaw/plugin-sdk/text-runtime";
 import { runFirecrawlScrape } from "./src/firecrawl-client.js";
 
 export type FetchFirecrawlContentParams = {
@@ -59,9 +58,9 @@ export async function fetchFirecrawlContent(
 
   return {
     text: typeof result.text === "string" ? result.text : "",
-    title: readStringValue(result.title),
-    finalUrl: readStringValue(result.finalUrl),
+    title: typeof result.title === "string" ? result.title : undefined,
+    finalUrl: typeof result.finalUrl === "string" ? result.finalUrl : undefined,
     status: typeof result.status === "number" ? result.status : undefined,
-    warning: readStringValue(result.warning),
+    warning: typeof result.warning === "string" ? result.warning : undefined,
   };
 }

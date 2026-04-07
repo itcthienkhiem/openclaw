@@ -1,4 +1,3 @@
-import { asOptionalRecord, readStringField } from "openclaw/plugin-sdk/text-runtime";
 import type { VoiceCallConfig } from "./config.js";
 import { VoiceCallConfigSchema } from "./config.js";
 
@@ -10,8 +9,16 @@ export type VoiceCallLegacyConfigIssue = {
   message: string;
 };
 
-const asObject = asOptionalRecord;
-const getString = readStringField;
+function asObject(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function getString(obj: Record<string, unknown> | undefined, key: string): string | undefined {
+  const value = obj?.[key];
+  return typeof value === "string" ? value : undefined;
+}
 
 function getNumber(obj: Record<string, unknown> | undefined, key: string): number | undefined {
   const value = obj?.[key];

@@ -3,7 +3,6 @@ import type {
   DiscordGuildChannelConfig,
   DiscordGuildEntry,
 } from "openclaw/plugin-sdk/config-runtime";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import { isRecord } from "openclaw/plugin-sdk/text-runtime";
 import { inspectDiscordAccount } from "./account-inspect.js";
 import { fetchChannelPermissionsDiscord } from "./send.js";
@@ -125,7 +124,7 @@ export async function auditDiscordChannelPermissions(params: {
       channels.push({
         channelId,
         ok: false,
-        error: formatErrorMessage(err),
+        error: err instanceof Error ? err.message : String(err),
         matchKey: channelId,
         matchSource: "id",
       });

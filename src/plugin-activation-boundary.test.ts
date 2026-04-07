@@ -26,7 +26,7 @@ describe("plugin activation boundary", () => {
     | undefined;
   let modelSelectionPromise:
     | Promise<{
-        normalizeModelRef: typeof import("./agents/model-selection-normalize.js").normalizeModelRef;
+        normalizeModelRef: typeof import("./agents/model-selection.js").normalizeModelRef;
       }>
     | undefined;
   let browserHelpersPromise:
@@ -50,8 +50,8 @@ describe("plugin activation boundary", () => {
   function importAmbientModules() {
     ambientImportsPromise ??= Promise.all([
       import("./commands/onboard-custom.js"),
-      import("./plugins/provider-model-defaults.js"),
-      import("./plugins/provider-model-primary.js"),
+      import("./commands/opencode-go-model-default.js"),
+      import("./commands/opencode-zen-model-default.js"),
     ]).then(() => undefined);
     return ambientImportsPromise;
   }
@@ -68,7 +68,7 @@ describe("plugin activation boundary", () => {
   }
 
   function importModelSelection() {
-    modelSelectionPromise ??= import("./agents/model-selection-normalize.js").then((module) => ({
+    modelSelectionPromise ??= import("./agents/model-selection.js").then((module) => ({
       normalizeModelRef: module.normalizeModelRef,
     }));
     return modelSelectionPromise;

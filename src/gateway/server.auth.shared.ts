@@ -244,7 +244,7 @@ async function configureTrustedProxyControlUiAuth() {
 
 async function writeTrustedProxyControlUiConfig(params?: { allowInsecureAuth?: boolean }) {
   const { writeConfigFile } = await import("../config/config.js");
-  const nextConfig: Parameters<typeof writeConfigFile>[0] = {
+  await writeConfigFile({
     gateway: {
       trustedProxies: ["127.0.0.1"],
       controlUi: {
@@ -252,8 +252,8 @@ async function writeTrustedProxyControlUiConfig(params?: { allowInsecureAuth?: b
         ...(params?.allowInsecureAuth ? { allowInsecureAuth: true } : {}),
       },
     },
-  };
-  await writeConfigFile(nextConfig);
+    // oxlint-disable-next-line typescript/no-explicit-any
+  } as any);
 }
 
 function isConnectResMessage(id: string) {
@@ -325,7 +325,8 @@ async function startRateLimitedTokenServerWithPairedDeviceToken() {
     mode: "token",
     token: "secret",
     rateLimit: { maxAttempts: 1, windowMs: 60_000, lockoutMs: 60_000, exemptLoopback: false },
-  } satisfies Record<string, unknown>;
+    // oxlint-disable-next-line typescript/no-explicit-any
+  } as any;
 
   const { server, ws, port, prevToken } = await startServerWithClient(undefined, {
     controlUiEnabled: true,

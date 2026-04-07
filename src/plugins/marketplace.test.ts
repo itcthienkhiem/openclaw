@@ -3,11 +3,6 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { withEnvAsync } from "../test-utils/env.js";
-import { withTempDir } from "../test-utils/temp-dir.js";
-import {
-  cleanupTrackedTempDirsAsync,
-  makeTrackedTempDirAsync,
-} from "./test-helpers/fs-fixtures.js";
 
 const installPluginFromPathMock = vi.fn();
 const fetchWithSsrFGuardMock = vi.hoisted(() =>
@@ -51,6 +46,15 @@ beforeAll(async () => {
   ({ installPluginFromMarketplace, listMarketplacePlugins, resolveMarketplaceInstallShortcut } =
     await import("./marketplace.js"));
 });
+
+async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-marketplace-test-"));
+  try {
+    return await fn(dir);
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+}
 
 async function listMarketplaceDownloadTempDirs(): Promise<string[]> {
   const entries = await fs.readdir(os.tmpdir(), { withFileTypes: true });
@@ -130,10 +134,8 @@ function mockRemoteMarketplaceCloneWithOutsideSymlink(params: {
       repoDir: repoDir as string,
       manifest: params.manifest,
     });
-    const outsideDir = await makeTrackedTempDirAsync(
-      "openclaw-marketplace-outside",
-      tempOutsideDirs,
-    );
+    const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-marketplace-outside-"));
+    tempOutsideDirs.push(outsideDir);
     await fs.mkdir(path.dirname(path.join(repoDir as string, params.symlinkPath)), {
       recursive: true,
     });
@@ -219,11 +221,15 @@ describe("marketplace plugins", () => {
     installPluginFromPathMock.mockReset();
     runCommandWithTimeoutMock.mockReset();
     vi.unstubAllGlobals();
-    await cleanupTrackedTempDirsAsync(tempOutsideDirs);
+    await Promise.all(
+      tempOutsideDirs.splice(0, tempOutsideDirs.length).map(async (dir) => {
+        await fs.rm(dir, { recursive: true, force: true });
+      }),
+    );
   });
 
   it("lists plugins from a local marketplace root", async () => {
-    await withTempDir("openclaw-marketplace-test-", async (rootDir) => {
+    await withTempDir(async (rootDir) => {
       await writeMarketplaceManifest(rootDir, {
         name: "Example Marketplace",
         version: "1.0.0",
@@ -242,7 +248,7 @@ describe("marketplace plugins", () => {
   });
 
   it("resolves relative plugin paths against the marketplace root", async () => {
-    await withTempDir("openclaw-marketplace-test-", async (rootDir) => {
+    await withTempDir(async (rootDir) => {
       const pluginDir = path.join(rootDir, "plugins", "frontend-design");
       const manifestPath = await writeLocalMarketplaceFixture({
         rootDir,
@@ -278,7 +284,7 @@ describe("marketplace plugins", () => {
   });
 
   it("preserves the logical local install path instead of canonicalizing it", async () => {
-    await withTempDir("openclaw-marketplace-test-", async (rootDir) => {
+    await withTempDir(async (rootDir) => {
       const canonicalRootDir = await fs.realpath(rootDir);
       const pluginDir = path.join(rootDir, "plugins", "frontend-design");
       const canonicalPluginDir = path.join(canonicalRootDir, "plugins", "frontend-design");
@@ -323,7 +329,7 @@ describe("marketplace plugins", () => {
   });
 
   it("passes dangerous force unsafe install through to marketplace path installs", async () => {
-    await withTempDir("openclaw-marketplace-test-", async (rootDir) => {
+    await withTempDir(async (rootDir) => {
       const pluginDir = path.join(rootDir, "plugins", "frontend-design");
       const manifestPath = await writeLocalMarketplaceFixture({
         rootDir,
@@ -361,7 +367,7 @@ describe("marketplace plugins", () => {
   });
 
   it("resolves Claude-style plugin@marketplace shortcuts from known_marketplaces.json", async () => {
-    await withTempDir("openclaw-marketplace-test-", async (homeDir) => {
+    await withTempDir(async (homeDir) => {
       const openClawHome = path.join(homeDir, "openclaw-home");
       await fs.mkdir(path.join(homeDir, ".claude", "plugins"), { recursive: true });
       await fs.mkdir(openClawHome, { recursive: true });
@@ -526,7 +532,7 @@ describe("marketplace plugins", () => {
   );
 
   it("returns a structured error for archive downloads with an empty response body", async () => {
-    await withTempDir("openclaw-marketplace-test-", async (rootDir) => {
+    await withTempDir(async (rootDir) => {
       const release = vi.fn(async () => undefined);
       fetchWithSsrFGuardMock.mockResolvedValueOnce({
         response: new Response(null, { status: 200 }),
@@ -564,7 +570,7 @@ describe("marketplace plugins", () => {
   });
 
   it("returns a structured error for invalid archive URLs", async () => {
-    await withTempDir("openclaw-marketplace-test-", async (rootDir) => {
+    await withTempDir(async (rootDir) => {
       const manifestPath = await writeMarketplaceManifest(rootDir, {
         plugins: [
           {
@@ -589,7 +595,7 @@ describe("marketplace plugins", () => {
   });
 
   it("rejects Windows drive-relative archive filenames from redirects", async () => {
-    await withTempDir("openclaw-marketplace-test-", async (rootDir) => {
+    await withTempDir(async (rootDir) => {
       fetchWithSsrFGuardMock.mockResolvedValueOnce({
         response: new Response(new Blob([Buffer.from("tgz-bytes")]), {
           status: 200,
@@ -621,7 +627,7 @@ describe("marketplace plugins", () => {
   });
 
   it("falls back to the default archive timeout when the caller passes NaN", async () => {
-    await withTempDir("openclaw-marketplace-test-", async (rootDir) => {
+    await withTempDir(async (rootDir) => {
       fetchWithSsrFGuardMock.mockResolvedValueOnce({
         response: new Response(new Blob([Buffer.from("tgz-bytes")]), {
           status: 200,
@@ -666,7 +672,7 @@ describe("marketplace plugins", () => {
   });
 
   it("downloads archive plugin sources through the SSRF guard", async () => {
-    await withTempDir("openclaw-marketplace-test-", async (rootDir) => {
+    await withTempDir(async (rootDir) => {
       const release = vi.fn(async () => {
         throw new Error("dispatcher close failed");
       });
@@ -721,7 +727,7 @@ describe("marketplace plugins", () => {
   });
 
   it("rejects non-streaming archive responses before buffering them", async () => {
-    await withTempDir("openclaw-marketplace-test-", async (rootDir) => {
+    await withTempDir(async (rootDir) => {
       const arrayBuffer = vi.fn(async () => new Uint8Array([1, 2, 3]).buffer);
       fetchWithSsrFGuardMock.mockResolvedValueOnce({
         response: {
@@ -760,7 +766,7 @@ describe("marketplace plugins", () => {
   });
 
   it("rejects oversized streamed archive responses without falling back to arrayBuffer", async () => {
-    await withTempDir("openclaw-marketplace-test-", async (rootDir) => {
+    await withTempDir(async (rootDir) => {
       const arrayBuffer = vi.fn(async () => new Uint8Array([1, 2, 3]).buffer);
       const reader = {
         read: vi
@@ -814,7 +820,7 @@ describe("marketplace plugins", () => {
   });
 
   it("cleans up a partial download temp dir when streaming the archive fails", async () => {
-    await withTempDir("openclaw-marketplace-test-", async (rootDir) => {
+    await withTempDir(async (rootDir) => {
       const beforeTempDirs = await listMarketplaceDownloadTempDirs();
       fetchWithSsrFGuardMock.mockResolvedValueOnce({
         response: new Response("x".repeat(1024), {
@@ -852,7 +858,7 @@ describe("marketplace plugins", () => {
   });
 
   it("sanitizes archive download errors before returning them", async () => {
-    await withTempDir("openclaw-marketplace-test-", async (rootDir) => {
+    await withTempDir(async (rootDir) => {
       fetchWithSsrFGuardMock.mockRejectedValueOnce(
         new Error(
           "blocked\n\u001b[31mAuthorization: Bearer sk-1234567890abcdefghijklmnop\u001b[0m",
@@ -895,7 +901,7 @@ describe("marketplace plugins", () => {
   });
 
   it("returns a structured error when the SSRF guard rejects an archive URL", async () => {
-    await withTempDir("openclaw-marketplace-test-", async (rootDir) => {
+    await withTempDir(async (rootDir) => {
       fetchWithSsrFGuardMock.mockRejectedValueOnce(
         new Error("Blocked hostname (not in allowlist): 169.254.169.254"),
       );

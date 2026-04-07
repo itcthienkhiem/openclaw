@@ -1,25 +1,22 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getLogger,
   getResolvedLoggerSettings,
   resetLogger,
   setLoggerOverride,
 } from "../logging.js";
-import { createSuiteLogPathTracker } from "./log-test-helpers.js";
 
 const DEFAULT_MAX_FILE_BYTES = 500 * 1024 * 1024;
-const logPathTracker = createSuiteLogPathTracker("openclaw-log-cap-");
 
 describe("log file size cap", () => {
   let logPath = "";
 
-  beforeAll(async () => {
-    await logPathTracker.setup();
-  });
-
   beforeEach(() => {
-    logPath = logPathTracker.nextPath();
+    logPath = path.join(os.tmpdir(), `openclaw-log-cap-${crypto.randomUUID()}.log`);
     resetLogger();
     setLoggerOverride(null);
   });
@@ -33,10 +30,6 @@ describe("log file size cap", () => {
     } catch {
       // ignore cleanup errors
     }
-  });
-
-  afterAll(async () => {
-    await logPathTracker.cleanup();
   });
 
   it("defaults maxFileBytes to 500 MB when unset", () => {

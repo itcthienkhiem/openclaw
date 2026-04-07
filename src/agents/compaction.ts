@@ -5,7 +5,6 @@ import {
   generateSummary as piGenerateSummary,
 } from "@mariozechner/pi-coding-agent";
 import type { AgentCompactionIdentifierPolicy } from "../config/types.agent-defaults.js";
-import { formatErrorMessage } from "../infra/errors.js";
 import { retryAsync } from "../infra/retry.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { DEFAULT_CONTEXT_TOKENS } from "./defaults.js";
@@ -398,7 +397,11 @@ export async function summarizeWithFallback(params: {
   try {
     return await summarizeChunks(params);
   } catch (fullError) {
-    log.warn(`Full summarization failed: ${formatErrorMessage(fullError)}`);
+    log.warn(
+      `Full summarization failed, trying partial: ${
+        fullError instanceof Error ? fullError.message : String(fullError)
+      }`,
+    );
   }
 
   // Fallback 1: Summarize only small messages, note oversized ones
@@ -417,9 +420,7 @@ export async function summarizeWithFallback(params: {
     }
   }
 
-  // When nothing was oversized, `smallMessages` is the same transcript as the full attempt.
-  // Re-summarizing it would duplicate the same failing API work (and duplicate warn logs).
-  if (smallMessages.length > 0 && smallMessages.length !== messages.length) {
+  if (smallMessages.length > 0) {
     try {
       const partialSummary = await summarizeChunks({
         ...params,
@@ -428,7 +429,11 @@ export async function summarizeWithFallback(params: {
       const notes = oversizedNotes.length > 0 ? `\n\n${oversizedNotes.join("\n")}` : "";
       return partialSummary + notes;
     } catch (partialError) {
-      log.warn(`Partial summarization also failed: ${formatErrorMessage(partialError)}`);
+      log.warn(
+        `Partial summarization also failed: ${
+          partialError instanceof Error ? partialError.message : String(partialError)
+        }`,
+      );
     }
   }
 

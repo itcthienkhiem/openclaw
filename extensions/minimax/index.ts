@@ -1,4 +1,3 @@
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import {
   definePluginEntry,
   type ProviderAuthContext,
@@ -170,7 +169,7 @@ function createOAuthHandler(region: MiniMaxRegion) {
         ],
       });
     } catch (err) {
-      const errorMsg = formatErrorMessage(err);
+      const errorMsg = err instanceof Error ? err.message : String(err);
       progress.stop(`MiniMax OAuth failed: ${errorMsg}`);
       await ctx.prompter.note(
         "If OAuth fails, verify your MiniMax account has portal access and try again.",

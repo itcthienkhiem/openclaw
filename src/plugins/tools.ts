@@ -1,17 +1,18 @@
 import { normalizeToolName } from "../agents/tool-policy.js";
 import type { AnyAgentTool } from "../agents/tools/common.js";
+import { applyPluginAutoEnable } from "../config/plugin-auto-enable.js";
+import { createSubsystemLogger } from "../logging/subsystem.js";
 import { applyTestPluginDefaults, normalizePluginsConfig } from "./config-state.js";
 import { resolveRuntimePluginRegistry, type PluginLoadOptions } from "./loader.js";
+import { createPluginLoaderLogger } from "./logger.js";
 import {
   getActivePluginRegistry,
   getActivePluginRegistryKey,
   getActivePluginRuntimeSubagentMode,
 } from "./runtime.js";
-import {
-  buildPluginRuntimeLoadOptions,
-  resolvePluginRuntimeLoadContext,
-} from "./runtime/load-context.js";
 import type { OpenClawPluginToolContext } from "./types.js";
+
+const log = createSubsystemLogger("plugins");
 
 type PluginToolMeta = {
   pluginId: string;
@@ -80,12 +81,9 @@ export function resolvePluginTools(params: {
   // This matters a lot for unit tests and for tool construction hot paths.
   const env = params.env ?? process.env;
   const baseConfig = applyTestPluginDefaults(params.context.config ?? {}, env);
-  const context = resolvePluginRuntimeLoadContext({
-    config: baseConfig,
-    env,
-    workspaceDir: params.context.workspaceDir,
-  });
-  const normalized = normalizePluginsConfig(context.config.plugins);
+  const autoEnabled = applyPluginAutoEnable({ config: baseConfig, env });
+  const effectiveConfig = autoEnabled.config;
+  const normalized = normalizePluginsConfig(effectiveConfig.plugins);
   if (!normalized.enabled) {
     return [];
   }
@@ -93,7 +91,15 @@ export function resolvePluginTools(params: {
   const runtimeOptions = params.allowGatewaySubagentBinding
     ? { allowGatewaySubagentBinding: true as const }
     : undefined;
-  const loadOptions = buildPluginRuntimeLoadOptions(context, { runtimeOptions });
+  const loadOptions = {
+    config: effectiveConfig,
+    activationSourceConfig: baseConfig,
+    autoEnabledReasons: autoEnabled.autoEnabledReasons,
+    workspaceDir: params.context.workspaceDir,
+    runtimeOptions,
+    env,
+    logger: createPluginLoaderLogger(log),
+  };
   const registry = resolvePluginToolRegistry({
     loadOptions,
     allowGatewaySubagentBinding: params.allowGatewaySubagentBinding,
@@ -116,7 +122,7 @@ export function resolvePluginTools(params: {
     if (existingNormalized.has(pluginIdKey)) {
       const message = `plugin id conflicts with core tool name (${entry.pluginId})`;
       if (!params.suppressNameConflicts) {
-        context.logger.error(message);
+        log.error(message);
         registry.diagnostics.push({
           level: "error",
           pluginId: entry.pluginId,
@@ -131,12 +137,12 @@ export function resolvePluginTools(params: {
     try {
       resolved = entry.factory(params.context);
     } catch (err) {
-      context.logger.error(`plugin tool failed (${entry.pluginId}): ${String(err)}`);
+      log.error(`plugin tool failed (${entry.pluginId}): ${String(err)}`);
       continue;
     }
     if (!resolved) {
       if (entry.names.length > 0) {
-        context.logger.debug?.(
+        log.debug(
           `plugin tool factory returned null (${entry.pluginId}): [${entry.names.join(", ")}]`,
         );
       }
@@ -160,7 +166,7 @@ export function resolvePluginTools(params: {
       if (nameSet.has(tool.name) || existing.has(tool.name)) {
         const message = `plugin tool name conflict (${entry.pluginId}): ${tool.name}`;
         if (!params.suppressNameConflicts) {
-          context.logger.error(message);
+          log.error(message);
           registry.diagnostics.push({
             level: "error",
             pluginId: entry.pluginId,

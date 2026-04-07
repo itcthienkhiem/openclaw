@@ -1,6 +1,5 @@
 import { vi } from "vitest";
 import { __testing as queueCleanupTesting } from "../auto-reply/reply/queue/cleanup.js";
-import type { CallGatewayOptions } from "../gateway/call.js";
 import type { MockFn } from "../test-utils/vitest-mock-fn.js";
 import { __testing as subagentAnnounceTesting } from "./subagent-announce.js";
 import { __testing as subagentControlTesting } from "./subagent-control.js";
@@ -18,12 +17,6 @@ const defaultConfig: LoadedConfig = {
 
 let configOverride: LoadedConfig = defaultConfig;
 
-async function callGatewayForTest<T = Record<string, unknown>>(
-  opts: CallGatewayOptions,
-): Promise<T> {
-  return (await callGatewayMock(opts)) as T;
-}
-
 export function setSubagentsConfigOverride(next: LoadedConfig) {
   configOverride = next;
 }
@@ -34,10 +27,10 @@ export function resetSubagentsConfigOverride() {
 
 function applySharedSubagentTestDeps() {
   subagentControlTesting.setDepsForTest({
-    callGateway: callGatewayForTest,
+    callGateway: (optsUnknown) => callGatewayMock(optsUnknown),
   });
   subagentAnnounceTesting.setDepsForTest({
-    callGateway: callGatewayForTest,
+    callGateway: (optsUnknown) => callGatewayMock(optsUnknown),
     loadConfig: () => configOverride,
   });
   queueCleanupTesting.setDepsForTests({
@@ -48,7 +41,7 @@ function applySharedSubagentTestDeps() {
 applySharedSubagentTestDeps();
 
 vi.mock("../gateway/call.js", () => ({
-  callGateway: callGatewayForTest,
+  callGateway: (opts: unknown) => callGatewayMock(opts),
 }));
 
 vi.mock("../config/config.js", async () => {

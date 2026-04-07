@@ -20,7 +20,6 @@ import type { ExecApprovalDecision } from "../infra/exec-approvals.js";
 import { splitMediaFromOutput } from "../media/parse.js";
 import { getGlobalHookRunner } from "../plugins/hook-runner-global.js";
 import type { PluginHookAfterToolCallEvent } from "../plugins/types.js";
-import { readStringValue } from "../shared/string-coerce.js";
 import type { ApplyPatchSummary } from "./apply-patch.js";
 import type { ExecToolDetails } from "./bash-tools.exec-types.js";
 import { parseExecApprovalResultText } from "./exec-approval-result.js";
@@ -361,9 +360,9 @@ function readExecApprovalPendingDetails(result: unknown): {
       : undefined,
     host,
     command,
-    cwd: readStringValue(details.cwd),
-    nodeId: readStringValue(details.nodeId),
-    warningText: readStringValue(details.warningText),
+    cwd: typeof details.cwd === "string" ? details.cwd : undefined,
+    nodeId: typeof details.nodeId === "string" ? details.nodeId : undefined,
+    warningText: typeof details.warningText === "string" ? details.warningText : undefined,
   };
 }
 
@@ -397,10 +396,10 @@ function readExecApprovalUnavailableDetails(result: unknown): {
   }
   return {
     reason,
-    warningText: readStringValue(details.warningText),
-    channel: readStringValue(details.channel),
-    channelLabel: readStringValue(details.channelLabel),
-    accountId: readStringValue(details.accountId),
+    warningText: typeof details.warningText === "string" ? details.warningText : undefined,
+    channel: typeof details.channel === "string" ? details.channel : undefined,
+    channelLabel: typeof details.channelLabel === "string" ? details.channelLabel : undefined,
+    accountId: typeof details.accountId === "string" ? details.accountId : undefined,
     sentApproverDms: details.sentApproverDms === true,
   };
 }
@@ -549,7 +548,7 @@ export function handleToolExecutionStart(
             : "";
       const filePath = filePathValue.trim();
       if (!filePath) {
-        const argsPreview = readStringValue(args)?.slice(0, 200);
+        const argsPreview = typeof args === "string" ? args.slice(0, 200) : undefined;
         ctx.log.warn(
           `read tool called without path: toolCallId=${toolCallId} argsType=${typeof args}${argsPreview ? ` argsPreview=${argsPreview}` : ""}`,
         );

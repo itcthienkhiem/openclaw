@@ -43,10 +43,6 @@ export type ResolvedAcpxPluginConfig = {
   strictWindowsCmdWrapper: boolean;
   timeoutSeconds?: number;
   queueOwnerTtlSeconds: number;
-  legacyCompatibilityConfig: {
-    strictWindowsCmdWrapper?: boolean;
-    queueOwnerTtlSeconds?: number;
-  };
   mcpServers: Record<string, McpServerConfig>;
   agents: Record<string, string>;
 };

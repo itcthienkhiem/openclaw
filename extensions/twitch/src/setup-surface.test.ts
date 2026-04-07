@@ -198,11 +198,8 @@ describe("setup surface helpers", () => {
 
       // Should return config with username and clientId
       expect(result).not.toBeNull();
-      const defaultAccount = result?.cfg.channels?.twitch?.accounts?.default as
-        | { username?: string; clientId?: string }
-        | undefined;
-      expect(defaultAccount?.username).toBe("testbot");
-      expect(defaultAccount?.clientId).toBe("test-client-id");
+      expect(result?.cfg.channels?.twitch?.accounts?.default?.username).toBe("testbot");
+      expect(result?.cfg.channels?.twitch?.accounts?.default?.clientId).toBe("test-client-id");
     });
 
     it("writes env-token setup to the configured default account", async () => {
@@ -229,11 +226,8 @@ describe("setup surface helpers", () => {
         {} as Parameters<typeof configureWithEnvToken>[5],
       );
 
-      const secondaryAccount = result?.cfg.channels?.twitch?.accounts?.secondary as
-        | { username?: string; clientId?: string }
-        | undefined;
-      expect(secondaryAccount?.username).toBe("secondary-bot");
-      expect(secondaryAccount?.clientId).toBe("secondary-client");
+      expect(result?.cfg.channels?.twitch?.accounts?.secondary?.username).toBe("secondary-bot");
+      expect(result?.cfg.channels?.twitch?.accounts?.secondary?.clientId).toBe("secondary-client");
       expect(result?.cfg.channels?.twitch?.accounts?.default).toBeUndefined();
     });
   });

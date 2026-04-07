@@ -320,7 +320,7 @@ describe("MediaStreamHandler security hardening", () => {
       const secondError = await withTimeout(
         new Promise<Error>((resolve) => {
           const ws = new WebSocket(server.url);
-          ws.once("error", (err) => resolve(err));
+          ws.once("error", (err) => resolve(err as Error));
         }),
       );
 
