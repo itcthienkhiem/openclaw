@@ -18,7 +18,18 @@
  *   POST   /admin/instances/:id/stop               — stop an instance
  *
  * Public endpoints:
+ *   GET  /                       — User Portal UI (self-register / login / dashboard)
+ *   GET  /portal                 — same as above
+ *   POST /auth/register          — self-register (name, email) → returns apiKey
  *   GET  /healthz                — liveness probe
+ *
+ * User self-service (auth via Authorization: Bearer <apiKey>):
+ *   GET    /me                         — profile + instance status
+ *   GET    /me/credentials             — list own credential keys
+ *   PUT    /me/credentials/:key        — set own credential
+ *   DELETE /me/credentials/:key        — delete own credential
+ *   POST   /me/rotate-key              — rotate own API key
+ *
  *   *    (any other path)        — proxied to tenant's openclaw instance
  */
 
@@ -42,7 +53,8 @@ import { ensureInstance, stopInstance, runningInstances } from "./manager.js";
 import { proxyHttp, proxyWebSocket } from "./proxy.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
-const ADMIN_HTML = readFileSync(join(__dirname, "ui/admin.html"));
+const ADMIN_HTML  = readFileSync(join(__dirname, "ui/admin.html"));
+const PORTAL_HTML = readFileSync(join(__dirname, "ui/portal.html"));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -193,6 +205,109 @@ async function handleAdmin(
   json(res, 404, { error: "Not Found" });
 }
 
+// ── User self-service handler (/auth/*, /me/*) ────────────────────────────────
+
+async function handleAuth(
+  req: IncomingMessage,
+  res: ServerResponse,
+  pathname: string
+): Promise<void> {
+  // POST /auth/register — self-registration (can be disabled via MT_ALLOW_SELF_REGISTER=false)
+  if (req.method === "POST" && pathname === "/auth/register") {
+    if (!config.allowSelfRegister) {
+      json(res, 403, { error: "Forbidden", message: "Self-registration is disabled" });
+      return;
+    }
+    const body = (await readBody(req)) as Record<string, string>;
+    const { name, email } = body;
+    if (!name || !email) {
+      json(res, 400, { error: "Bad Request", message: "name and email are required" });
+      return;
+    }
+    try {
+      const tenant = createTenant(name, email);
+      json(res, 201, { ...tenant, message: "Account created. Save your apiKey — it will not be shown again." });
+    } catch (e: unknown) {
+      // email unique constraint
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes("UNIQUE")) {
+        json(res, 409, { error: "Conflict", message: "Email already registered" });
+      } else {
+        json(res, 500, { error: "Internal Server Error", message: msg });
+      }
+    }
+    return;
+  }
+
+  json(res, 404, { error: "Not Found" });
+}
+
+async function handleMe(
+  req: IncomingMessage,
+  res: ServerResponse,
+  pathname: string,
+  apiKey: string
+): Promise<void> {
+  const tenant = getTenantByApiKey(apiKey);
+  if (!tenant) {
+    json(res, 401, { error: "Unauthorized", message: "Invalid API key" });
+    return;
+  }
+
+  // GET /me — tenant profile + instance status
+  if (req.method === "GET" && pathname === "/me") {
+    const running = runningInstances().find(i => i.tenantId === tenant.id);
+    json(res, 200, {
+      id: tenant.id,
+      name: tenant.name,
+      email: tenant.email,
+      active: tenant.active === 1,
+      port: running?.port ?? null,
+      idleSec: running?.idleSec ?? null,
+    });
+    return;
+  }
+
+  // GET /me/credentials — list own credential keys (no values)
+  if (req.method === "GET" && pathname === "/me/credentials") {
+    json(res, 200, { keys: listTenantCredentialKeys(tenant.id) });
+    return;
+  }
+
+  // PUT /me/credentials/:key — set own credential
+  const credSetMatch = pathname.match(/^\/me\/credentials\/([^/]+)$/);
+  if (req.method === "PUT" && credSetMatch) {
+    const key = credSetMatch[1]!;
+    const body = (await readBody(req)) as Record<string, string>;
+    if (!body.value) {
+      json(res, 400, { error: "Bad Request", message: "body.value is required" });
+      return;
+    }
+    setTenantCredential(tenant.id, key, body.value);
+    stopInstance(tenant.id);
+    json(res, 200, { ok: true, key, message: "Saved. Your instance will restart on next request." });
+    return;
+  }
+
+  // DELETE /me/credentials/:key — delete own credential
+  if (req.method === "DELETE" && credSetMatch) {
+    const key = credSetMatch[1]!;
+    deleteTenantCredential(tenant.id, key);
+    stopInstance(tenant.id);
+    json(res, 200, { ok: true, key, message: "Deleted. Your instance will restart on next request." });
+    return;
+  }
+
+  // POST /me/rotate-key — rotate own API key
+  if (req.method === "POST" && pathname === "/me/rotate-key") {
+    const newKey = rotateTenantApiKey(tenant.id);
+    json(res, 200, { apiKey: newKey, message: "API key rotated. Old key is now invalid." });
+    return;
+  }
+
+  json(res, 404, { error: "Not Found" });
+}
+
 // ── Server ────────────────────────────────────────────────────────────────────
 
 initDb();
@@ -204,6 +319,15 @@ const server = http.createServer(async (req: IncomingMessage, res: ServerRespons
   if (pathname === "/healthz") {
     json(res, 200, { status: "ok", service: "openclaw-multi-tenant" });
     return;
+  }
+
+  // Portal UI — user self-service page at /  and /portal
+  if (pathname === "/" || pathname === "/portal" || pathname === "/portal/") {
+    if (req.method === "GET") {
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(PORTAL_HTML);
+      return;
+    }
   }
 
   // Admin UI — serve HTML for browser GET requests to /admin
@@ -218,6 +342,23 @@ const server = http.createServer(async (req: IncomingMessage, res: ServerRespons
   // Admin API
   if (pathname.startsWith("/admin/")) {
     await handleAdmin(req, res, pathname);
+    return;
+  }
+
+  // Auth routes (public) — register
+  if (pathname.startsWith("/auth/")) {
+    await handleAuth(req, res, pathname);
+    return;
+  }
+
+  // User self-service routes — require tenant API key
+  if (pathname.startsWith("/me")) {
+    const apiKey = extractApiKey(req);
+    if (!apiKey) {
+      json(res, 401, { error: "Unauthorized", message: "Provide your API key via Authorization: Bearer <key>" });
+      return;
+    }
+    await handleMe(req, res, pathname, apiKey);
     return;
   }
 
@@ -281,9 +422,10 @@ process.on("SIGINT", shutdown);
 
 server.listen(config.port, () => {
   console.log(`\nOpenClaw Multi-Tenant Proxy`);
-  console.log(`  Listening  : http://0.0.0.0:${config.port}`);
+  console.log(`  Portal     : http://0.0.0.0:${config.port}/`);
+  console.log(`  Admin UI   : http://0.0.0.0:${config.port}/admin`);
   console.log(`  Mode       : ${config.mode}`);
-  console.log(`  Admin API  : POST /admin/tenants  (X-Admin-Key required)`);
+  console.log(`  Register   : ${config.allowSelfRegister ? "enabled (POST /auth/register)" : "disabled (MT_ALLOW_SELF_REGISTER=false)"}`);
   if (!config.adminKey) {
     console.warn(`\n  [WARN] MT_ADMIN_KEY is not set — admin endpoints are disabled!\n`);
   }

@@ -46,4 +46,13 @@ export const config = {
 
   /** Milliseconds of inactivity before an idle instance is stopped (default 30 min) */
   idleTimeoutMs: parseInt(process.env.MT_IDLE_TIMEOUT_MS ?? "1800000"),
+
+  /**
+   * Allow users to self-register via POST /auth/register (default: true).
+   * Set MT_ALLOW_SELF_REGISTER=false to disable public registration.
+   */
+  allowSelfRegister: process.env.MT_ALLOW_SELF_REGISTER !== "false",
+
+  /** App name shown in the portal UI */
+  appName: process.env.MT_APP_NAME ?? "OpenClaw",
 } as const;

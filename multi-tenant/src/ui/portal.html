@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OpenClaw — Tài khoản</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3250;
+    --accent: #6c8efb;
+    --accent-dim: #3b4fa8;
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --radius: 10px;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; min-height: 100vh; }
+
+  /* ── Auth screens ── */
+  .auth-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+  .auth-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 40px 48px; width: 400px; max-width: 100%;
+  }
+  .auth-logo { text-align: center; margin-bottom: 28px; }
+  .auth-logo h1 { font-size: 24px; font-weight: 700; }
+  .auth-logo h1 span { color: var(--accent); }
+  .auth-logo p { color: var(--muted); font-size: 13px; margin-top: 6px; }
+
+  .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+  .tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 500; border-bottom: 2px solid transparent; transition: all .15s; }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  input[type=text], input[type=email], input[type=password] {
+    width: 100%; padding: 10px 14px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 13px; margin-bottom: 14px;
+    outline: none; transition: border-color .15s;
+  }
+  input:focus { border-color: var(--accent); }
+  input.mono { font-family: monospace; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px 18px; border-radius: 8px; border: none; cursor: pointer;
+    font-size: 13px; font-weight: 500; transition: opacity .15s; white-space: nowrap; width: 100%;
+  }
+  .btn:hover { opacity: .85; }
+  .btn-primary  { background: var(--accent); color: #fff; }
+  .btn-ghost    { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-danger   { background: #7f1d1d; color: var(--red); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; width: auto; }
+
+  .err  { color: var(--red); font-size: 12px; margin-top: -8px; margin-bottom: 10px; min-height: 18px; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 12px; text-align: center; }
+  .hint a { color: var(--accent); text-decoration: none; cursor: pointer; }
+
+  /* ── Success box (show api key after register) ── */
+  .success-box {
+    background: #0d2012; border: 1px solid #166534; border-radius: 10px;
+    padding: 20px; margin-bottom: 16px;
+  }
+  .success-box .label { font-size: 11px; color: var(--green); margin-bottom: 8px; font-weight: 600; }
+  .key-display {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px;
+  }
+  .key-display code { flex: 1; font-family: monospace; font-size: 12px; color: #a5b8ff; word-break: break-all; }
+  .copy-btn { cursor: pointer; color: var(--muted); font-size: 18px; flex-shrink: 0; }
+  .copy-btn:hover { color: var(--text); }
+
+  /* ── Dashboard ── */
+  #dashboard { display: none; }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px; height: 56px; border-bottom: 1px solid var(--border);
+    background: var(--surface); position: sticky; top: 0; z-index: 10;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .logo { font-weight: 700; font-size: 16px; }
+  .logo span { color: var(--accent); }
+  .badge { font-size: 11px; background: var(--accent-dim); color: #a5b8ff; padding: 2px 8px; border-radius: 20px; }
+  .user-info { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 12px; }
+  .user-info strong { color: var(--text); }
+
+  .content { max-width: 800px; margin: 0 auto; padding: 32px 24px; }
+  h2 { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+  .section-desc { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 22px 24px; margin-bottom: 16px;
+  }
+  .card-title { font-size: 13px; font-weight: 600; margin-bottom: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+
+  .info-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .info-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .info-row .info-label { color: var(--muted); font-size: 13px; }
+  .info-row .info-value { font-size: 13px; display: flex; align-items: center; gap: 8px; }
+
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+  .pill-green  { background: #14532d; color: var(--green); }
+  .pill-yellow { background: #451a03; color: var(--yellow); }
+  .pill-gray   { background: var(--surface2); color: var(--muted); }
+
+  /* credentials table */
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 8px 12px; color: var(--muted); font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid var(--border); }
+  td { padding: 11px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  tr:last-child td { border-bottom: none; }
+
+  .key-chip { font-family: monospace; font-size: 12px; background: var(--bg); border: 1px solid var(--border); padding: 2px 8px; border-radius: 6px; color: #a5b8ff; }
+
+  .form-inline { display: flex; gap: 10px; margin-top: 14px; align-items: flex-end; }
+  .form-inline .fi-field { flex: 1; }
+  .form-inline label { font-size: 12px; color: var(--muted); margin-bottom: 5px; display: block; }
+  .form-inline input { margin-bottom: 0; }
+  .form-inline .btn { width: auto; }
+
+  .empty { text-align: center; color: var(--muted); padding: 24px; font-size: 13px; }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px; background: var(--surface2);
+    border: 1px solid var(--border); color: var(--text); padding: 12px 18px;
+    border-radius: 10px; font-size: 13px; z-index: 200; opacity: 0;
+    transition: opacity .25s; pointer-events: none; max-width: 320px;
+  }
+  #toast.show { opacity: 1; }
+  #toast.success { border-color: var(--green); color: var(--green); }
+  #toast.error   { border-color: var(--red); color: var(--red); }
+
+  /* ── Divider ── */
+  .divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: var(--muted); font-size: 12px; }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════ AUTH ══ -->
+<div id="auth-screen" class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <h1>Open<span>Claw</span></h1>
+      <p>AI Gateway — Tài khoản của bạn</p>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('login')">Đăng nhập</div>
+      <div class="tab" id="register-tab" onclick="switchTab('register')">Đăng ký</div>
+    </div>
+
+    <!-- Login -->
+    <div id="tab-login" class="tab-content active">
+      <label>API Key</label>
+      <input type="password" id="login-key" class="mono" placeholder="mt_..." autocomplete="off" />
+      <div class="err" id="login-err"></div>
+      <button class="btn btn-primary" onclick="doLogin()">Đăng nhập</button>
+      <p class="hint">Chưa có tài khoản? <a onclick="switchTab('register')">Đăng ký ngay</a></p>
+    </div>
+
+    <!-- Register -->
+    <div id="tab-register" class="tab-content">
+      <div id="register-form">
+        <label>Họ tên</label>
+        <input type="text" id="reg-name" placeholder="Nguyễn Văn A" />
+        <label>Email</label>
+        <input type="email" id="reg-email" placeholder="email@example.com" />
+        <div class="err" id="register-err"></div>
+        <button class="btn btn-primary" onclick="doRegister()">Tạo tài khoản</button>
+        <p class="hint">Đã có tài khoản? <a onclick="switchTab('login')">Đăng nhập</a></p>
+      </div>
+
+      <!-- Hiển thị API key sau khi đăng ký thành công -->
+      <div id="register-success" style="display:none">
+        <div class="success-box">
+          <div class="label">✅ Tài khoản đã được tạo!</div>
+          <p style="font-size:13px;color:var(--text);margin-bottom:12px">
+            Sao chép API Key ngay — sẽ không hiển thị lại.
+          </p>
+          <div class="key-display">
+            <code id="new-api-key"></code>
+            <span class="copy-btn" onclick="copyKey('new-api-key')" title="Sao chép">📋</span>
+          </div>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:16px">
+          Dùng key này để:<br>
+          • Đăng nhập vào trang này<br>
+          • Xác thực API request: <code style="color:var(--accent)">Authorization: Bearer &lt;key&gt;</code>
+        </p>
+        <button class="btn btn-primary" onclick="loginWithNewKey()">Vào Dashboard →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ DASHBOARD ══ -->
+<div id="dashboard">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">Open<span>Claw</span></div>
+      <div class="badge" id="top-badge">Tài khoản</div>
+    </div>
+    <div class="user-info">
+      <span>Xin chào, <strong id="top-name"></strong></span>
+      <button class="btn btn-ghost btn-sm" onclick="logout()">Đăng xuất</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Thông tin tài khoản -->
+    <h2>Tài khoản của tôi</h2>
+    <p class="section-desc">Thông tin tài khoản và trạng thái OpenClaw instance của bạn.</p>
+
+    <div class="card">
+      <div class="card-title">Thông tin</div>
+      <div class="info-row">
+        <span class="info-label">Họ tên</span>
+        <span class="info-value" id="info-name">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Email</span>
+        <span class="info-value" id="info-email">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Tenant ID</span>
+        <span class="info-value">
+          <code class="key-chip" id="info-id">—</code>
+        </span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Trạng thái tài khoản</span>
+        <span class="info-value"><span class="pill pill-green">Hoạt động</span></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Instance</span>
+        <span class="info-value" id="info-instance"><span class="pill pill-gray">Chưa khởi động</span></span>
+      </div>
+    </div>
+
+    <!-- API Key -->
+    <div class="card">
+      <div class="card-title">API Key</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px">
+        Dùng key này để xác thực mọi request đến OpenClaw.<br>
+        <code style="color:var(--accent)">Authorization: Bearer &lt;API Key&gt;</code>
+      </p>
+      <div class="key-display" style="margin-bottom:14px">
+        <code id="my-api-key" style="filter:blur(5px);cursor:pointer" onclick="revealKey()" title="Click để hiện">••••••••••••••••••••••••••••</code>
+        <span class="copy-btn" onclick="copyMyKey()" title="Sao chép">📋</span>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:14px" id="key-hint">Click vào key để hiển thị</p>
+      <button class="btn btn-ghost btn-sm" onclick="doRotateKey()" style="width:auto">🔄 Đổi API Key mới</button>
+    </div>
+
+    <!-- API Keys provider -->
+    <div class="card">
+      <div class="card-title">Provider API Keys</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Cấu hình API keys cho các dịch vụ AI. Mỗi key chỉ được inject vào instance của bạn.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Biến môi trường</th>
+            <th style="width:100px">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody id="cred-tbody">
+          <tr><td colspan="2" class="empty">Chưa có key nào</td></tr>
+        </tbody>
+      </table>
+
+      <div class="form-inline">
+        <div class="fi-field">
+          <label>Tên biến (VD: OPENAI_API_KEY)</label>
+          <input type="text" id="new-cred-key" placeholder="OPENAI_API_KEY" class="mono" autocomplete="off" />
+        </div>
+        <div class="fi-field">
+          <label>Giá trị</label>
+          <input type="password" id="new-cred-val" placeholder="sk-..." class="mono" autocomplete="off" />
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveCredential()">Lưu</button>
+      </div>
+    </div>
+
+    <!-- Hướng dẫn sử dụng -->
+    <div class="card">
+      <div class="card-title">Hướng dẫn kết nối</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px">
+        Dùng API Key của bạn để gọi OpenClaw qua HTTP hoặc WebSocket.
+      </p>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:monospace;font-size:12px;color:#a5b8ff;line-height:1.8">
+        <span style="color:var(--muted)"># Chat với AI</span><br>
+        curl <span id="guide-url">http://localhost:3000</span>/v1/chat/completions \<br>
+        &nbsp;&nbsp;-H "Authorization: Bearer <span id="guide-key" style="color:var(--yellow)">YOUR_API_KEY</span>" \<br>
+        &nbsp;&nbsp;-H "Content-Type: application/json" \<br>
+        &nbsp;&nbsp;-d '{"model":"claude-3-5-sonnet","messages":[{"role":"user","content":"Xin chào!"}]}'
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Toast ── -->
+<div id="toast"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let currentKey = sessionStorage.getItem('api_key') || '';
+let profile = null;
+let newKeyAfterRegister = '';
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = '', 3000);
+}
+
+// ── Auth tabs ─────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab, .tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelector(`.tab:nth-child(${tab === 'login' ? 1 : 2})`).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+// ── API ───────────────────────────────────────────────────────────────────────
+async function api(method, path, body, key) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (key) headers['Authorization'] = 'Bearer ' + key;
+  const res = await fetch(path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || data.error || 'Lỗi không xác định');
+  return data;
+}
+
+// ── Register ──────────────────────────────────────────────────────────────────
+async function doRegister() {
+  const name  = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  document.getElementById('register-err').textContent = '';
+  if (!name || !email) { document.getElementById('register-err').textContent = 'Vui lòng nhập đầy đủ thông tin'; return; }
+
+  try {
+    const result = await api('POST', '/auth/register', { name, email });
+    newKeyAfterRegister = result.apiKey;
+    document.getElementById('new-api-key').textContent = result.apiKey;
+    document.getElementById('register-form').style.display = 'none';
+    document.getElementById('register-success').style.display = 'block';
+  } catch (e) {
+    document.getElementById('register-err').textContent = e.message;
+  }
+}
+
+function loginWithNewKey() {
+  currentKey = newKeyAfterRegister;
+  sessionStorage.setItem('api_key', currentKey);
+  showDashboard();
+}
+
+// ── Login ─────────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const key = document.getElementById('login-key').value.trim();
+  document.getElementById('login-err').textContent = '';
+  if (!key) return;
+  try {
+    await api('GET', '/me', null, key);
+    currentKey = key;
+    sessionStorage.setItem('api_key', key);
+    showDashboard();
+  } catch {
+    document.getElementById('login-err').textContent = 'API key không hợp lệ';
+  }
+}
+
+document.getElementById('login-key').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+async function showDashboard() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  await loadProfile();
+  loadCredentials();
+}
+
+async function loadProfile() {
+  profile = await api('GET', '/me', null, currentKey);
+  document.getElementById('top-name').textContent  = profile.name;
+  document.getElementById('info-name').textContent  = profile.name;
+  document.getElementById('info-email').textContent = profile.email;
+  document.getElementById('info-id').textContent    = profile.id;
+  document.getElementById('my-api-key').dataset.key = currentKey;
+  document.getElementById('guide-key').textContent  = currentKey;
+  document.getElementById('guide-url').textContent  = location.origin;
+
+  // Instance status
+  const inst = document.getElementById('info-instance');
+  if (profile.port) {
+    inst.innerHTML = `<span class="pill pill-yellow">Running</span> <span style="color:var(--muted);font-size:12px">port ${profile.port}</span>`;
+  } else {
+    inst.innerHTML = `<span class="pill pill-gray">Idle</span> <span style="color:var(--muted);font-size:12px">(khởi động khi có request)</span>`;
+  }
+}
+
+async function loadCredentials() {
+  const result = await api('GET', '/me/credentials', null, currentKey);
+  const tbody = document.getElementById('cred-tbody');
+  if (!result.keys || !result.keys.length) {
+    tbody.innerHTML = '<tr><td colspan="2" class="empty">Chưa có key nào. Thêm bên dưới.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = result.keys.map(k => `
+    <tr>
+      <td><span class="key-chip">${k}</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteCredential('${k}')">Xoá</button></td>
+    </tr>
+  `).join('');
+}
+
+async function saveCredential() {
+  const key = document.getElementById('new-cred-key').value.trim().toUpperCase();
+  const val = document.getElementById('new-cred-val').value.trim();
+  if (!key || !val) { toast('Vui lòng nhập đầy đủ', 'error'); return; }
+  try {
+    await api('PUT', `/me/credentials/${key}`, { value: val }, currentKey);
+    document.getElementById('new-cred-key').value = '';
+    document.getElementById('new-cred-val').value = '';
+    toast(`Đã lưu ${key}`);
+    loadCredentials();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteCredential(key) {
+  if (!confirm(`Xoá "${key}"?`)) return;
+  try {
+    await api('DELETE', `/me/credentials/${key}`, null, currentKey);
+    toast(`Đã xoá ${key}`);
+    loadCredentials();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function doRotateKey() {
+  if (!confirm('Đổi API key mới? Key hiện tại sẽ ngừng hoạt động ngay.')) return;
+  try {
+    const result = await api('POST', '/me/rotate-key', null, currentKey);
+    currentKey = result.apiKey;
+    sessionStorage.setItem('api_key', currentKey);
+    const el = document.getElementById('my-api-key');
+    el.dataset.key = currentKey;
+    el.textContent = currentKey;
+    el.style.filter = 'none';
+    document.getElementById('guide-key').textContent = currentKey;
+    document.getElementById('key-hint').textContent = '';
+    toast('Đã đổi API key thành công — lưu key mới ngay!');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── Key reveal / copy ─────────────────────────────────────────────────────────
+let revealed = false;
+function revealKey() {
+  const el = document.getElementById('my-api-key');
+  if (!revealed) {
+    el.textContent = el.dataset.key;
+    el.style.filter = 'none';
+    document.getElementById('key-hint').textContent = '';
+    revealed = true;
+  }
+}
+function copyMyKey() {
+  const key = document.getElementById('my-api-key').dataset.key;
+  navigator.clipboard.writeText(key).then(() => toast('Đã sao chép API key!'));
+}
+function copyKey(id) {
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(() => toast('Đã sao chép!'));
+}
+
+// ── Logout ────────────────────────────────────────────────────────────────────
+function logout() {
+  sessionStorage.removeItem('api_key');
+  location.reload();
+}
+
+// ── Auto-login ────────────────────────────────────────────────────────────────
+if (currentKey) {
+  api('GET', '/me', null, currentKey)
+    .then(() => showDashboard())
+    .catch(() => { sessionStorage.removeItem('api_key'); currentKey = ''; });
+}
+</script>
+</body>
+</html>
