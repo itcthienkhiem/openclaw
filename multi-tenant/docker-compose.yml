@@ -1,0 +1,58 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# OpenClaw Multi-Tenant — Docker Compose
+#
+# Runs the multi-tenant proxy alongside the openclaw image.
+# Tenant instances are spawned as child processes inside the proxy container
+# (MT_MODE=process), sharing the openclaw binary via a volume mount.
+#
+# To use docker-per-tenant mode instead, set MT_MODE=docker and uncomment
+# the Docker socket volume. Each tenant then gets its own container.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Multi-Tenant Proxy ─────────────────────────────────────────────────────
+  openclaw-mt-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${MT_PORT:-3000}:3000"
+    environment:
+      MT_PORT: "3000"
+      MT_ADMIN_KEY: "${MT_ADMIN_KEY}"
+      MT_DB_PATH: "/data/tenants.db"
+      MT_TENANTS_DIR: "/data/tenants"
+      MT_MODE: "${MT_MODE:-process}"
+      MT_IDLE_TIMEOUT_MS: "${MT_IDLE_TIMEOUT_MS:-1800000}"
+      # process mode: point at the openclaw binary mounted below
+      OPENCLAW_NODE_BIN: "node"
+      OPENCLAW_MAIN: "/openclaw/dist/index.js"
+      # docker mode: image name (requires Docker socket)
+      OPENCLAW_IMAGE: "${OPENCLAW_IMAGE:-openclaw:local}"
+    volumes:
+      # Persistent tenant database + state directories
+      - mt-data:/data
+      # openclaw binary (read-only) — update by pointing to a new build
+      - openclaw-dist:/openclaw/dist:ro
+      # Uncomment for docker-per-tenant mode (MT_MODE=docker):
+      # - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "node", "-e",
+        "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    init: true
+
+volumes:
+  # Tenant database and per-tenant state dirs
+  mt-data:
+    driver: local
+  # Mount your openclaw dist/ output here (bind or named volume)
+  # Example bind: docker volume create --driver local --opt type=none
+  #   --opt device=/path/to/openclaw/dist --opt o=bind openclaw-dist
+  openclaw-dist:
+    external: true

@@ -1,0 +1,23 @@
+{
+  "name": "openclaw-multi-tenant",
+  "version": "1.0.0",
+  "description": "Multi-tenant proxy layer for OpenClaw — wraps upstream OpenClaw without modifying its source",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc --outDir dist",
+    "start": "node dist/index.js",
+    "tenant": "tsx scripts/cli.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.6.0",
+    "http-proxy": "^1.18.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/http-proxy": "^1.17.15",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
