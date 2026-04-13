@@ -23,6 +23,9 @@
  */
 
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { config } from "./config.js";
 import {
   initDb,
@@ -37,6 +40,9 @@ import {
 } from "./db.js";
 import { ensureInstance, stopInstance, runningInstances } from "./manager.js";
 import { proxyHttp, proxyWebSocket } from "./proxy.js";
+
+const __dirname = fileURLToPath(new URL(".", import.meta.url));
+const ADMIN_HTML = readFileSync(join(__dirname, "ui/admin.html"));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -198,6 +204,15 @@ const server = http.createServer(async (req: IncomingMessage, res: ServerRespons
   if (pathname === "/healthz") {
     json(res, 200, { status: "ok", service: "openclaw-multi-tenant" });
     return;
+  }
+
+  // Admin UI — serve HTML for browser GET requests to /admin
+  if (pathname === "/admin" || pathname === "/admin/") {
+    if (req.method === "GET" && !req.headers["x-admin-key"]) {
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(ADMIN_HTML);
+      return;
+    }
   }
 
   // Admin API

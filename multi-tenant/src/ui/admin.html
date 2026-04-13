@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OpenClaw — Admin</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3250;
+    --accent: #6c8efb;
+    --accent-dim: #3b4fa8;
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --radius: 10px;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; min-height: 100vh; }
+
+  /* ── Login ── */
+  #login-screen {
+    display: flex; align-items: center; justify-content: center; min-height: 100vh;
+  }
+  .login-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 40px 48px; width: 360px; text-align: center;
+  }
+  .login-card h1 { font-size: 22px; margin-bottom: 6px; }
+  .login-card p  { color: var(--muted); margin-bottom: 28px; font-size: 13px; }
+  .login-card input {
+    width: 100%; padding: 10px 14px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 14px; margin-bottom: 12px;
+    outline: none; font-family: monospace;
+  }
+  .login-card input:focus { border-color: var(--accent); }
+
+  /* ── Layout ── */
+  #app { display: none; }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px; height: 56px; border-bottom: 1px solid var(--border);
+    background: var(--surface); position: sticky; top: 0; z-index: 10;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .logo { font-weight: 700; font-size: 16px; letter-spacing: -0.3px; }
+  .logo span { color: var(--accent); }
+  .badge { font-size: 11px; background: var(--accent-dim); color: #a5b8ff; padding: 2px 8px; border-radius: 20px; }
+
+  .layout { display: flex; }
+  .sidebar {
+    width: 220px; min-height: calc(100vh - 56px); border-right: 1px solid var(--border);
+    padding: 20px 12px; background: var(--surface); position: sticky; top: 56px; align-self: flex-start;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px;
+    cursor: pointer; color: var(--muted); transition: all .15s; font-size: 13px; user-select: none;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--accent-dim); color: #c4d0ff; }
+  .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+  .nav-divider { height: 1px; background: var(--border); margin: 10px 4px; }
+
+  .main { flex: 1; padding: 28px 32px; max-width: 1100px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── Common ── */
+  h2 { font-size: 18px; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+  .subheading { color: var(--muted); font-size: 13px; margin-bottom: 20px; margin-top: -14px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
+    border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 500;
+    transition: opacity .15s; white-space: nowrap;
+  }
+  .btn:hover { opacity: .85; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-danger  { background: #7f1d1d; color: var(--red); }
+  .btn-ghost   { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px 24px; margin-bottom: 16px;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 10px 14px; color: var(--muted); font-size: 12px; font-weight: 500;
+       text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid var(--border); }
+  td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,.02); }
+
+  .pill {
+    display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;
+  }
+  .pill-green  { background: #14532d; color: var(--green); }
+  .pill-red    { background: #450a0a; color: var(--red); }
+  .pill-yellow { background: #451a03; color: var(--yellow); }
+  .pill-blue   { background: var(--accent-dim); color: #a5b8ff; }
+
+  /* ── Forms ── */
+  .form-row { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-end; }
+  .form-field { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .form-field label { font-size: 12px; color: var(--muted); }
+  .form-field input, .form-field select {
+    padding: 9px 12px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 13px; outline: none; width: 100%;
+  }
+  .form-field input:focus, .form-field select:focus { border-color: var(--accent); }
+  .form-field input.mono { font-family: monospace; }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.65);
+    z-index: 100; align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 28px 32px; width: 460px; max-width: 95vw;
+  }
+  .modal h3 { font-size: 16px; margin-bottom: 20px; }
+  .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px; background: var(--surface2);
+    border: 1px solid var(--border); color: var(--text); padding: 12px 18px;
+    border-radius: 10px; font-size: 13px; z-index: 200; opacity: 0;
+    transition: opacity .25s; pointer-events: none; max-width: 340px;
+  }
+  #toast.show { opacity: 1; }
+  #toast.success { border-color: var(--green); color: var(--green); }
+  #toast.error   { border-color: var(--red); color: var(--red); }
+
+  .empty { color: var(--muted); text-align: center; padding: 40px 20px; font-size: 13px; }
+  .key-chip {
+    font-family: monospace; font-size: 12px; background: var(--bg);
+    border: 1px solid var(--border); padding: 2px 8px; border-radius: 6px; color: #a5b8ff;
+  }
+
+  /* ── Dashboard stats ── */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+  .stat-card .label { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .stat-card .value { font-size: 28px; font-weight: 700; }
+  .stat-card .value.green { color: var(--green); }
+  .stat-card .value.blue  { color: var(--accent); }
+  .stat-card .value.yellow { color: var(--yellow); }
+
+  .actions { display: flex; gap: 6px; }
+
+  .copy-btn { cursor: pointer; opacity: .5; font-size: 12px; padding: 2px 6px; }
+  .copy-btn:hover { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>🐾 OpenClaw</h1>
+    <p>Multi-Tenant Admin Panel</p>
+    <input type="password" id="admin-key-input" placeholder="Nhập Admin Key..." autocomplete="off" />
+    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">Đăng nhập</button>
+    <div id="login-error" style="color:var(--red);font-size:12px;margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- ── APP ── -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">Open<span>Claw</span></div>
+      <div class="badge">Multi-Tenant</div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="logout()">Đăng xuất</button>
+  </div>
+
+  <div class="layout">
+    <div class="sidebar">
+      <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard', this)">
+        <span class="nav-icon">📊</span> Dashboard
+      </div>
+      <div class="nav-item" data-page="tenants" onclick="navigate('tenants', this)">
+        <span class="nav-icon">👥</span> Tenants
+      </div>
+      <div class="nav-item" data-page="instances" onclick="navigate('instances', this)">
+        <span class="nav-icon">⚡</span> Instances
+      </div>
+      <div class="nav-divider"></div>
+      <div class="nav-item" data-page="credentials" onclick="navigate('credentials', this)">
+        <span class="nav-icon">🔑</span> API Keys
+      </div>
+    </div>
+
+    <div class="main">
+
+      <!-- DASHBOARD -->
+      <div id="page-dashboard" class="page active">
+        <h2>📊 Dashboard</h2>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="label">Tổng Tenants</div>
+            <div class="value blue" id="stat-total">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Đang hoạt động</div>
+            <div class="value green" id="stat-active">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Instances chạy</div>
+            <div class="value yellow" id="stat-running">—</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <table id="dash-tenant-table">
+            <thead>
+              <tr>
+                <th>Tenant</th>
+                <th>Email</th>
+                <th>Trạng thái</th>
+                <th>Instance</th>
+                <th>Port</th>
+                <th>Ngày tạo</th>
+              </tr>
+            </thead>
+            <tbody id="dash-tenant-body">
+              <tr><td colspan="6" class="empty">Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TENANTS -->
+      <div id="page-tenants" class="page">
+        <h2>👥 Quản lý Tenants
+          <button class="btn btn-primary btn-sm" onclick="openCreateModal()">+ Tạo tenant</button>
+        </h2>
+        <p class="subheading">Mỗi tenant có workspace và API keys hoàn toàn riêng biệt.</p>
+
+        <div class="card" style="padding:0">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Tên</th>
+                <th>Email</th>
+                <th>Trạng thái</th>
+                <th>Ngày tạo</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="tenant-list-body">
+              <tr><td colspan="6" class="empty">Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- INSTANCES -->
+      <div id="page-instances" class="page">
+        <h2>⚡ Running Instances
+          <button class="btn btn-ghost btn-sm" onclick="loadInstances()">↻ Refresh</button>
+        </h2>
+        <p class="subheading">Các openclaw process đang chạy. Instance tự dừng sau thời gian idle.</p>
+        <div id="instances-container">
+          <div class="empty">Đang tải...</div>
+        </div>
+      </div>
+
+      <!-- API KEYS -->
+      <div id="page-credentials" class="page">
+        <h2>🔑 Per-Tenant API Keys</h2>
+        <p class="subheading">Mỗi tenant có API keys riêng được inject vào openclaw instance của họ.</p>
+
+        <div class="card" style="margin-bottom:20px">
+          <div class="form-row" style="margin-bottom:0">
+            <div class="form-field" style="max-width:260px">
+              <label>Chọn Tenant</label>
+              <select id="cred-tenant-select" onchange="loadCredentials()">
+                <option value="">— Chọn tenant —</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="cred-section" style="display:none">
+          <div class="card" style="margin-bottom:16px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:14px">Thêm API Key mới</div>
+            <div class="form-row" style="margin-bottom:0">
+              <div class="form-field">
+                <label>Tên biến (VD: OPENAI_API_KEY)</label>
+                <input type="text" id="new-cred-key" placeholder="OPENAI_API_KEY" class="mono" autocomplete="off" />
+              </div>
+              <div class="form-field">
+                <label>Giá trị</label>
+                <input type="password" id="new-cred-value" placeholder="sk-..." class="mono" autocomplete="off" />
+              </div>
+              <button class="btn btn-primary" style="margin-bottom:1px" onclick="saveCredential()">Lưu</button>
+            </div>
+          </div>
+
+          <div class="card" style="padding:0">
+            <table>
+              <thead>
+                <tr>
+                  <th>Biến môi trường</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="cred-list-body">
+                <tr><td colspan="2" class="empty">Chưa có API key nào</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── CREATE TENANT MODAL ── -->
+<div class="modal-overlay" id="create-modal">
+  <div class="modal">
+    <h3>Tạo Tenant mới</h3>
+    <div class="form-field" style="margin-bottom:12px">
+      <label>Tên tenant</label>
+      <input type="text" id="new-tenant-name" placeholder="VD: Công ty ABC" />
+    </div>
+    <div class="form-field">
+      <label>Email</label>
+      <input type="email" id="new-tenant-email" placeholder="admin@congty.vn" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('create-modal')">Huỷ</button>
+      <button class="btn btn-primary" onclick="createTenant()">Tạo</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── API KEY RESULT MODAL ── -->
+<div class="modal-overlay" id="apikey-modal">
+  <div class="modal">
+    <h3>✅ Tenant đã được tạo</h3>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+      Sao chép API key ngay — sẽ không hiển thị lại sau khi đóng.
+    </p>
+    <div class="form-field" style="margin-bottom:8px">
+      <label>Tenant ID</label>
+      <input type="text" id="result-id" readonly class="mono" />
+    </div>
+    <div class="form-field">
+      <label>API Key (dùng để xác thực request)</label>
+      <input type="text" id="result-key" readonly class="mono" />
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:12px">
+      Dùng như: <code style="color:var(--accent)">Authorization: Bearer &lt;API Key&gt;</code>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="copyApiKey()">📋 Sao chép key</button>
+      <button class="btn btn-primary" onclick="closeModal('apikey-modal')">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOAST ── -->
+<div id="toast"></div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let ADMIN_KEY = sessionStorage.getItem('admin_key') || '';
+let tenantCache = [];
+
+// ── API ──────────────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const res = await fetch(path, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Admin-Key': ADMIN_KEY,
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || data.error || 'Request failed');
+  return data;
+}
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const key = document.getElementById('admin-key-input').value.trim();
+  if (!key) return;
+  ADMIN_KEY = key;
+  try {
+    await api('GET', '/admin/tenants');
+    sessionStorage.setItem('admin_key', key);
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadAll();
+  } catch {
+    document.getElementById('login-error').textContent = 'Admin key không hợp lệ.';
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('admin_key');
+  location.reload();
+}
+
+document.getElementById('admin-key-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function navigate(page, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  el.classList.add('active');
+  if (page === 'dashboard')   loadDashboard();
+  if (page === 'tenants')     loadTenants();
+  if (page === 'instances')   loadInstances();
+  if (page === 'credentials') loadCredentialPage();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = '', 3000);
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// Click outside to close
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmtDate(ts) {
+  return new Date(ts).toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' });
+}
+
+function shortId(id) {
+  return `<span class="key-chip">${id.slice(0,8)}…</span>`;
+}
+
+// ── Load all ──────────────────────────────────────────────────────────────────
+function loadAll() {
+  loadDashboard();
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  const [tenants, instances] = await Promise.all([
+    api('GET', '/admin/tenants'),
+    api('GET', '/admin/instances'),
+  ]);
+  tenantCache = tenants;
+
+  const active = tenants.filter(t => t.active);
+  document.getElementById('stat-total').textContent   = tenants.length;
+  document.getElementById('stat-active').textContent  = active.length;
+  document.getElementById('stat-running').textContent = instances.length;
+
+  const runMap = {};
+  for (const i of instances) runMap[i.tenantId] = i;
+
+  const tbody = document.getElementById('dash-tenant-body');
+  if (!tenants.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Chưa có tenant nào</td></tr>';
+    return;
+  }
+  tbody.innerHTML = tenants.map(t => {
+    const inst = runMap[t.id];
+    return `<tr>
+      <td>${shortId(t.id)} <span style="color:var(--muted)">${t.name}</span></td>
+      <td style="color:var(--muted)">${t.email}</td>
+      <td>${t.active ? '<span class="pill pill-green">Hoạt động</span>' : '<span class="pill pill-red">Đã tắt</span>'}</td>
+      <td>${inst ? '<span class="pill pill-yellow">Running</span>' : '<span class="pill" style="background:var(--surface2);color:var(--muted)">Idle</span>'}</td>
+      <td>${inst ? inst.port : '—'}</td>
+      <td style="color:var(--muted)">${fmtDate(t.created_at)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Tenants ───────────────────────────────────────────────────────────────────
+async function loadTenants() {
+  const tenants = await api('GET', '/admin/tenants');
+  tenantCache = tenants;
+  renderTenantList(tenants);
+  populateCredentialSelect(tenants);
+}
+
+function renderTenantList(tenants) {
+  const tbody = document.getElementById('tenant-list-body');
+  if (!tenants.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Chưa có tenant nào. Nhấn "+ Tạo tenant" để bắt đầu.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = tenants.map(t => `
+    <tr>
+      <td>${shortId(t.id)}</td>
+      <td style="font-weight:500">${t.name}</td>
+      <td style="color:var(--muted)">${t.email}</td>
+      <td>${t.active ? '<span class="pill pill-green">Hoạt động</span>' : '<span class="pill pill-red">Đã tắt</span>'}</td>
+      <td style="color:var(--muted)">${fmtDate(t.created_at)}</td>
+      <td>
+        <div class="actions">
+          <button class="btn btn-ghost btn-sm" onclick="rotateKey('${t.id}')">🔄 Đổi key</button>
+          ${t.active
+            ? `<button class="btn btn-danger btn-sm" onclick="disableTenant('${t.id}', '${t.name}')">Tắt</button>`
+            : `<span style="color:var(--muted);font-size:12px">Đã vô hiệu</span>`
+          }
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openCreateModal() {
+  document.getElementById('new-tenant-name').value = '';
+  document.getElementById('new-tenant-email').value = '';
+  openModal('create-modal');
+}
+
+async function createTenant() {
+  const name  = document.getElementById('new-tenant-name').value.trim();
+  const email = document.getElementById('new-tenant-email').value.trim();
+  if (!name || !email) { toast('Vui lòng nhập đầy đủ tên và email', 'error'); return; }
+  try {
+    const result = await api('POST', '/admin/tenants', { name, email });
+    closeModal('create-modal');
+    document.getElementById('result-id').value  = result.id;
+    document.getElementById('result-key').value = result.apiKey;
+    openModal('apikey-modal');
+    loadTenants();
+    toast('Tạo tenant thành công!');
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function disableTenant(id, name) {
+  if (!confirm(`Vô hiệu hóa tenant "${name}"?\nInstance của họ sẽ bị dừng lại.`)) return;
+  try {
+    await api('DELETE', `/admin/tenants/${id}`);
+    toast(`Đã tắt tenant ${name}`);
+    loadTenants();
+    loadDashboard();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function rotateKey(id) {
+  if (!confirm('Đổi API key? Key cũ sẽ ngừng hoạt động ngay lập tức.')) return;
+  try {
+    const result = await api('POST', `/admin/tenants/${id}/rotate-key`);
+    document.getElementById('result-id').value  = result.id;
+    document.getElementById('result-key').value = result.apiKey;
+    openModal('apikey-modal');
+    toast('Đã đổi API key thành công');
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+function copyApiKey() {
+  const key = document.getElementById('result-key').value;
+  navigator.clipboard.writeText(key).then(() => toast('Đã sao chép vào clipboard!'));
+}
+
+// ── Instances ─────────────────────────────────────────────────────────────────
+async function loadInstances() {
+  const instances = await api('GET', '/admin/instances');
+  const container = document.getElementById('instances-container');
+  if (!instances.length) {
+    container.innerHTML = '<div class="card empty">Không có instance nào đang chạy.<br><span style="font-size:12px">Instance sẽ tự khởi động khi tenant gửi request đầu tiên.</span></div>';
+    return;
+  }
+  container.innerHTML = `
+    <div class="card" style="padding:0">
+      <table>
+        <thead>
+          <tr>
+            <th>Tenant ID</th>
+            <th>Port</th>
+            <th>Idle (giây)</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${instances.map(i => `
+            <tr>
+              <td>${shortId(i.tenantId)}</td>
+              <td><span class="pill pill-blue">${i.port}</span></td>
+              <td>${i.idleSec}s</td>
+              <td>
+                <button class="btn btn-danger btn-sm" onclick="stopInstance('${i.tenantId}')">⏹ Dừng</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+async function stopInstance(tenantId) {
+  try {
+    await api('POST', `/admin/instances/${tenantId}/stop`);
+    toast('Đã dừng instance');
+    loadInstances();
+    loadDashboard();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+// ── Credentials ───────────────────────────────────────────────────────────────
+function populateCredentialSelect(tenants) {
+  const sel = document.getElementById('cred-tenant-select');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">— Chọn tenant —</option>';
+  tenants.filter(t => t.active).forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = `${t.name} (${t.email})`;
+    sel.appendChild(opt);
+  });
+  if (prev) sel.value = prev;
+}
+
+async function loadCredentialPage() {
+  if (!tenantCache.length) {
+    const tenants = await api('GET', '/admin/tenants');
+    tenantCache = tenants;
+    populateCredentialSelect(tenants);
+  }
+}
+
+async function loadCredentials() {
+  const tenantId = document.getElementById('cred-tenant-select').value;
+  const section = document.getElementById('cred-section');
+  if (!tenantId) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+
+  const result = await api('GET', `/admin/tenants/${tenantId}/credentials`);
+  const tbody = document.getElementById('cred-list-body');
+
+  if (!result.keys || !result.keys.length) {
+    tbody.innerHTML = '<tr><td colspan="2" class="empty">Chưa có API key nào. Thêm key bên trên.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = result.keys.map(k => `
+    <tr>
+      <td><span class="key-chip">${k}</span></td>
+      <td>
+        <button class="btn btn-danger btn-sm" onclick="deleteCredential('${tenantId}', '${k}')">Xoá</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function saveCredential() {
+  const tenantId = document.getElementById('cred-tenant-select').value;
+  const key      = document.getElementById('new-cred-key').value.trim().toUpperCase();
+  const value    = document.getElementById('new-cred-value').value.trim();
+  if (!key || !value) { toast('Vui lòng nhập tên biến và giá trị', 'error'); return; }
+  try {
+    await api('PUT', `/admin/tenants/${tenantId}/credentials/${key}`, { value });
+    document.getElementById('new-cred-key').value   = '';
+    document.getElementById('new-cred-value').value = '';
+    toast(`Đã lưu ${key}. Instance sẽ khởi động lại với key mới.`);
+    loadCredentials();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function deleteCredential(tenantId, key) {
+  if (!confirm(`Xoá credential "${key}"?`)) return;
+  try {
+    await api('DELETE', `/admin/tenants/${tenantId}/credentials/${key}`);
+    toast(`Đã xoá ${key}`);
+    loadCredentials();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+if (ADMIN_KEY) {
+  // Try auto-login with stored key
+  api('GET', '/admin/tenants').then(() => {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadAll();
+  }).catch(() => {
+    sessionStorage.removeItem('admin_key');
+    ADMIN_KEY = '';
+  });
+}
+</script>
+</body>
+</html>
